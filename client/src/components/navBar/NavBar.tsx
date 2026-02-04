@@ -18,7 +18,10 @@ export const NavBar = () => {
                     </h1>
                     <ul className="flex text-default-500 gap-3 space-x-3 items-center">
                         {!user ? (
-                            <li><HeroUILink><Link to="/register">Register</Link></HeroUILink></li>
+                            <>
+                                <li><HeroUILink><Link to="/register">Register</Link></HeroUILink></li>
+                                <li><HeroUILink><Link to="/register">Create Form</Link></HeroUILink></li>
+                            </>
                         ) : (
                             <li>
                                 <Dropdown>
