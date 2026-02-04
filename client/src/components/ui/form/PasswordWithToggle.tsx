@@ -2,39 +2,28 @@ import { Eye, EyeSlash } from "@gravity-ui/icons";
 import { Button, InputGroup, Label, TextField } from "@heroui/react";
 import { useState } from "react";
 import { FieldError } from "@heroui/react";
+import type { FormField } from "../../../interfaces";
 
-interface PasswordWithToggleProps {
-    name: string;
-    label: string;
-    placeholder?: string;
-    value: string;
-    error?: string | null;
-    validate?: (value: string) => string | null;
-    required?: boolean
-    minLength?: number;
-    maxLenght?: number;
+interface PasswordWithToggleProps extends FormField {
     className?: string;
+    handleInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    formState: Record<string, { value: string; error: string | null }>;
+    allValues?: Record<string, string | number>;
 }
 
-export function PasswordWithToggle({ name, label, placeholder, value, validate, required, minLength, maxLenght, className }: PasswordWithToggleProps) {
+export function PasswordWithToggle({ name, label, formState, placeholder, value, validate, required, minLength, maxLenght, className, handleInputChange }: PasswordWithToggleProps) {
     const [isVisible, setIsVisible] = useState(false);
-    const [passwordValue, setPasswordValue] = useState(value);
-    const [error, setError] = useState<string | null>(null);
-    const [isInvalid, setIsInvalid] = useState(false);
+    const allValues = Object.entries(formState).reduce((acc, [key, field]) => {
+        acc[key] = field.value;
+        return acc;
+    }, {} as Record<string, string | number>);
 
-    const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-
-        setPasswordValue(e.target.value);
-        setError(validate(e.target.value))
-        setIsInvalid(validate(e.target.value) !== null);
-        //Debo externalizar los los datos del config, ver gemini
-        console.log(isInvalid)
-    }
+    const error = (validate && formState[name].value !== '') ? validate(formState[name].value, allValues) : null;
+    const isInvalid = !!error;
 
 
     return (
         <TextField className={`w-full ${className}`}
-            name="password"
             isInvalid={isInvalid}
         >
             <Label>{label}</Label>
@@ -47,8 +36,8 @@ export function PasswordWithToggle({ name, label, placeholder, value, validate, 
                     maxLength={maxLenght}
                     className="w-full"
                     type={isVisible ? "text" : "password"}
-                    value={passwordValue}
-                    onChange={onChange}
+                    value={value}
+                    onChange={handleInputChange}
                 />
                 <InputGroup.Suffix className="pr-0">
                     <Button
