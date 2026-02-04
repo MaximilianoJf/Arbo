@@ -10,8 +10,9 @@ export const loginFields: FormField[] = [
         value: "",
         required: true,
         validate: (value, allValues?) => {
-            if (!value) return "El correo electrónico es requerido";
-            if (!value.includes("@")) return "El correo electrónico debe tener un @";
+            const val = String(value);
+            if (!val) return "El correo electrónico es requerido";
+            if (!val.includes("@")) return "El correo electrónico debe tener un @";
             return null;
         }
     },
@@ -24,9 +25,11 @@ export const loginFields: FormField[] = [
         value: "",
         required: true,
         minLength: 6,
+
         validate: (value, allValues?) => {
-            if (!value) return "La contraseña es requerida";
-            if (value.length < 6) return "La contraseña debe tener al menos 6 caracteres";
+            const val = String(value);
+            if (!val) return "La contraseña es requerida";
+            if (val.length < 6) return "La contraseña debe tener al menos 6 caracteres";
             return null;
         }
     }
@@ -42,8 +45,10 @@ export const registerFields: FormField[] = [
         value: "",
         required: true,
         validate: (value, allValues?) => {
-            if (!value) return "El correo electrónico es requerido";
-            if (!value.includes("@")) return "El correo electrónico debe tener un @";
+            const val = String(value);
+            if (!val) return "El correo electrónico es requerido";
+            if (val == '') return "El correo electrónico es requerido";
+            if (!val.includes("@")) return "El correo electrónico debe tener un @";
             return null;
         }
     },
@@ -56,9 +61,12 @@ export const registerFields: FormField[] = [
         value: "",
         required: true,
         minLength: 6,
+        dependencies: ["confirmPassword"],
         validate: (value, allValues?) => {
-            if (!value) return "La contraseña es requerida";
-            if (value.length < 6) return "La contraseña debe tener al menos 6 caracteres";
+            const val = String(value);
+            if (val == '') return "La contraseña es requerida";
+            if (!val) return "La contraseña es requerida";
+            if (val.length < 6) return "La contraseña debe tener al menos 6 caracteres";
             return null;
         }
     },
@@ -71,9 +79,11 @@ export const registerFields: FormField[] = [
         value: "",
         required: true,
         minLength: 6,
-        validate: (value: string, allValues?: Record<string, string | number>) => {
-            if (!value) return "Requerido";
-            if (value !== allValues?.["password"]) return "Las contraseñas no coinciden";
+        validate: (value, allValues) => {
+            const val = String(value);        
+            if (val == '') return "La contraseña es requerida";  
+            if (!val) return "La contraseña es requerida";
+            if (val !== allValues?.["password"]) return "Las contraseñas no coinciden";
             return null;
         }
     }

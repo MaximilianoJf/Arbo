@@ -1,6 +1,6 @@
 
 import { InputGroup, Label, TextField as TextFieldHero, FieldError } from "@heroui/react";
-import type { FormField, allValues } from "../../../interfaces";
+import type { FormField, AllValues } from "../../../interfaces";
 // import { Envelope } from "@gravity-ui/icons";
 
 interface DynamicTextFieldProps extends FormField {
@@ -8,17 +8,13 @@ interface DynamicTextFieldProps extends FormField {
     handleInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
     className?: string;
     formState: Record<string, { value: string; error: string | null }>;
-    allValues?: allValues;
+    allValues?: AllValues;
+
 }
 
-export const DynamicTextField = ({ name, label, placeholder, formState, validate, required, minLength, maxLenght, className, handleInputChange }: DynamicTextFieldProps) => {
+export const DynamicTextField = ({ name, label, placeholder, formState, required, minLength, maxLenght, className, handleInputChange }: DynamicTextFieldProps) => {
 
-    const allValues = Object.entries(formState).reduce((acc, [key, field]) => {
-        acc[key] = field.value;
-        return acc;
-    }, {} as Record<string, string | number>);
-
-    const error = (validate && formState[name].value !== '') ? validate(formState[name].value, allValues) : null;
+    const error = formState[name].error;
     const isInvalid = !!error;
 
     return (
@@ -30,7 +26,7 @@ export const DynamicTextField = ({ name, label, placeholder, formState, validate
                     <Envelope className="size-4 text-muted" />
                 </InputGroup.Prefix> */}
                 <InputGroup.Input
-                    value={formState![name].value}
+                    value={formState[name].value}
                     name={name}
                     onChange={handleInputChange}
                     required={required}

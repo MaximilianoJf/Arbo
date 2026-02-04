@@ -2,23 +2,19 @@ import { Eye, EyeSlash } from "@gravity-ui/icons";
 import { Button, InputGroup, Label, TextField } from "@heroui/react";
 import { useState } from "react";
 import { FieldError } from "@heroui/react";
-import type { FormField, allValues } from "../../../interfaces";
+import type { FormField, AllValues } from "../../../interfaces";
 
 interface DynamicPasswordWithToggleProps extends FormField {
     className?: string;
     handleInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
     formState: Record<string, { value: string; error: string | null }>;
-    allValues?: allValues;
+    allValues?: AllValues;
 }
 
-export function DynamicPasswordWithToggle({ name, label, formState, placeholder, value, validate, required, minLength, maxLenght, className, handleInputChange }: DynamicPasswordWithToggleProps) {
+export function DynamicPasswordWithToggle({ name, label, formState, placeholder, required, minLength, maxLenght, className, handleInputChange }: DynamicPasswordWithToggleProps) {
     const [isVisible, setIsVisible] = useState(false);
-    const allValues = Object.entries(formState).reduce((acc, [key, field]) => {
-        acc[key] = field.value;
-        return acc;
-    }, {} as Record<string, string | number>);
 
-    const error = (validate && formState[name].value !== '') ? validate(formState[name].value, allValues) : null;
+    const error = formState[name].error;
     const isInvalid = !!error;
 
 
@@ -36,7 +32,7 @@ export function DynamicPasswordWithToggle({ name, label, formState, placeholder,
                     maxLength={maxLenght}
                     className="w-full"
                     type={isVisible ? "text" : "password"}
-                    value={value}
+                    value={formState[name].value}
                     onChange={handleInputChange}
                 />
                 <InputGroup.Suffix className="pr-0">
