@@ -1,17 +1,17 @@
 
 import { InputGroup, Label, TextField as TextFieldHero, FieldError } from "@heroui/react";
-import type { FormField } from "../../../interfaces";
+import type { FormField, allValues } from "../../../interfaces";
 // import { Envelope } from "@gravity-ui/icons";
 
-interface TextFieldProps extends FormField {
+interface DynamicTextFieldProps extends FormField {
     icon?: React.ReactNode;
     handleInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
     className?: string;
     formState: Record<string, { value: string; error: string | null }>;
-    allValues?: Record<string, string | number>;
+    allValues?: allValues;
 }
 
-export const TextField = ({ name, label, placeholder, formState, validate, required, minLength, maxLenght, className, handleInputChange }: TextFieldProps) => {
+export const DynamicTextField = ({ name, label, placeholder, formState, validate, required, minLength, maxLenght, className, handleInputChange }: DynamicTextFieldProps) => {
 
     const allValues = Object.entries(formState).reduce((acc, [key, field]) => {
         acc[key] = field.value;

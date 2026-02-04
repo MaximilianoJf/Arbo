@@ -2,16 +2,16 @@ import { Eye, EyeSlash } from "@gravity-ui/icons";
 import { Button, InputGroup, Label, TextField } from "@heroui/react";
 import { useState } from "react";
 import { FieldError } from "@heroui/react";
-import type { FormField } from "../../../interfaces";
+import type { FormField, allValues } from "../../../interfaces";
 
-interface PasswordWithToggleProps extends FormField {
+interface DynamicPasswordWithToggleProps extends FormField {
     className?: string;
     handleInputChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
     formState: Record<string, { value: string; error: string | null }>;
-    allValues?: Record<string, string | number>;
+    allValues?: allValues;
 }
 
-export function PasswordWithToggle({ name, label, formState, placeholder, value, validate, required, minLength, maxLenght, className, handleInputChange }: PasswordWithToggleProps) {
+export function DynamicPasswordWithToggle({ name, label, formState, placeholder, value, validate, required, minLength, maxLenght, className, handleInputChange }: DynamicPasswordWithToggleProps) {
     const [isVisible, setIsVisible] = useState(false);
     const allValues = Object.entries(formState).reduce((acc, [key, field]) => {
         acc[key] = field.value;

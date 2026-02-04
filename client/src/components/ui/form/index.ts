@@ -1,2 +1,2 @@
-export * from "./PasswordWithToggle";
-export * from "./TextField";
+export * from "./DynamicPasswordWithToggle";
+export * from "./DynamicTextField";

@@ -1,13 +1,12 @@
 import { TextArea, Select } from "@heroui/react";
 import type { ComponentType } from "../../interfaces";
-import { PasswordWithToggle } from "../ui";
-import { TextField } from "../ui";
+import { DynamicTextField , DynamicPasswordWithToggle} from "../ui";
 
 const FormComponentMap: Record<ComponentType, React.ElementType> = {
     TextArea: TextArea,
     Select: Select,
-    PasswordWithToggle: PasswordWithToggle,
-    TextField: TextField,
+    DynamicPasswordWithToggle: DynamicPasswordWithToggle,
+    DynamicTextField: DynamicTextField,
 };
 
 export default FormComponentMap

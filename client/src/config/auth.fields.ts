@@ -6,10 +6,10 @@ export const loginFields: FormField[] = [
         label: "Correo Electrónico",
         placeholder: "tu@ejemplo.com",
         type: "email",
-        componentType: "TextField",
+        componentType: "DynamicTextField",
         value: "",
         required: true,
-        validate: (value: string, allValues?: Record<string, string>) => {
+        validate: (value, allValues?) => {
             if (!value) return "El correo electrónico es requerido";
             if (!value.includes("@")) return "El correo electrónico debe tener un @";
             return null;
@@ -20,11 +20,11 @@ export const loginFields: FormField[] = [
         label: "Contraseña",
         placeholder: "********",
         type: "password",
-        componentType: "TextField",
+        componentType: "DynamicTextField",
         value: "",
         required: true,
         minLength: 6,
-        validate: (value: string, allValues?: Record<string, string>) => {
+        validate: (value, allValues?) => {
             if (!value) return "La contraseña es requerida";
             if (value.length < 6) return "La contraseña debe tener al menos 6 caracteres";
             return null;
@@ -38,10 +38,10 @@ export const registerFields: FormField[] = [
         label: "Correo Electrónico",
         placeholder: "tu@ejemplo.com",
         type: "email",
-        componentType: "TextField",
+        componentType: "DynamicTextField",
         value: "",
         required: true,
-        validate: (value: string, allValues?: Record<string, string>) => {
+        validate: (value, allValues?) => {
             if (!value) return "El correo electrónico es requerido";
             if (!value.includes("@")) return "El correo electrónico debe tener un @";
             return null;
@@ -52,11 +52,11 @@ export const registerFields: FormField[] = [
         label: "Contraseña",
         placeholder: "Ingresa tu contraseña",
         type: "password",
-        componentType: "PasswordWithToggle",
+        componentType: "DynamicPasswordWithToggle",
         value: "",
         required: true,
         minLength: 6,
-        validate: (value: string, allValues?: Record<string, string>) => {
+        validate: (value, allValues?) => {
             if (!value) return "La contraseña es requerida";
             if (value.length < 6) return "La contraseña debe tener al menos 6 caracteres";
             return null;
@@ -67,11 +67,11 @@ export const registerFields: FormField[] = [
         label: "Confirmar Contraseña",
         placeholder: "Confirma tu contraseña",
         type: "password",
-        componentType: "PasswordWithToggle",
+        componentType: "DynamicPasswordWithToggle",
         value: "",
         required: true,
         minLength: 6,
-        validate: (value: string, allValues?: Record<string, string>) => {
+        validate: (value: string, allValues?: Record<string, string | number>) => {
             if (!value) return "Requerido";
             if (value !== allValues?.["password"]) return "Las contraseñas no coinciden";
             return null;
