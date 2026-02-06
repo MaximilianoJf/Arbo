@@ -1,2 +1,2 @@
-export * from "./DynamicForm"
-export * from "./FormComponents"
+export * from "./DynamicForm/DynamicForm"
+export * from "./DynamicForm/FormComponents"

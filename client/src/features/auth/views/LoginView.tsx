@@ -2,6 +2,7 @@
 import { DynamicForm } from "../../../components";
 import { loginFields } from "../constants";
 import type { ActionFunctionArgs } from "react-router-dom";
+import { AuthCard } from "../components";
 
 export const loginAction = async ({ request }: ActionFunctionArgs) => {
     const data = Object.fromEntries(await request.formData());
@@ -9,16 +10,13 @@ export const loginAction = async ({ request }: ActionFunctionArgs) => {
     return {}
 }
 
-export const LoginView = () => {
 
+export const LoginView = () => {
     return (
         <>
-            <div className="flex gap-5 flex-col items-center">
-                <h1 className="text-4xl font-bold text-foreground/80 text-center">
-                    LOGIN
-                </h1>
+            <AuthCard tittle="LOGIN">
                 <DynamicForm dynamicFormConfig={loginFields} />
-            </div>
+            </AuthCard>
         </>
     )
 }

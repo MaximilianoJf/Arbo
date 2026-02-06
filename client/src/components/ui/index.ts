@@ -1,3 +1,3 @@
 export * from "./WaveSvg"
 export * from "./Logo"
-export * from "./form"
+export * from "../shared/DynamicForm/FormComponents"

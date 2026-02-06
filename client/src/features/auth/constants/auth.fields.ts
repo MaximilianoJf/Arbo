@@ -21,7 +21,7 @@ export const loginFields: FormField[] = [
         label: "Contraseña",
         placeholder: "********",
         type: "password",
-        componentType: "DynamicTextField",
+        componentType: "DynamicPasswordWithToggle",
         value: "",
         required: true,
         minLength: 6,
