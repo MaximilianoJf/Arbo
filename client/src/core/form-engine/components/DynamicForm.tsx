@@ -14,9 +14,7 @@ interface DynamicFormProps {
 }
 
 export const DynamicForm = ({
-
     className,
-
 }: DynamicFormProps) => {
 
     const { schema, isSystemForm } = useFormStore();
@@ -154,7 +152,7 @@ export const DynamicForm = ({
             >
 
                 {!isSystemForm && (
-                    <div className="flex justify-between">
+                    <div className="flex items-center justify-between">
                         <EnableSwitch />
                         <FieldSelectorMenu />
                     </div>
@@ -189,9 +187,10 @@ export const DynamicForm = ({
                         return <div key={field.name}>{fieldElement}</div>;
                     }
 
-                    // 3. Si NO es de sistema, lo envolvemos para que sea arrastrable
+
                     return (
                         <>
+                            {/* Pronto aqui pondre un dragable */}
                             {fieldElement}
                         </>
                     );
