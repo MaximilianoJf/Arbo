@@ -1,6 +1,6 @@
 
 import { InputGroup, Label, TextField as TextFieldHero, FieldError } from "@heroui/react";
-import type { FormField, AllValues } from "../../../../interfaces";
+import type { FormField, AllValues } from "../types";
 // import { Envelope } from "@gravity-ui/icons";
 
 interface DynamicTextFieldProps extends FormField {
@@ -12,7 +12,7 @@ interface DynamicTextFieldProps extends FormField {
 
 }
 
-export const DynamicTextField = ({ name, label, placeholder, formState, required, minLength, maxLenght, className, handleInputChange }: DynamicTextFieldProps) => {
+export const DynamicTextField = ({ name, label, placeholder, formState, required, minLength, maxLength, className, handleInputChange }: DynamicTextFieldProps) => {
 
     const error = formState[name].error;
     const isInvalid = !!error;
@@ -31,7 +31,7 @@ export const DynamicTextField = ({ name, label, placeholder, formState, required
                     onChange={handleInputChange}
                     required={required}
                     minLength={minLength}
-                    maxLength={maxLenght}
+                    maxLength={maxLength}
                     placeholder={placeholder}
 
                 />

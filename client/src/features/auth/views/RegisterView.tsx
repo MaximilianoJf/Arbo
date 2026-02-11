@@ -1,8 +1,7 @@
 
 import type { ActionFunctionArgs } from "react-router-dom";
-import { DynamicForm } from "../../../components";
 import { registerFields } from "../constants";
-import { AuthCard } from "../components";
+import { FormBuilder as RegisterForm } from "@/core/form-engine/FormBuilder";
 
 export const registerAction = async ({ request }: ActionFunctionArgs) => {
     const data = Object.fromEntries(await request.formData());
@@ -13,9 +12,7 @@ export const registerAction = async ({ request }: ActionFunctionArgs) => {
 export const RegisterView = () => {
     return (
         <>
-            <AuthCard tittle="REGISTER">
-                <DynamicForm dynamicFormConfig={registerFields} />
-            </AuthCard>
+            <RegisterForm formSchema={registerFields} mode='view' isSystemForm={true} />
         </>
     )
 }

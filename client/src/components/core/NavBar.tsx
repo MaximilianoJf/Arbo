@@ -20,7 +20,7 @@ export const NavBar = () => {
                         {!user ? (
                             <>
                                 <li><HeroUILink><Link to="/register">Register</Link></HeroUILink></li>
-                                {/* <li><HeroUILink><Link to="/form-builder/create-form">Create Form</Link></HeroUILink></li> */}
+                                <li><HeroUILink><Link to="/form-builder/create-form">Create Form</Link></HeroUILink></li>
                             </>
                         ) : (
                             <li>

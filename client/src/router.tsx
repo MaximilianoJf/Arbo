@@ -20,10 +20,6 @@ export const router = createBrowserRouter([
                 path: '/register',
                 element: <RegisterView />,
                 action: registerAction
-            },
-            {
-                path: '/create-form/',
-                element: <CreateFormView />,
             }
         ]
     },
@@ -32,7 +28,7 @@ export const router = createBrowserRouter([
         element: <FormBuilderLayout />,
         children: [
             {
-                path: 'create-form', // Sin la barra inicial '/' para que sea relativa
+                path: 'create-form',
                 element: <CreateFormView />,
             }
         ]

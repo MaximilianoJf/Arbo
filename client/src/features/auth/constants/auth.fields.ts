@@ -1,6 +1,15 @@
-import type { FormField } from "../../../interfaces"; 
 
-export const loginFields: FormField[] = [
+import type { FormSchema } from "@/core/form-engine/types";
+
+export interface FormInstanceProps {
+    schema: FormSchema;
+    mode: 'view' | 'edit';
+    isSystemForm: boolean;
+}
+
+export const loginFields: FormSchema= {
+    'tittle': "Login",
+    'fields': [
     {
         name: "email",
         label: "Correo Electrónico",
@@ -33,9 +42,12 @@ export const loginFields: FormField[] = [
             return null;
         }
     }
-] as const;
+] } as const;
 
-export const registerFields: FormField[] = [
+export const registerFields: FormSchema =
+{
+    'tittle': "Register",
+    'fields': [
     {
         name: "email",
         label: "Correo Electrónico",
@@ -87,4 +99,4 @@ export const registerFields: FormField[] = [
             return null;
         }
     }
-] as const;
+]}  as const;

@@ -1,8 +1,7 @@
 
-import { DynamicForm } from "../../../components";
 import { loginFields } from "../constants";
 import type { ActionFunctionArgs } from "react-router-dom";
-import { AuthCard } from "../components";
+import { FormBuilder as LoginForm } from "@/core/form-engine/FormBuilder";
 
 export const loginAction = async ({ request }: ActionFunctionArgs) => {
     const data = Object.fromEntries(await request.formData());
@@ -14,9 +13,7 @@ export const loginAction = async ({ request }: ActionFunctionArgs) => {
 export const LoginView = () => {
     return (
         <>
-            <AuthCard tittle="LOGIN">
-                <DynamicForm dynamicFormConfig={loginFields} />
-            </AuthCard>
+            <LoginForm formSchema={loginFields} mode='view' isSystemForm={true} />
         </>
     )
 }
