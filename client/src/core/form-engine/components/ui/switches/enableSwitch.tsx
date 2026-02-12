@@ -6,21 +6,27 @@ import { Switch } from "@heroui/react";
 import { useFormStore } from "@/core/form-engine/store";
 import { FORM_MODES } from "@/core/form-engine/constants/form-modes";
 
+
+
+
+//De momento aceptar creeate para ver su ui
+
 export const EnableSwitch = () => {
 
-    const { mode, setMode } = useFormStore();
+    const { schemaMode, setSchemaMode } = useFormStore();
+    const modeSelected = schemaMode === FORM_MODES.edit || schemaMode === FORM_MODES.view;
 
-
-    //De momento aceptar creeate para ver su ui
-    const modeSelected = mode === FORM_MODES.edit || mode === FORM_MODES.create;
+    const setIsSelected = () => {
+        console.log(schemaMode)
+        return setSchemaMode(prev => prev === FORM_MODES.edit ? FORM_MODES.view : FORM_MODES.edit)
+    }
 
     return (
         <>
             <div>
                 {modeSelected && (
                     <div className="flex gap-3">
-
-                        <Switch defaultSelected size="lg">
+                        <Switch defaultSelected size="lg" onChange={setIsSelected}>
                             {({ isSelected }) => (
                                 <>
                                     <Switch.Control className={isSelected ? "dark:bg-green-500/80 bg-accent" : ""}>

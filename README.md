@@ -1,6 +1,6 @@
 # 🌳 Arbo - UI Builder & Dynamic Form Engine
 
-**Arbo** es un constructor de interfaces (Builder) diseñado bajo una arquitectura modular. Actualmente, el proyecto se encuentra en su **Fase 1**, centrado en el desarrollo de un **Motor de Formularios Dinámicos** robusto que sirve como base para una herramienta de creación visual.
+**Arbo** sera un constructor de interfaces (Builder) diseñado bajo una arquitectura modular. Actualmente, el proyecto se encuentra en su **Fase 1**, centrado en el desarrollo de un **Motor de Formularios Dinámicos** que sirve como base para una herramienta de creación visual.
 
 ## 🚀 El Desafío Técnico: De Código Estático a Componentes Dinámicos
 

@@ -1,1 +1,2 @@
-export * from "./enableSwitch";
+export * from "./EnableSwitch";
+
