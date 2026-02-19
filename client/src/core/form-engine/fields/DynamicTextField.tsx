@@ -12,7 +12,7 @@ interface DynamicTextFieldProps extends FormField {
 
 }
 
-export const DynamicTextField = ({ name, label, placeholder, formState, required, minLength, maxLength, className, handleInputChange }: DynamicTextFieldProps) => {
+export const DynamicTextField = ({ name, label, type, placeholder, formState, required, minLength, maxLength, className, handleInputChange }: DynamicTextFieldProps) => {
 
     const error = formState[name].error;
     const isInvalid = !!error;
@@ -33,7 +33,7 @@ export const DynamicTextField = ({ name, label, placeholder, formState, required
                     minLength={minLength}
                     maxLength={maxLength}
                     placeholder={placeholder}
-
+                    type={type}
                 />
             </InputGroup>
             {isInvalid && <FieldError>{error}</FieldError>}

@@ -22,7 +22,7 @@ export const useFormStore = () => {
       };
       return acc;
     }, {} as Record<string, { value: string | number, error: string | null }>);
-  });
+  })
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -125,7 +125,6 @@ export const useFormStore = () => {
       }, {} as Record<string, { value: string | number, error: string | null }>);
     });
   })
-
 
 
 

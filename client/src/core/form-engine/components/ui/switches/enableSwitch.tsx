@@ -6,19 +6,13 @@ import { Switch } from "@heroui/react";
 import { useFormStore } from "@/core/form-engine/store";
 import { FORM_MODES } from "@/core/form-engine/constants/form-modes";
 
-
-
-
-//De momento aceptar creeate para ver su ui
-
 export const EnableSwitch = () => {
 
     const { schemaMode, setSchemaMode } = useFormStore();
-    const modeSelected = schemaMode === FORM_MODES.edit || schemaMode === FORM_MODES.view;
+    const modeSelected = (schemaMode === FORM_MODES.edit || schemaMode === FORM_MODES.preview) && schemaMode !== FORM_MODES.view;
 
     const setIsSelected = () => {
-        console.log(schemaMode)
-        return setSchemaMode(prev => prev === FORM_MODES.edit ? FORM_MODES.view : FORM_MODES.edit)
+        return setSchemaMode(prev => prev === FORM_MODES.edit ? FORM_MODES.preview : FORM_MODES.edit)
     }
 
     return (

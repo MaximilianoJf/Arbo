@@ -3,34 +3,46 @@ import { FormFunctions } from "../services";
  * 1. TIPOS DE UI Y COMPONENTES
  * Definen los Fields (Nombre, Label, Placeholder, etc).
  */
-export type ComponentType = 
-  | "DynamicTextField" 
+export type ComponentType =
+  | "DynamicTextField"
   | "DynamicPasswordWithToggle";
 
-  
+export type FieldRender = {
+  name: string;
+  description: string;
+  component: React.ComponentType<any>;
+  icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  types?: {
+    type: string;
+    validations: {}[];
+  }[];
+}
+
+export type FieldRenderMap = Record<ComponentType, FieldRender>;
+
 export type FormMode = 'view' | 'edit' | 'create' | 'preview';
 
 export type FormSchema = {
-    tittle: string;
-    onSubmit?: FormFunctionsType;
-    fields: FormField[];
+  title: string;
+  onSubmit?: FormFunctionsType;
+  fields: FormField[];
 };
 
 
 export interface FormField {
-    id?: string;
-    name: string;
-    label?: string;
-    placeholder?: string;
-    type: string; 
-    componentType: ComponentType;
-    value: string | number;
-    required?: boolean;
-    minLength?: number;
-    maxLength?: number;
-    error?: string | null;
-    dependencies?: string[];
-    validate?: (value: string | number, allValues?: AllValues) => string | null;
+  id?: string;
+  name: string;
+  label?: string;
+  placeholder?: string;
+  type: string;
+  componentType: ComponentType;
+  value: string | number;
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  error?: string | null;
+  dependencies?: string[];
+  validate?: (value: string | number, allValues?: AllValues) => string | null;
 }
 
 

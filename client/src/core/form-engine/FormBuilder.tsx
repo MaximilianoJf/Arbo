@@ -13,7 +13,7 @@ export interface FormInstanceProps {
 }
 
 const emptySchema: FormSchema = {
-    tittle: 'Nuevo Formulario',
+    title: 'Nuevo Formulario',
     onSubmit: FormFunctions.SaveToDB,
     fields: [],
 };

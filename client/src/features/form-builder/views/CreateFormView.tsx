@@ -1,10 +1,10 @@
 import { FormBuilder } from "@/core/form-engine/FormBuilder"
 
 import type { FormSchema } from "@/core/form-engine/types"
-import { FORM_MODES } from "@/core/form-engine/components";
+import { FORM_MODES } from "@/core/form-engine/constants";
 
 const formConfig: FormSchema = {
-    'tittle': 'Formulario de prueba',
+    'title': 'Formulario de prueba',
     'onSubmit': 'SaveToDB',
     'fields': [
         {
@@ -48,7 +48,7 @@ export const CreateFormView = () => {
 
     return (
         <>
-            <FormBuilder formSchema={formConfig} mode={FORM_MODES.create} isSystemForm={false} />
+            <FormBuilder formSchema={formConfig} mode={FORM_MODES.edit} isSystemForm={false} />
         </>
     )
 }
