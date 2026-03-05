@@ -9,19 +9,19 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER,
       },
-      form_id: {
+      formId: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: { model: "UserForms", key: "id" },
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-      user_id: {
+      userId: {
         type: Sequelize.INTEGER,
-        allowNull: true, // <--- Permite respuestas anónimas
+        allowNull: true,
         references: { model: "Users", key: "id" },
         onUpdate: "CASCADE",
-        onDelete: "SET NULL", // Si el usuario se borra, la respuesta queda anónima
+        onDelete: "SET NULL",
       },
       answers: {
         type: Sequelize.JSON,
