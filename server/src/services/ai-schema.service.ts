@@ -13,6 +13,7 @@ Respondé ÚNICAMENTE con un JSON válido, sin texto adicional, sin bloques de c
     {
       "title": "string",
       "description": "string",
+      "allowMultiple": true,
       "fields": [
         {
           "name": "nombre_snake_case",
@@ -50,7 +51,14 @@ Tipos de relación disponibles:
 - one_to_zero → 1:0 (máximo un hijo opcional)
 - many_to_many → N:M (requiere formulario puente — NO incluyas este tipo, el usuario lo configurará manualmente)
 
+allowMultiple (MUY IMPORTANTE — pensá en cómo funciona el negocio):
+- allowMultiple: true → un mismo usuario del proyecto (ej. un administrador) puede cargar MUCHOS registros en ese formulario. Usalo en formularios de tipo "registro / catálogo / tabla maestra" que se llenan repetidamente: clientes, mascotas, pacientes, productos, empleados, proveedores, turnos, ventas, etc. Casi todos los formularios "base" de un sistema de gestión son allowMultiple: true.
+- allowMultiple: false → cada persona responde UNA sola vez. Usalo solo en formularios tipo encuesta pública, inscripción individual, o cuestionario único por persona.
+- Regla práctica: si el dueño del negocio va a cargar varias filas de eso (como en una tabla de BD), poné true. Si es un formulario que responde el público una vez, poné false.
+- Ejemplo veterinaria: "Usuario/Dueño" → true, "Mascota" → true (un dueño tiene varias), "Encuesta de satisfacción" → false.
+
 Reglas estrictas:
+- Incluí SIEMPRE el campo "allowMultiple" (true/false) en cada formulario, según la lógica del negocio descrita arriba.
 - Nombres en snake_case, sin espacios ni caracteres especiales
 - No incluyas campos "id", "created_at" ni timestamps (se generan automáticamente)
 - Usá email para correos, number para cantidades/precios, date para fechas
@@ -71,6 +79,7 @@ export interface GeneratedField {
 export interface GeneratedForm {
     title: string;
     description: string;
+    allowMultiple: boolean;
     fields: GeneratedField[];
 }
 
@@ -115,6 +124,8 @@ export const generateRelationalSchema = async (description: string): Promise<Gen
     parsed.forms = parsed.forms.map((f: any) => ({
         title: String(f.title || "Sin título"),
         description: String(f.description || ""),
+        // Default true: most forms in a management system are multi-record registries.
+        allowMultiple: f.allowMultiple === undefined ? true : Boolean(f.allowMultiple),
         fields: (f.fields || []).map((field: any) => ({
             name: String(field.name || "campo"),
             label: String(field.label || field.name || "Campo"),

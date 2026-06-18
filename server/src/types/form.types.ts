@@ -14,6 +14,7 @@ export interface CreateFormFieldInput {
     dependencies?: string[];
     options?: string[];
     fieldStyles?: Record<string, any>;
+    meta?: Record<string, any> | null;
 }
 
 export interface FormStyles {

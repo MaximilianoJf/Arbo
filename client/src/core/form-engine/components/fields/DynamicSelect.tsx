@@ -19,7 +19,11 @@ export const DynamicSelect = ({ name, label, placeholder, formState, required, c
     const { items: remoteItems, loading } = useRemoteOptions(optionsSource);
     const items = remoteItems ?? options.map((o) => ({ value: o, label: o }));
 
-    if (!loading && items.length === 0) {
+    // Show empty state only when we are certain there are no options:
+    // - no optionsSource → field was left without static options (truly unconfigured)
+    // - optionsSource set AND fetch completed (remoteItems !== null) but returned 0 results
+    // When remoteItems is still null the fetch is in-flight; don't show the message yet.
+    if (!loading && items.length === 0 && (remoteItems !== null || !optionsSource)) {
         return (
             <div className={`flex flex-col gap-1 ${className}`}>
                 <Label className="text-sm font-medium">{label}</Label>

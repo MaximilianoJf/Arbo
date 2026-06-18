@@ -219,6 +219,10 @@ export const checkUserAlreadyResponded = async (
 ): Promise<boolean> => {
     const parentRef = verifyRefToken(ref);
     if (!parentRef) {
+        // Forms flagged for multiple creation (e.g. an admin registering many records)
+        // never block — the same user can submit as many times as they want.
+        const form = await formRepo.getFormById(formId);
+        if ((form?.styles as any)?.allowMultiple) return false;
         // Standalone form: one response per user.
         return await formRepo.hasResponseFromUser(formId, respondentId);
     }
@@ -247,10 +251,13 @@ export const submitFormResponse = async (
     // Decode the ?ref= token early — needed for both the duplicate gate and the chain resolution.
     const parentRef = verifyRefToken(ref);
 
-    // Gate: relational child forms must be accessed via a parent ?ref= link.
+    // Gate: relational child forms must be accessed via a parent ?ref= link,
+    // unless the form is in "free" mode (requiresParentChain=false) or the
+    // respondent is an authenticated user (owner / admin filling directly).
     if (!parentRef) {
         const isChild = await formRepo.isFormChild(formId);
-        if (isChild) {
+        const strictChain = (form.styles as any)?.requiresParentChain !== false;
+        if (isChild && strictChain && !respondentId) {
             const err: any = new Error("Este formulario debe responderse desde el formulario padre.");
             err.code = "REQUIRES_PARENT";
             throw err;
@@ -265,7 +272,10 @@ export const submitFormResponse = async (
     // Duplicate gate: one response per authenticated user for standalone forms only.
     // Child forms opened via ?ref= skip this check — the relation block below handles
     // one_to_one uniqueness, and one_to_many / many_to_many allow unlimited entries.
-    if (respondentId && !parentRef) {
+    // Forms flagged `allowMultiple` (multi-record creation, e.g. an admin registering
+    // many clients/pets) skip the gate entirely.
+    const allowMultiple = !!(form.styles as any)?.allowMultiple;
+    if (respondentId && !parentRef && !allowMultiple) {
         const alreadyResponded = await formRepo.hasResponseFromUser(formId, respondentId);
         if (alreadyResponded) {
             const err: any = new Error("Ya enviaste una respuesta para este formulario.");
@@ -319,6 +329,31 @@ export const submitFormResponse = async (
     const childForms = await buildChildLinks(formId, response.id, rootResponseId ?? response.id);
 
     return { response, childForms };
+};
+
+/**
+ * Returns a form's existing records as selectable options for a foreign-key field
+ * in another form. value = the response id (the FK that gets stored), label = the
+ * chosen answer field (falls back to the first non-empty answer, then respondent
+ * name, then #id). Used by `optionsSource.formId` selects.
+ */
+export const getFormOptions = async (
+    formId: number,
+    labelField?: string,
+): Promise<{ value: string; label: string }[]> => {
+    const form = await formRepo.getFormById(formId);
+    if (!form) throw new Error("Form not found");
+    const responses = await formRepo.getFormResponses(formId);
+    return responses.map((r) => {
+        const answers: Record<string, any> = r.answers || {};
+        let label: any = labelField ? answers[labelField] : undefined;
+        if (label === undefined || label === null || label === "") {
+            const firstVal = Object.values(answers).find((v) => v !== null && v !== undefined && v !== "");
+            label = firstVal ?? r.respondentName ?? `#${r.id}`;
+        }
+        if (Array.isArray(label)) label = label.join(", ");
+        return { value: String(r.id), label: String(label) };
+    });
 };
 
 // ─── Form relations (chain) ───
@@ -496,6 +531,18 @@ export const deleteFormResponse = async (formId: number, responseId: number, use
     const deleted = await formRepo.deleteFormResponse(formId, responseId);
     if (!deleted) throw new Error("Respuesta no encontrada");
     return deleted;
+};
+
+// ─── Partial styles patch (merge into existing styles JSONB) ───
+export const patchFormStyles = async (formId: number, userId: number, patch: Record<string, any>, userEmail?: string) => {
+    const form = await formRepo.getFormById(formId);
+    if (!form) throw new Error("Form not found");
+    if (form.userId !== userId) {
+        if (!userEmail) throw new Error("Unauthorized");
+        const collab = await formRepo.isCollaborator(formId, userEmail);
+        if (!collab || collab.role !== "editor") throw new Error("Unauthorized");
+    }
+    return await formRepo.updateFormStyles(formId, patch);
 };
 
 // ─── PDF layout ───

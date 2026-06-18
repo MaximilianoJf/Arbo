@@ -7,6 +7,7 @@ import { FieldRenderMap } from "../Field-render";
 import { formApi } from "@/services/api";
 import { KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { useSchemaHistory } from "../../hooks/useSchemaHistory";
+import { buildFieldMeta } from "../../utils/field-meta";
 
 // --- Helpers ---
 const getFieldValidations = (componentType: string, fieldType: string): string[] => {
@@ -507,6 +508,8 @@ export const EditorProvider = ({ children, renderField, renderViewFields }: {
                     dependencies: f.dependencies || [],
                     options: f.options || [],
                     fieldStyles: f.fieldStyles || null,
+                    // Extended props persisted via the JSONB `meta` column.
+                    meta: buildFieldMeta(f),
                 })),
             };
 

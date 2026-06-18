@@ -6,6 +6,7 @@ import { formApi, authApi, type ChildFormLink } from "@/services/api";
 import { GoogleSignInButton } from "@/features/auth/components";
 import type { FormSchema, FormField, ComponentType, PageBreakpoint } from "@/core/form-engine/types";
 import { getEnabledContactFields, firstMissingRequiredContact } from "@/core/form-engine/utils/contact-fields";
+import { applyFieldMeta } from "@/core/form-engine/utils/field-meta";
 import { TextField, Label, Input, FieldError } from "@heroui/react";
 import { Check, ArrowRight } from "@gravity-ui/icons";
 import { Logo } from "@/components/ui";
@@ -37,6 +38,7 @@ const mapApiFieldToSchema = (field: any): FormField => ({
     sortOrder: field.sortOrder || 0,
     page: field.page ?? 0,
     fieldStyles: field.fieldStyles || undefined,
+    ...applyFieldMeta(field),
 });
 
 /** Decode a JWT and return its payload (no verification, client-side only). */
@@ -283,7 +285,10 @@ export const PublicFormView = () => {
     }
 
     // --- Missing parent gate: relational child accessed without ?ref= ---
-    if (schema.isRelational && !ref && !isPreview) {
+    // Blocked only when strict mode is ON (default) AND the visitor is not authenticated.
+    // Authenticated users (owners / internal admins) always bypass this gate.
+    // When requiresParentChain===false the form is in "free" mode — anyone can fill it directly.
+    if (schema.isRelational && !ref && !isPreview && !authed && schema.styles?.requiresParentChain !== false) {
         return (
             <div className="min-h-dvh flex flex-col items-center justify-center gap-4 px-4" style={{ background: pageBg }}>
                 <Logo width={40} />
@@ -307,7 +312,7 @@ export const PublicFormView = () => {
     }
 
     // --- Auth gate: skipped entirely in preview mode ---
-    const needsAuth = !isPreview && (schema.styles?.requiresGoogleAuth || schema.isRelational || !!ref);
+    const needsAuth = !isPreview && (schema.styles?.requiresGoogleAuth || !!ref);
     if (needsAuth && !authed) {
         return (
             <div className="min-h-dvh flex flex-col items-center justify-center gap-4 px-4" style={{ background: pageBg }}>
@@ -432,6 +437,17 @@ export const PublicFormView = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                     </svg>
                     <span>Respondiendo como <span className="font-medium">{authEmail}</span></span>
+                </div>
+            )}
+            {/* Relational info banner: shown when the form is in strict parent-chain mode
+                and is being filled directly (no ?ref=). Informs authenticated admins that
+                they are bypassing the normal flow. Hidden when requiresParentChain===false. */}
+            {schema.isRelational && !ref && !isPreview && authed && schema.styles?.requiresParentChain !== false && (
+                <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--arbo-warning-muted,rgba(245,158,11,0.12))] border border-[var(--arbo-warning,#f59e0b)]/30 text-xs text-[var(--arbo-warning,#f59e0b)]">
+                    <svg className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                    <span>Flujo relacional — respondiendo como administrador sin pasar por el formulario padre.</span>
                 </div>
             )}
             {submitError && (

@@ -27,6 +27,7 @@ import {
     getCollaborators,
     getSharedForms,
     submitResponse,
+    getFormOptions,
     checkMyResponse,
     getFormResponseCount,
     nullifyResponseFields,
@@ -35,6 +36,7 @@ import {
     deleteFormResponse,
     savePdfLayout,
     saveDashboardLayout,
+    patchFormStyles,
 } from "../handlers/form.handler";
 import { exportExcel, exportPdf, exportSingleResponsePdf, previewSingleResponsePdf } from "../handlers/export.handler";
 import { analyzeFormResponses } from "../handlers/analysis.handler";
@@ -75,6 +77,9 @@ router.post("/:id/collaborators", verifyToken, formIdValidator, handleInpputErro
 router.delete("/:id/collaborators/:email", verifyToken, formIdValidator, handleInpputErrors, removeCollaborator);
 router.patch("/:id/collaborators/:email", verifyToken, formIdValidator, handleInpputErrors, updateCollaboratorRole);
 
+// ─── Foreign-key options (another form's records as selectable options) ───
+router.get("/:id/options", optionalAuth, formIdValidator, handleInpputErrors, getFormOptions);
+
 // ─── Responses ───
 router.get("/:id/responses/mine", optionalAuth, formIdValidator, handleInpputErrors, checkMyResponse);
 router.get("/:id/responses/count", verifyToken, formIdValidator, handleInpputErrors, getFormResponseCount);
@@ -85,6 +90,9 @@ router.get("/:id/responses/chain", verifyToken, formIdValidator, handleInpputErr
 router.delete("/:id/responses/:responseId", verifyToken, formIdValidator, handleInpputErrors, deleteFormResponse);
 router.get("/:id/responses/:responseId/export/pdf", verifyToken, formIdValidator, handleInpputErrors, exportSingleResponsePdf);
 router.post("/:id/responses/:responseId/preview-pdf", verifyToken, formIdValidator, handleInpputErrors, previewSingleResponsePdf);
+
+// ─── Partial styles patch (merges into existing JSONB) ───
+router.patch("/:id/styles", verifyToken, formIdValidator, handleInpputErrors, patchFormStyles);
 
 // ─── PDF layout config ───
 router.put("/:id/pdf-layout", verifyToken, formIdValidator, handleInpputErrors, savePdfLayout);

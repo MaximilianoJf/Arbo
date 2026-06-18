@@ -11,6 +11,7 @@ import { projectApi, formApi, type AIGeneratedSchema } from "@/services/api";
 import { RelationInspector } from "../components/relations/RelationInspector";
 import { REL_TYPE_META, pickDefaultKeyField, type FormLite, type RelationEdgeData } from "../components/relations/relation-meta";
 import { FormBuilder } from "@/core/form-engine/FormBuilder";
+import { applyFieldMeta } from "@/core/form-engine/utils/field-meta";
 import type { FormSchema, FormField, ComponentType } from "@/core/form-engine/types";
 
 // ─── Node-based form relations, scoped to a project ───
@@ -43,9 +44,10 @@ const makeRelationEdge = (parentFormId: number | string, childFormId: number | s
 // ── Custom form node: title + its existing fields ──
 const FormNode = ({ id, data }: NodeProps) => {
     const d = data as {
-        title: string; sub: string; isRoot: boolean;
+        title: string; sub: string; isRoot: boolean; allowMultiple?: boolean;
         fields: { name: string; label: string }[];
         onPreview?: (id: string) => void;
+        onDelete?: (id: string) => void;
     };
     const handle = { width: 12, height: 12, border: "2px solid var(--arbo-surface)" };
     const shown = d.fields.slice(0, 5);
@@ -65,8 +67,28 @@ const FormNode = ({ id, data }: NodeProps) => {
                         <Eye className="size-3" style={{ color: "var(--arbo-text-muted)" }} />
                     </button>
                 )}
+                {d.onDelete && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); d.onDelete!(id); }}
+                        className="nodrag shrink-0 p-1 rounded hover:bg-[var(--arbo-danger-muted)] transition-colors"
+                        title="Eliminar formulario"
+                    >
+                        <TrashBin className="size-3.5 text-[var(--arbo-danger)]" />
+                    </button>
+                )}
             </div>
-            <p className="text-[9px] font-mono truncate mt-0.5" style={{ color: "var(--arbo-text-muted)" }}>{d.sub}</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-[9px] font-mono truncate" style={{ color: "var(--arbo-text-muted)" }}>{d.sub}</p>
+                {d.allowMultiple && (
+                    <span
+                        className="text-[8px] px-1.5 py-0.5 rounded-full shrink-0 inline-flex items-center gap-0.5"
+                        style={{ background: "rgba(168,85,247,0.15)", color: "#A855F7" }}
+                        title="Múltiples registros: una misma cuenta puede cargar varias respuestas"
+                    >
+                        ∞ multi
+                    </span>
+                )}
+            </div>
             {shown.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5">
                     {shown.map((f) => (
@@ -91,6 +113,8 @@ const mapForms = (raw: any[]): FormLite[] =>
         id: f.id,
         title: f.title,
         slug: f.slug,
+        allowMultiple: !!f.styles?.allowMultiple,
+        requiresParentChain: f.styles?.requiresParentChain !== false,
         fields: (f.fields || f.FormFields || [])
             .filter((ff: any) => !ff.name?.startsWith("__page_break_"))
             .map((ff: any) => ({ name: ff.name, label: ff.label || ff.name })),
@@ -107,6 +131,8 @@ export const FormRelationsView = () => {
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
     const [creatingJoin, setCreatingJoin] = useState(false);
+    const [creatingFk, setCreatingFk] = useState(false);
+    const [fkMsg, setFkMsg] = useState<string | null>(null);
     const [saved, setSaved] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saveErr, setSaveErr] = useState<string | null>(null);
@@ -126,6 +152,11 @@ export const FormRelationsView = () => {
     const [previewFormId, setPreviewFormId] = useState<string | null>(null);
     const [previewSchema, setPreviewSchema] = useState<FormSchema | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
+    // Form deletion confirm (the form id pending deletion)
+    const [deleteFormId, setDeleteFormId] = useState<string | null>(null);
+    const [deletingForm, setDeletingForm] = useState(false);
+
+    const requestDeleteForm = useCallback((formId: string) => setDeleteFormId(formId), []);
 
     const openPreview = useCallback(async (formId: string) => {
         setPreviewFormId(formId);
@@ -159,9 +190,7 @@ export const FormRelationsView = () => {
                         sortOrder: ff.sortOrder || 0,
                         page: ff.page ?? 0,
                         fieldStyles: ff.fieldStyles || undefined,
-                        groupId: ff.groupId || undefined,
-                        groupLabel: ff.groupLabel || undefined,
-                        visibleWhen: ff.visibleWhen || undefined,
+                        ...applyFieldMeta(ff),
                     })),
                 styles: f.styles || undefined,
                 onSubmit: f.onSubmit || undefined,
@@ -178,8 +207,8 @@ export const FormRelationsView = () => {
         id: String(f.id),
         type: "form",
         position: pos,
-        data: { title: f.title, sub: `#${f.id}${f.slug ? " · " + f.slug : ""}`, isRoot: false, fields: f.fields, onPreview: openPreview },
-    }), [openPreview]);
+        data: { title: f.title, sub: `#${f.id}${f.slug ? " · " + f.slug : ""}`, isRoot: false, allowMultiple: f.allowMultiple, fields: f.fields, onPreview: openPreview, onDelete: requestDeleteForm },
+    }), [openPreview, requestDeleteForm]);
 
     // Load the forms (with fields) + their persisted relations → build nodes/edges
     useEffect(() => {
@@ -270,6 +299,25 @@ export const FormRelationsView = () => {
         setSaved(false);
     }, [setEdges]);
 
+    // Move a form to the trash, then drop its node + any connections touching it.
+    const confirmDeleteForm = useCallback(async () => {
+        if (!deleteFormId || deletingForm) return;
+        setDeletingForm(true);
+        setSaveErr(null);
+        try {
+            await formApi.delete(Number(deleteFormId));
+            setNodes((ns) => ns.filter((n) => n.id !== deleteFormId));
+            setEdges((eds) => eds.filter((e) => e.source !== deleteFormId && e.target !== deleteFormId));
+            setForms((prev) => prev.filter((f) => String(f.id) !== deleteFormId));
+            if (selectedEdgeId && !edges.find((e) => e.id === selectedEdgeId)) setSelectedEdgeId(null);
+            setDeleteFormId(null);
+        } catch (e: any) {
+            setSaveErr(e.message || "No se pudo eliminar el formulario");
+        } finally {
+            setDeletingForm(false);
+        }
+    }, [deleteFormId, deletingForm, setNodes, setEdges, selectedEdgeId, edges]);
+
     const formById = useMemo(() => new Map(forms.map((f) => [String(f.id), f])), [forms]);
 
     // Create a blank bridge form in this project and attach it to the selected edge.
@@ -292,6 +340,61 @@ export const FormRelationsView = () => {
             setCreatingJoin(false);
         }
     }, [creatingJoin, formById, projectId, setNodes, nodeFromForm, updateEdgeData]);
+
+    // Materialize a parent→child relation as a real FK select field inside the child form.
+    // Re-saves the child's full field list (meta included) so nothing is lost, plus the new combo box.
+    const createFkField = useCallback(async (parentId: number, childId: number, parentTitle: string, labelField?: string) => {
+        if (creatingFk) return;
+        setCreatingFk(true);
+        setSaveErr(null);
+        setFkMsg(null);
+        try {
+            const res = await formApi.getById(childId);
+            const f = res.data;
+            const raw: any[] = (f.FormFields || f.fields || []).slice()
+                .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+            if (raw.some((ff) => ff.meta?.optionsSource?.formId === parentId)) {
+                setFkMsg(`"${f.title}" ya tiene un campo que referencia a ${parentTitle}.`);
+                return;
+            }
+            const toPayload = (ff: any) => ({
+                name: ff.name, label: ff.label, placeholder: ff.placeholder, type: ff.type,
+                componentType: ff.componentType, defaultValue: ff.defaultValue ?? "",
+                required: !!ff.required, minLength: ff.minLength, maxLength: ff.maxLength,
+                sortOrder: ff.sortOrder ?? 0, page: ff.page ?? 0,
+                validations: ff.validations || [], dependencies: ff.dependencies || [],
+                options: ff.options || [], fieldStyles: ff.fieldStyles || null, meta: ff.meta ?? null,
+            });
+            const fkField = {
+                name: `fk_${parentId}_${Date.now().toString(36)}`,
+                label: parentTitle,
+                placeholder: "",
+                type: "select",
+                componentType: "DynamicSelect",
+                defaultValue: "",
+                required: false,
+                sortOrder: raw.length,
+                page: 0,
+                validations: [],
+                dependencies: [],
+                options: [],
+                fieldStyles: null,
+                meta: { optionsSource: { formId: parentId, formTitle: parentTitle, ...(labelField ? { labelField } : {}) } },
+            };
+            await formApi.update(childId, { title: f.title, fields: [...raw.map(toPayload), fkField] });
+            // Reflect the new field on the child node chip.
+            const chip = { name: fkField.name, label: parentTitle };
+            setForms((prev) => prev.map((x) => x.id === childId ? { ...x, fields: [...x.fields, chip] } : x));
+            setNodes((ns) => ns.map((n) => n.id === String(childId)
+                ? { ...n, data: { ...n.data, fields: [...((n.data as any).fields || []), chip] } }
+                : n));
+            setFkMsg(`Combo box "${parentTitle}" agregado en ${f.title}.`);
+        } catch (e: any) {
+            setSaveErr(e.message || "No se pudo crear el campo de selección");
+        } finally {
+            setCreatingFk(false);
+        }
+    }, [creatingFk, setNodes]);
 
     const relations = useMemo(() =>
         edges.map((e) => {
@@ -367,11 +470,13 @@ export const FormRelationsView = () => {
                     fields: fieldPayload,
                     projectId,
                     onSubmit: "SaveToDB",
+                    styles: genForm.allowMultiple ? { allowMultiple: true } : undefined,
                 });
                 const newForm: FormLite = {
                     id: created.data.id,
                     title: created.data.title,
                     slug: created.data.slug,
+                    allowMultiple: !!genForm.allowMultiple,
                     fields: fieldPayload.map((f) => ({ name: f.name, label: f.label })),
                 };
                 titleToId.set(genForm.title, created.data.id);
@@ -466,6 +571,9 @@ export const FormRelationsView = () => {
 
             {saveErr && (
                 <p className="text-sm text-[var(--arbo-danger)] bg-[var(--arbo-danger-muted)] px-3 py-2 rounded-lg">{saveErr}</p>
+            )}
+            {fkMsg && (
+                <p className="text-sm text-[var(--arbo-accent)] bg-[var(--arbo-accent-muted)] px-3 py-2 rounded-lg">{fkMsg}</p>
             )}
 
             {/* ── AI generation panel ── */}
@@ -640,10 +748,18 @@ export const FormRelationsView = () => {
                                 data={(selectedEdge.data as RelationEdgeData) || DEFAULT_EDGE_DATA}
                                 forms={forms}
                                 creatingJoin={creatingJoin}
+                                creatingFk={creatingFk}
                                 hasData={formsWithData.has(selectedEdge.target)}
                                 onChange={(patch) => updateEdgeData(selectedEdge.id, patch)}
                                 onCreateJoinForm={() => createJoinForm(selectedEdge)}
+                                onCreateFkField={(labelField) => createFkField(Number(selectedEdge.source), Number(selectedEdge.target), selSource.title, labelField)}
                                 onDelete={() => deleteEdge(selectedEdge.id)}
+                                onToggleStrictFlow={(strict) => {
+                                    const targetId = Number(selectedEdge.target);
+                                    formApi.patchStyles(targetId, { requiresParentChain: strict })
+                                        .then(() => setForms((prev) => prev.map((f) => f.id === targetId ? { ...f, requiresParentChain: strict } : f)))
+                                        .catch(console.error);
+                                }}
                             />
                         </>
                     ) : (
@@ -691,6 +807,53 @@ export const FormRelationsView = () => {
                     )}
                 </div>
             </div>
+
+            {/* ── Delete form confirm modal ── */}
+            {deleteFormId && (() => {
+                const f = forms.find((ff) => String(ff.id) === deleteFormId);
+                const linkedEdges = edges.filter((e) => e.source === deleteFormId || e.target === deleteFormId).length;
+                return (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                        style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+                        onClick={() => !deletingForm && setDeleteFormId(null)}
+                    >
+                        <div
+                            className="relative flex flex-col gap-3 rounded-2xl border p-5"
+                            style={{ background: "var(--arbo-surface)", borderColor: "var(--arbo-danger)", width: "min(420px, 96vw)" }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center gap-2">
+                                <TrashBin className="size-4 text-[var(--arbo-danger)]" />
+                                <p className="text-sm font-semibold arbo-text">Eliminar formulario</p>
+                            </div>
+                            <p className="text-xs arbo-text-secondary leading-relaxed">
+                                Vas a enviar <span className="font-semibold arbo-text">{f?.title || "este formulario"}</span> a la papelera.
+                                {linkedEdges > 0 && (
+                                    <> Se quitarán también <span className="font-semibold text-[var(--arbo-danger)]">{linkedEdges}</span> conexión(es) ligada(s).</>
+                                )}
+                                {" "}Podés restaurarlo desde la papelera.
+                            </p>
+                            <div className="flex justify-end gap-2 mt-1">
+                                <button
+                                    onClick={() => setDeleteFormId(null)}
+                                    disabled={deletingForm}
+                                    className="text-xs px-3 py-1.5 rounded-lg arbo-text-muted hover:arbo-text border border-[var(--arbo-border)] disabled:opacity-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={confirmDeleteForm}
+                                    disabled={deletingForm}
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--arbo-danger-muted)] text-[var(--arbo-danger)] hover:opacity-80 disabled:opacity-50"
+                                >
+                                    {deletingForm ? "Eliminando…" : "Eliminar"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* ── Form preview modal ── */}
             {previewFormId && (

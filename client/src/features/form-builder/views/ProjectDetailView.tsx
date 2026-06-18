@@ -9,67 +9,69 @@ const ROLE_OPTIONS = [
 ];
 
 // ─── Mini form preview (CSS-only, no iframe) ───
-const FormMiniPreview = ({ form, onClick }: { form: any; onClick: () => void }) => {
+const FormMiniPreview = ({ form, onAnswer, onEdit }: {
+    form: any;
+    onAnswer: () => void;
+    onEdit: () => void;
+}) => {
     const styles = form.styles || {};
     const accent = styles.gradient || styles.accentColor || "var(--arbo-accent)";
     const cardBg = styles.bgColor || "#1a1a24";
     const fieldCount = form.fields?.length || form.FormFields?.length || 0;
-
     return (
-        <button
-            onClick={onClick}
-            className="group relative w-full rounded-xl overflow-hidden border border-[var(--arbo-border)] hover:border-[var(--arbo-accent)]/40 transition-all hover:shadow-lg hover:shadow-black/20 bg-[var(--arbo-surface)] text-left"
-        >
-            {/* Mini preview area */}
-            <div
-                className="w-full aspect-[4/3] p-3 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden"
-                style={{ background: styles.pageBgColor || "var(--arbo-bg)" }}
-            >
-                {/* Tiny card representation */}
+        <div className="group relative w-full rounded-xl overflow-hidden border border-[var(--arbo-border)] hover:border-[var(--arbo-accent)]/40 transition-all hover:shadow-lg hover:shadow-black/20 bg-[var(--arbo-surface)]">
+            {/* Mini preview area — click to open the form */}
+            <button onClick={onAnswer} className="block w-full text-left">
                 <div
-                    className="w-[80%] rounded-md overflow-hidden shadow-sm"
-                    style={{
-                        background: cardBg,
-                        border: `1px solid ${styles.borderColor || "rgba(255,255,255,0.08)"}`,
-                        borderRadius: `${Math.min(styles.borderRadius ?? 14, 8)}px`,
-                    }}
+                    className="w-full aspect-[4/3] p-3 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden"
+                    style={{ background: styles.pageBgColor || "var(--arbo-bg)" }}
                 >
-                    <div className="h-1" style={{ background: accent }} />
-                    <div className="px-2 py-1.5 flex flex-col gap-0.5">
-                        <div className="h-1 w-[65%] rounded-full bg-white/20" />
-                        <div className="h-0.5 w-[45%] rounded-full bg-white/10" />
-                    </div>
-                </div>
-                <div
-                    className="w-[80%] rounded-md p-2 flex flex-col gap-1"
-                    style={{
-                        background: cardBg,
-                        border: `1px solid ${styles.borderColor || "rgba(255,255,255,0.08)"}`,
-                        borderRadius: `${Math.min(styles.borderRadius ?? 14, 8)}px`,
-                    }}
-                >
-                    {[...Array(Math.min(fieldCount || 2, 3))].map((_, i) => (
-                        <div key={i} className="flex flex-col gap-0.5">
-                            <div className="h-0.5 w-[40%] rounded-full bg-white/15" />
-                            <div
-                                className="h-2 w-full rounded-sm"
-                                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-                            />
+                    {/* Tiny card representation */}
+                    <div
+                        className="w-[80%] rounded-md overflow-hidden shadow-sm"
+                        style={{
+                            background: cardBg,
+                            border: `1px solid ${styles.borderColor || "rgba(255,255,255,0.08)"}`,
+                            borderRadius: `${Math.min(styles.borderRadius ?? 14, 8)}px`,
+                        }}
+                    >
+                        <div className="h-1" style={{ background: accent }} />
+                        <div className="px-2 py-1.5 flex flex-col gap-0.5">
+                            <div className="h-1 w-[65%] rounded-full bg-white/20" />
+                            <div className="h-0.5 w-[45%] rounded-full bg-white/10" />
                         </div>
-                    ))}
-                    <div className="flex justify-end mt-0.5">
-                        <div className="h-1.5 w-6 rounded-sm" style={{ background: accent }} />
                     </div>
-                </div>
+                    <div
+                        className="w-[80%] rounded-md p-2 flex flex-col gap-1"
+                        style={{
+                            background: cardBg,
+                            border: `1px solid ${styles.borderColor || "rgba(255,255,255,0.08)"}`,
+                            borderRadius: `${Math.min(styles.borderRadius ?? 14, 8)}px`,
+                        }}
+                    >
+                        {[...Array(Math.min(fieldCount || 2, 3))].map((_, i) => (
+                            <div key={i} className="flex flex-col gap-0.5">
+                                <div className="h-0.5 w-[40%] rounded-full bg-white/15" />
+                                <div
+                                    className="h-2 w-full rounded-sm"
+                                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                                />
+                            </div>
+                        ))}
+                        <div className="flex justify-end mt-0.5">
+                            <div className="h-1.5 w-6 rounded-sm" style={{ background: accent }} />
+                        </div>
+                    </div>
 
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm">
-                        <Eye className="size-3.5 text-white" />
-                        <span className="text-xs text-white font-medium">Ver</span>
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm">
+                            <ArrowRight className="size-3.5 text-white" />
+                            <span className="text-xs text-white font-medium">Contestar</span>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </button>
 
             {/* Info strip */}
             <div className="px-3 py-2.5 border-t border-[var(--arbo-border)]">
@@ -81,8 +83,26 @@ const FormMiniPreview = ({ form, onClick }: { form: any; onClick: () => void }) 
                         {form.isPublished ? "Publicado" : "Borrador"}
                     </span>
                 </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1.5 mt-2">
+                    <button
+                        onClick={onAnswer}
+                        title="Abrir el formulario para responderlo"
+                        className="arbo-btn arbo-btn-primary text-[11px] px-2.5 py-1 flex-1"
+                    >
+                        <ArrowRight className="size-3" /> Contestar
+                    </button>
+                    <button
+                        onClick={onEdit}
+                        title="Editar formulario"
+                        className="arbo-btn arbo-btn-ghost text-[11px] px-2 py-1"
+                    >
+                        <Pencil className="size-3" />
+                    </button>
+                </div>
             </div>
-        </button>
+        </div>
     );
 };
 
@@ -543,7 +563,8 @@ export const ProjectDetailView = () => {
                                 <div key={form.id} className="relative group">
                                     <FormMiniPreview
                                         form={form}
-                                        onClick={() => navigate(`/form-builder/edit/${form.id}`)}
+                                        onAnswer={() => window.open(`/forms/${form.slug}`, "_blank")}
+                                        onEdit={() => navigate(`/form-builder/edit/${form.id}`)}
                                     />
                                     {isOwner && (
                                         <button

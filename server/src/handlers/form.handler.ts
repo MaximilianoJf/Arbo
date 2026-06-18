@@ -234,6 +234,17 @@ export const checkMyResponse = async (req: Request, res: Response) => {
     }
 };
 
+// Returns another form's records as { value, label } options for a foreign-key field.
+export const getFormOptions = async (req: Request, res: Response) => {
+    try {
+        const labelField = req.query.labelField as string | undefined;
+        const options = await formService.getFormOptions(Number(req.params.id), labelField);
+        return res.json({ ok: true, data: options });
+    } catch (error: any) {
+        return res.status(400).json({ ok: false, errors: [{ msg: error.message }] });
+    }
+};
+
 export const submitResponse = async (req: Request, res: Response) => {
     try {
         const user = req.email ? await getUserByEmail(req.email) : null;
@@ -317,6 +328,19 @@ export const deleteFormResponse = async (req: Request, res: Response) => {
 
         await formService.deleteFormResponse(Number(req.params.id), Number(req.params.responseId), user.id, user.email);
         return res.json({ ok: true, data: { msg: "Respuesta eliminada" } });
+    } catch (error: any) {
+        const status = error.message === "Unauthorized" ? 403 : 400;
+        return res.status(status).json({ ok: false, errors: [{ msg: error.message }] });
+    }
+};
+
+// ─── Partial styles patch ───
+export const patchFormStyles = async (req: Request, res: Response) => {
+    try {
+        const user = await getUserByEmail(req.email!);
+        if (!user) return res.status(401).json({ ok: false, errors: [{ msg: "Unauthorized" }] });
+        const updated = await formService.patchFormStyles(Number(req.params.id), user.id, req.body, user.email);
+        return res.json({ ok: true, data: updated?.styles ?? null });
     } catch (error: any) {
         const status = error.message === "Unauthorized" ? 403 : 400;
         return res.status(status).json({ ok: false, errors: [{ msg: error.message }] });

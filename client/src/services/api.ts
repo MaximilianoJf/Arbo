@@ -105,6 +105,7 @@ export interface AIGeneratedField {
 export interface AIGeneratedForm {
     title: string;
     description: string;
+    allowMultiple?: boolean;
     fields: AIGeneratedField[];
 }
 export interface AIGeneratedRelation {
@@ -155,6 +156,13 @@ export const formApi = {
         request<{ ok: boolean; data: any }>(`/forms/slug/${slug}`, {
             headers: headers(false),
         }),
+
+    // Another form's records as { value, label } options for a foreign-key field.
+    getOptions: (id: number, labelField?: string) =>
+        request<{ ok: boolean; data: { value: string; label: string }[] }>(
+            `/forms/${id}/options${labelField ? `?labelField=${encodeURIComponent(labelField)}` : ""}`,
+            { headers: headers(false) }
+        ),
 
     update: (id: number, body: any) =>
         request<{ ok: boolean; data: any }>(`/forms/${id}`, {
@@ -315,6 +323,13 @@ export const formApi = {
             method: "PUT",
             headers: headers(),
             body: JSON.stringify({ layout }),
+        }),
+
+    patchStyles: (formId: number, patch: Record<string, any>) =>
+        request<{ ok: boolean; data: any }>(`/forms/${formId}/styles`, {
+            method: "PATCH",
+            headers: headers(),
+            body: JSON.stringify(patch),
         }),
 
     analyzeResponses: (id: number, prompt?: string) =>

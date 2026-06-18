@@ -38,6 +38,8 @@ const buildStylesSummary = (styles: any): string => {
     if (styles.pageGlowOrbs?.length) lines.push(`  pageGlowOrbs: ${styles.pageGlowOrbs.length} orb(s)`);
     if (styles.animEntrance) lines.push(`  animEntrance: "${styles.animEntrance}"`);
     if (styles.animHover) lines.push(`  animHover: "${styles.animHover}"`);
+    if (styles.requiresGoogleAuth !== undefined) lines.push(`  requiresGoogleAuth: ${styles.requiresGoogleAuth}`);
+    if (styles.allowMultiple !== undefined) lines.push(`  allowMultiple: ${styles.allowMultiple}`);
     return lines.join("\n") || "  (sin estilos personalizados)";
 };
 
@@ -146,6 +148,13 @@ ANIMACIONES:
   animHover: "none"|"lift"|"glow"|"scale"|"tilt"|"borderPulse"
   animFieldFocus: "none"|"glow"|"scale"|"slideRight"|"borderGlow"
   animTransitionSpeed: "fast"|"normal"|"slow"
+
+ACCESO Y REGISTROS (control de quién y cuántas veces responde):
+  requiresGoogleAuth: true|false — si es true, SOLO usuarios con sesión de Google pueden responder (identidad estricta). Útil para formularios internos o relacionados.
+  allowMultiple: true|false — si es true, una MISMA cuenta puede enviar varias respuestas (creación de múltiples registros). Si es false (por defecto), cada usuario responde una sola vez.
+    Ejemplo de uso: una veterinaria donde un administrador registra muchos clientes/dueños y sus mascotas desde su propia cuenta → allowMultiple: true.
+    "formulario interno / privado / solo para mí" → requiresGoogleAuth: true. "que pueda cargar varios registros / muchos clientes / múltiples entradas" → allowMultiple: true.
+    "formulario público / que cualquiera responda una vez" → requiresGoogleAuth: false, allowMultiple: false.
 
 POSICION Y ENCABEZADO:
   formVerticalAlign: "start"|"center"|"end"

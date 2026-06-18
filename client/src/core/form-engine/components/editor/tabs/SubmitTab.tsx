@@ -10,6 +10,7 @@ export const SubmitTab = () => {
     const SUBMIT_ACTIONS = getSubmitActions(t);
     const selected = parseSubmitActions(schema.onSubmit);
     const requiresGoogleAuth = !!styles.requiresGoogleAuth;
+    const allowMultiple = !!styles.allowMultiple;
 
     const toggleAction = (value: string) => {
         const isOn = selected.includes(value);
@@ -74,6 +75,19 @@ export const SubmitTab = () => {
                         className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 shrink-0 ${requiresGoogleAuth ? "bg-[var(--arbo-accent)]" : "bg-[var(--arbo-border)]"}`}
                     >
                         <div className={`size-4 rounded-full bg-white transition-transform ${requiresGoogleAuth ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5 mt-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)]">
+                    <div className="min-w-0">
+                        <span className="text-xs font-medium arbo-text">Permitir múltiples registros</span>
+                        <p className="text-[9px] arbo-text-muted mt-0.5">Una misma cuenta puede enviar varias respuestas. Ideal para registros internos — ej.: un administrador que crea muchos clientes o mascotas. Si está apagado, cada usuario responde una sola vez.</p>
+                    </div>
+                    <button
+                        onClick={() => updateStyles({ allowMultiple: !allowMultiple })}
+                        className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 shrink-0 ${allowMultiple ? "bg-[var(--arbo-accent)]" : "bg-[var(--arbo-border)]"}`}
+                    >
+                        <div className={`size-4 rounded-full bg-white transition-transform ${allowMultiple ? "translate-x-4" : "translate-x-0"}`} />
                     </button>
                 </div>
             </div>

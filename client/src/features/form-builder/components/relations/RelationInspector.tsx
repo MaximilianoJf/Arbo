@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, TrashBin, ArrowRight, TriangleExclamation } from "@gravity-ui/icons";
+import { Plus, TrashBin, ArrowRight, TriangleExclamation, Link } from "@gravity-ui/icons";
 import { REL_TYPE_META, REL_TYPE_ORDER, type FormLite, type RelationEdgeData } from "./relation-meta";
 import type { RelationType } from "@/services/api";
 
@@ -27,13 +27,17 @@ interface Props {
     forms: FormLite[];
     creatingJoin: boolean;
     hasData?: boolean;
+    creatingFk?: boolean;
     onChange: (patch: Partial<RelationEdgeData>) => void;
     onCreateJoinForm: () => void;
+    onCreateFkField?: (labelField?: string) => void;
+    onToggleStrictFlow?: (strict: boolean) => void;
     onDelete: () => void;
 }
 
-export const RelationInspector = ({ source, target, data, forms, creatingJoin, hasData, onChange, onCreateJoinForm, onDelete }: Props) => {
+export const RelationInspector = ({ source, target, data, forms, creatingJoin, hasData, creatingFk, onChange, onCreateJoinForm, onCreateFkField, onToggleStrictFlow, onDelete }: Props) => {
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const [fkLabelField, setFkLabelField] = useState("");
 
     const keyFieldOptions = Array.from(
         new Map([...source.fields, ...target.fields].map((f) => [f.name, f])).values()
@@ -144,6 +148,68 @@ export const RelationInspector = ({ source, target, data, forms, creatingJoin, h
                     </select>
                 </div>
             </div>
+
+            {/* Materialize the relation as a selectable (FK) field in the child form */}
+            {onCreateFkField && data.type !== "many_to_many" && (
+                <div className="flex flex-col gap-1.5">
+                    <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">Campo de selección (FK)</p>
+                    <p className="text-[10px] arbo-text-muted -mt-0.5 leading-snug">
+                        Agrega un combo box en <span className="arbo-text font-semibold">{target.title}</span> para elegir un registro de <span className="arbo-text font-semibold">{source.title}</span> al cargar datos.
+                    </p>
+                    <div>
+                        <p className="text-[9px] arbo-text-muted mb-0.5">Campo a mostrar de {source.title} <span className="opacity-60">(opcional)</span></p>
+                        <select
+                            value={fkLabelField}
+                            onChange={(e) => setFkLabelField(e.target.value)}
+                            className="w-full px-2 py-1.5 rounded-md bg-[var(--arbo-surface-2)] arbo-text text-xs border border-[var(--arbo-border)] focus:border-[var(--arbo-accent)] focus:outline-none"
+                        >
+                            <option value="">Automático (primer dato / nombre)</option>
+                            {source.fields.map((f) => <option key={f.name} value={f.name}>{f.label || f.name}</option>)}
+                        </select>
+                    </div>
+                    <button
+                        onClick={() => onCreateFkField(fkLabelField || undefined)}
+                        disabled={creatingFk}
+                        className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs arbo-text-muted hover:text-[var(--arbo-accent)] border border-dashed border-[var(--arbo-border)] hover:border-[var(--arbo-accent)]/50 transition-colors disabled:opacity-50"
+                    >
+                        <Link className="size-3.5" /> {creatingFk ? "Creando…" : `Crear combo box en ${target.title}`}
+                    </button>
+                </div>
+            )}
+
+            {/* Strict-flow toggle: controls whether unauthenticated users are blocked from
+                filling the child form directly (without a ?ref= parent link). */}
+            {onToggleStrictFlow && (
+                <div className="flex flex-col gap-1.5">
+                    <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">Acceso directo</p>
+                    <div
+                        className="flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer select-none transition-colors hover:border-[var(--arbo-accent)]/50"
+                        style={{
+                            borderColor: target.requiresParentChain !== false ? "var(--arbo-warning, #f59e0b)" : "var(--arbo-accent)",
+                            background: target.requiresParentChain !== false ? "rgba(245,158,11,0.07)" : "var(--arbo-accent-muted)",
+                        }}
+                        onClick={() => onToggleStrictFlow(!(target.requiresParentChain !== false))}
+                    >
+                        <div
+                            className="mt-0.5 size-3.5 rounded-full shrink-0 border-2 transition-colors"
+                            style={{
+                                background: target.requiresParentChain !== false ? "transparent" : "var(--arbo-accent)",
+                                borderColor: target.requiresParentChain !== false ? "var(--arbo-warning, #f59e0b)" : "var(--arbo-accent)",
+                            }}
+                        />
+                        <div>
+                            <p className="text-[11px] font-semibold arbo-text">
+                                {target.requiresParentChain !== false ? "Flujo estricto (requiere padre)" : "Acceso libre (sin padre)"}
+                            </p>
+                            <p className="text-[10px] arbo-text-muted mt-0.5 leading-snug">
+                                {target.requiresParentChain !== false
+                                    ? `Usuarios anónimos que abran "${target.title}" directamente son bloqueados. Administradores autenticados pueden responder sin restricción.`
+                                    : `Cualquier persona puede responder "${target.title}" directamente, sin necesidad de pasar por el formulario padre.`}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Delete */}
             {confirmDelete ? (

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { FormBuilder } from "@/core/form-engine/FormBuilder";
 import { formApi } from "@/services/api";
 import type { FormSchema, FormField, ComponentType } from "@/core/form-engine/types";
+import { applyFieldMeta } from "@/core/form-engine/utils/field-meta";
 
 const mapApiFieldToSchema = (field: any): FormField => ({
     id: String(field.id),
@@ -21,6 +22,8 @@ const mapApiFieldToSchema = (field: any): FormField => ({
     sortOrder: field.sortOrder || 0,
     page: field.page ?? 0,
     fieldStyles: field.fieldStyles || undefined,
+    // Extended props (optionsSource, visibleWhen, pattern, rows, accept, span…) live in meta.
+    ...applyFieldMeta(field),
 });
 
 export const EditFormView = () => {

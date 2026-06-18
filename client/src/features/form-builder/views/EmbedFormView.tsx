@@ -5,6 +5,7 @@ import { FormBuilder } from "@/core/form-engine/FormBuilder";
 import { formApi } from "@/services/api";
 import type { FormSchema, FormField, ComponentType } from "@/core/form-engine/types";
 import { getEnabledContactFields, firstMissingRequiredContact } from "@/core/form-engine/utils/contact-fields";
+import { applyFieldMeta } from "@/core/form-engine/utils/field-meta";
 import { Check } from "@gravity-ui/icons";
 import { TextField, Label, Input, FieldError } from "@heroui/react";
 import { getShadowCss } from "@/core/form-engine/constants/style-presets";
@@ -32,6 +33,7 @@ const mapApiFieldToSchema = (field: any): FormField => ({
     sortOrder: field.sortOrder || 0,
     page: field.page ?? 0,
     fieldStyles: field.fieldStyles || undefined,
+    ...applyFieldMeta(field),
 });
 
 export const EmbedFormView = () => {

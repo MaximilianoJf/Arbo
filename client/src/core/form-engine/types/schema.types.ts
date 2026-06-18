@@ -170,6 +170,17 @@ export interface FormStyles {
   // Access — require Google sign-in to submit (strict identity for relational forms)
   requiresGoogleAuth?: boolean;
 
+  // Allow the same user to submit multiple times (multi-record creation).
+  // Off (default) = one response per authenticated user. On = unlimited records,
+  // e.g. an admin registering many clients/pets from one account.
+  allowMultiple?: boolean;
+
+  // For relational (child) forms: when true (default), direct access without a
+  // parent ?ref= link is blocked for unauthenticated users and shows the
+  // "Formulario vinculado" gate. Set to false to allow anyone to fill the form
+  // directly (e.g. internal databases that don't expose a public parent chain).
+  requiresParentChain?: boolean;
+
   // Contact
   contactEnabled?: boolean;
   contactPosition?: "left" | "right";
@@ -264,10 +275,15 @@ export interface FormField {
 }
 
 export interface FieldOptionsSource {
-  url: string;
-  valueKey: string;   // JSON key to use as the submitted value (e.g. "id")
-  labelKey: string;   // JSON key to display to the user (e.g. "name")
+  // ── External API source ──
+  url?: string;       // JSON endpoint (omit when using an internal form reference)
+  valueKey?: string;  // JSON key to use as the submitted value (e.g. "id")
+  labelKey?: string;  // JSON key to display to the user (e.g. "name")
   dataPath?: string;  // dot-path to the array inside the response (e.g. "data" or "results.items")
+  // ── Internal foreign-key source: pull options from another project form's records ──
+  formId?: number;    // referenced form; its responses become the selectable options (value = response id)
+  formTitle?: string; // cached title for display in the editor
+  labelField?: string; // which answer field of the referenced form to show as the label
 }
 
 // --- Conditional logic (show/hide fields based on other answers) ---

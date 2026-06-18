@@ -47,6 +47,8 @@ export interface FormLite {
     id: number;
     title: string;
     slug?: string;
+    allowMultiple?: boolean;
+    requiresParentChain?: boolean;
     fields: { name: string; label: string }[];
 }
 

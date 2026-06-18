@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { Check, TrashBin, Xmark, Plus, BucketPaint, Persons, ArrowRotateRight } from "@gravity-ui/icons";
+import { useState, useEffect } from "react";
+import { Check, TrashBin, Xmark, Plus, BucketPaint, Persons, ArrowRotateRight, Link } from "@gravity-ui/icons";
 import { useTranslation } from "react-i18next";
 import { getValidationLabels } from "../../../constants/editor-constants";
 import { SPAN_PRESETS, getFieldSpan, spanKeyForBp } from "../../../utils/field-grid";
 import type { FieldOptionsSource, PageBreakpoint } from "../../../types";
 import { useEditorContext } from "../EditorContext";
 import { useRemoteOptions } from "../../../hooks/useRemoteOptions";
+import { projectApi } from "@/services/api";
 
 export const FieldTab = () => {
     const { t } = useTranslation();
@@ -254,6 +255,8 @@ export const FieldTab = () => {
                     activeFieldName={activeField.name}
                     options={activeField.options || []}
                     optionsSource={activeField.optionsSource}
+                    projectId={schema.projectId ?? null}
+                    currentFormId={schema.id ?? null}
                     setSchema={setSchema}
                     t={t}
                 />
@@ -394,20 +397,57 @@ interface OptionsSectionProps {
     activeFieldName: string;
     options: string[];
     optionsSource?: FieldOptionsSource;
+    projectId?: number | null;
+    currentFormId?: number | null;
     setSchema: (updater: (prev: any) => any) => void;
     t: (key: string) => string;
 }
 
-const OptionsSection = ({ activeFieldName, options, optionsSource, setSchema, t }: OptionsSectionProps) => {
+interface SiblingForm {
+    id: number;
+    title: string;
+    fields: { name: string; label: string }[];
+}
+
+const OptionsSection = ({ activeFieldName, options, optionsSource, projectId, currentFormId, setSchema, t }: OptionsSectionProps) => {
     const hasSource = !!optionsSource?.url;
+    const hasFk = !!optionsSource?.formId;
     const [previewOpen, setPreviewOpen] = useState(false);
+    const [fkOpen, setFkOpen] = useState(false);
     const [draftSource, setDraftSource] = useState<FieldOptionsSource>(
-        optionsSource ?? { url: "", valueKey: "id", labelKey: "name", dataPath: "" }
+        optionsSource?.url ? optionsSource : { url: "", valueKey: "id", labelKey: "name", dataPath: "" }
     );
+
+    // FK: sibling forms in the same project (loaded when the FK panel opens)
+    const [siblings, setSiblings] = useState<SiblingForm[] | null>(null);
+    const [sibLoading, setSibLoading] = useState(false);
+    const [fkFormId, setFkFormId] = useState<number | null>(optionsSource?.formId ?? null);
+    const [fkLabelField, setFkLabelField] = useState<string>(optionsSource?.labelField ?? "");
 
     const { items: previewItems, loading: previewLoading, error: previewError } = useRemoteOptions(
         previewOpen ? draftSource : undefined
     );
+
+    useEffect(() => {
+        if (!fkOpen || siblings !== null || !projectId) return;
+        setSibLoading(true);
+        projectApi.getById(projectId)
+            .then((res) => {
+                const raw: any[] = res.data?.forms || res.data?.userForms || res.data?.UserForms || [];
+                const mapped: SiblingForm[] = raw
+                    .filter((f) => f.id !== currentFormId)
+                    .map((f) => ({
+                        id: f.id,
+                        title: f.title,
+                        fields: (f.fields || f.FormFields || [])
+                            .filter((ff: any) => !ff.name?.startsWith("__page_break_"))
+                            .map((ff: any) => ({ name: ff.name, label: ff.label || ff.name })),
+                    }));
+                setSiblings(mapped);
+            })
+            .catch(() => setSiblings([]))
+            .finally(() => setSibLoading(false));
+    }, [fkOpen, siblings, projectId, currentFormId]);
 
     const patchField = (patch: Partial<{ options: string[]; optionsSource: FieldOptionsSource | undefined }>) =>
         setSchema((prev: any) => ({
@@ -423,20 +463,97 @@ const OptionsSection = ({ activeFieldName, options, optionsSource, setSchema, t 
         patchField({ optionsSource: undefined });
     };
 
+    const fkForm = siblings?.find((s) => s.id === fkFormId) || null;
+    const saveFk = () => {
+        if (!fkFormId) return;
+        patchField({ optionsSource: { formId: fkFormId, formTitle: fkForm?.title, labelField: fkLabelField || undefined } });
+        setFkOpen(false);
+    };
+    const clearFk = () => {
+        setFkFormId(null); setFkLabelField("");
+        patchField({ optionsSource: undefined });
+    };
+
     const inputCls = "flex-1 px-2 py-1 rounded bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-xs focus:border-[var(--arbo-accent)] focus:outline-none";
 
     return (
         <div className="flex flex-col gap-2">
-            {/* Header with API toggle */}
-            <div className="flex items-center justify-between">
+            {/* Header with API + FK toggles */}
+            <div className="flex items-center justify-between gap-1">
                 <label className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">{t("editor.field.options")}</label>
-                <button
-                    onClick={() => setPreviewOpen((v) => !v)}
-                    className={`text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors ${hasSource || previewOpen ? "text-[var(--arbo-accent)] bg-[var(--arbo-accent-muted)]" : "arbo-text-muted hover:text-[var(--arbo-accent)]"}`}
-                >
-                    {hasSource ? "⚡ Desde API" : "⚡ Conectar API"}
-                </button>
+                <div className="flex items-center gap-1">
+                    {projectId != null && (
+                        <button
+                            onClick={() => { setFkOpen((v) => !v); setPreviewOpen(false); }}
+                            className={`text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors inline-flex items-center gap-0.5 ${hasFk || fkOpen ? "text-[var(--arbo-accent)] bg-[var(--arbo-accent-muted)]" : "arbo-text-muted hover:text-[var(--arbo-accent)]"}`}
+                        >
+                            <Link className="size-2.5" /> {hasFk ? "Vinculado" : "Desde formulario"}
+                        </button>
+                    )}
+                    <button
+                        onClick={() => { setPreviewOpen((v) => !v); setFkOpen(false); }}
+                        className={`text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors ${hasSource || previewOpen ? "text-[var(--arbo-accent)] bg-[var(--arbo-accent-muted)]" : "arbo-text-muted hover:text-[var(--arbo-accent)]"}`}
+                    >
+                        {hasSource ? "⚡ Desde API" : "⚡ Conectar API"}
+                    </button>
+                </div>
             </div>
+
+            {/* FK source panel — pick another project form as the option source */}
+            {fkOpen && (
+                <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-accent)]/30">
+                    <p className="text-[9px] arbo-text-muted font-semibold uppercase tracking-wider">Opciones desde otro formulario (FK)</p>
+                    <p className="text-[9px] arbo-text-muted">Las opciones serán los registros ya cargados del formulario elegido. Se guarda su id como referencia.</p>
+
+                    {sibLoading && <p className="text-[9px] arbo-text-muted">Cargando formularios…</p>}
+                    {siblings && siblings.length === 0 && !sibLoading && (
+                        <p className="text-[9px] text-[var(--arbo-warning)]">No hay otros formularios en este proyecto.</p>
+                    )}
+
+                    {siblings && siblings.length > 0 && (
+                        <>
+                            <div>
+                                <p className="text-[9px] arbo-text-muted mb-0.5">Formulario</p>
+                                <select
+                                    className={inputCls + " w-full"}
+                                    value={fkFormId ?? ""}
+                                    onChange={(e) => { setFkFormId(e.target.value ? Number(e.target.value) : null); setFkLabelField(""); }}
+                                >
+                                    <option value="">— Elegí un formulario —</option>
+                                    {siblings.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <p className="text-[9px] arbo-text-muted mb-0.5">Campo a mostrar <span className="opacity-60">(opcional)</span></p>
+                                <select
+                                    className={inputCls + " w-full"}
+                                    value={fkLabelField}
+                                    onChange={(e) => setFkLabelField(e.target.value)}
+                                    disabled={!fkForm}
+                                >
+                                    <option value="">Automático (primer dato / nombre)</option>
+                                    {fkForm?.fields.map((f) => <option key={f.name} value={f.name}>{f.label}</option>)}
+                                </select>
+                            </div>
+                        </>
+                    )}
+
+                    <div className="flex gap-1 pt-0.5">
+                        <button
+                            onClick={saveFk}
+                            disabled={!fkFormId}
+                            className="flex-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-[var(--arbo-accent)] text-[var(--arbo-bg)] disabled:opacity-40 transition-opacity"
+                        >
+                            Vincular
+                        </button>
+                        {hasFk && (
+                            <button onClick={clearFk} className="px-2 py-1 rounded-md text-[10px] text-[var(--arbo-danger)] bg-[var(--arbo-danger-muted)]">
+                                Quitar
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* API source panel */}
             {previewOpen && (
@@ -516,8 +633,8 @@ const OptionsSection = ({ activeFieldName, options, optionsSource, setSchema, t 
                 </div>
             )}
 
-            {/* Static options (hidden when API source active) */}
-            {!hasSource && !previewOpen && (
+            {/* Static options (hidden when API/FK source active) */}
+            {!hasSource && !hasFk && !previewOpen && !fkOpen && (
                 <div className="flex flex-col gap-1">
                     {options.map((opt, i) => (
                         <div key={i} className="flex items-center gap-1">
@@ -550,6 +667,14 @@ const OptionsSection = ({ activeFieldName, options, optionsSource, setSchema, t 
                 <p className="text-[10px] arbo-text-muted px-1">
                     ⚡ Las opciones se cargan desde <span className="arbo-text font-mono break-all">{optionsSource!.url}</span>
                     {" · "}<button onClick={() => setPreviewOpen(true)} className="text-[var(--arbo-accent)] hover:underline">Editar</button>
+                </p>
+            )}
+
+            {hasFk && !fkOpen && (
+                <p className="text-[10px] arbo-text-muted px-1">
+                    🔗 Opciones vinculadas al formulario <span className="arbo-text font-semibold">{optionsSource!.formTitle || `#${optionsSource!.formId}`}</span>
+                    {optionsSource!.labelField ? <> (muestra <span className="font-mono">{optionsSource!.labelField}</span>)</> : null}
+                    {" · "}<button onClick={() => setFkOpen(true)} className="text-[var(--arbo-accent)] hover:underline">Editar</button>
                 </p>
             )}
         </div>

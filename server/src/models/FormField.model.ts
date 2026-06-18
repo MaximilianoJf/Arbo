@@ -112,6 +112,16 @@ class FormField extends Model {
     })
     declare fieldStyles: Record<string, any> | null;
 
+    // Extended field properties not worth a dedicated column each:
+    // optionsSource (FK / remote options), visibleWhen, hiddenWhen, logicMode,
+    // pattern, patternMessage, rows, accept, span*, groupId, groupLabel.
+    @Column({
+        type: DataType.JSONB,
+        allowNull: true,
+        defaultValue: null,
+    })
+    declare meta: Record<string, any> | null;
+
     @BelongsTo(() => UserForm)
     declare form: UserForm;
 }

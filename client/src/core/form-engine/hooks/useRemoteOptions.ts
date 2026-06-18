@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FieldOptionsSource } from "../types";
+import { formApi } from "@/services/api";
 
 export interface RemoteOption { value: string; label: string }
 
@@ -11,15 +12,23 @@ function dig(obj: any, path: string): any {
     return path.split(".").reduce((acc, key) => acc?.[key], obj);
 }
 
+const isInternal = (s: FieldOptionsSource) => !!s.formId;
+const isExternal = (s: FieldOptionsSource) => !!s.url && !!s.valueKey && !!s.labelKey;
+
 export const useRemoteOptions = (source: FieldOptionsSource | undefined) => {
     const [items, setItems] = useState<RemoteOption[] | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const cacheKey = source ? `${source.url}::${source.valueKey}::${source.labelKey}::${source.dataPath ?? ""}` : "";
+    const cacheKey = source
+        ? (source.formId
+            ? `form:${source.formId}:${source.labelField ?? ""}`
+            : `${source.url}::${source.valueKey}::${source.labelKey}::${source.dataPath ?? ""}`)
+        : "";
 
     useEffect(() => {
-        if (!source?.url || !source.valueKey || !source.labelKey) return;
+        if (!source) return;
+        if (!isInternal(source) && !isExternal(source)) return;
 
         if (cache.has(cacheKey)) {
             setItems(cache.get(cacheKey)!);
@@ -29,7 +38,24 @@ export const useRemoteOptions = (source: FieldOptionsSource | undefined) => {
         setLoading(true);
         setError(null);
 
-        fetch(source.url)
+        // Internal: pull another project form's records as options (value = response id).
+        if (isInternal(source)) {
+            formApi.getOptions(source.formId!, source.labelField)
+                .then((res) => {
+                    const mapped = (res.data || []).map((o) => ({ value: String(o.value), label: String(o.label) }));
+                    // Only cache non-empty results — an empty list means the source form has no
+                    // responses yet; caching it would prevent the dropdown from refreshing after
+                    // the user fills that form and comes back.
+                    if (mapped.length > 0) cache.set(cacheKey, mapped);
+                    setItems(mapped);
+                })
+                .catch((e) => setError(e.message))
+                .finally(() => setLoading(false));
+            return;
+        }
+
+        // External: fetch a JSON endpoint and map valueKey/labelKey.
+        fetch(source.url!)
             .then((r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r.json();
@@ -39,11 +65,11 @@ export const useRemoteOptions = (source: FieldOptionsSource | undefined) => {
                 if (!Array.isArray(arr)) throw new Error("La respuesta no es un array");
                 const mapped: RemoteOption[] = arr
                     .map((item: any) => ({
-                        value: String(item[source.valueKey] ?? ""),
-                        label: String(item[source.labelKey] ?? item[source.valueKey] ?? ""),
+                        value: String(item[source.valueKey!] ?? ""),
+                        label: String(item[source.labelKey!] ?? item[source.valueKey!] ?? ""),
                     }))
                     .filter((o) => o.value);
-                cache.set(cacheKey, mapped);
+                if (mapped.length > 0) cache.set(cacheKey, mapped);
                 setItems(mapped);
             })
             .catch((e) => setError(e.message))
