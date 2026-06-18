@@ -45,14 +45,25 @@ body {
   color: var(--arbo-text);
 }
 
+/* Display font (Sora) for headings — part of the glass redesign. */
+h1, h2, h3, .arbo-heading {
+  font-family: 'Sora', system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
 /* ─── Sidebar ─── */
 .arbo-sidebar {
-  background: var(--arbo-surface);
-  border-right: 1px solid var(--arbo-border);
-  width: 220px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border-right: 1px solid var(--arbo-glass-border);
+  box-shadow: var(--arbo-glass-inset);
+  width: 240px;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 10;
 }
 
 .arbo-sidebar-item {
@@ -80,9 +91,11 @@ body {
 
 /* ─── Top Bar ─── */
 .arbo-topbar {
-  background: var(--arbo-surface);
-  border-bottom: 1px solid var(--arbo-border);
-  height: 52px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border-bottom: 1px solid var(--arbo-glass-border);
+  height: 56px;
   display: flex;
   align-items: center;
   padding: 0 20px;
@@ -117,23 +130,29 @@ body {
   border-radius: 1px;
 }
 
-/* ─── Cards ─── */
+/* ─── Cards (glass) ─── */
 .arbo-card {
-  background: var(--arbo-surface);
-  border: 1px solid var(--arbo-border);
-  border-radius: var(--arbo-radius);
-  box-shadow: var(--arbo-shadow);
-  transition: box-shadow .2s ease, border-color .2s ease;
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid var(--arbo-glass-border);
+  border-radius: 16px;
+  box-shadow: var(--arbo-glass-inset);
+  transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .arbo-card:hover {
-  border-color: var(--arbo-border-light);
-  box-shadow: var(--arbo-shadow-lg);
+  border-color: var(--arbo-accent);
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.12), var(--arbo-glass-inset);
+  transform: translateY(-4px);
 }
 
 .arbo-card-static {
-  background: var(--arbo-surface);
-  border: 1px solid var(--arbo-border);
-  border-radius: var(--arbo-radius);
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid var(--arbo-glass-border);
+  border-radius: 16px;
+  box-shadow: var(--arbo-glass-inset);
 }
 
 /* ─── Auth Card ─── */
@@ -229,11 +248,14 @@ body {
   }
 }
 
-/* ─── Panels ─── */
+/* ─── Panels (glass) ─── */
 .arbo-panel {
-  background: var(--arbo-surface);
-  border: 1px solid var(--arbo-border);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid var(--arbo-glass-border);
   border-radius: var(--arbo-radius-lg);
+  box-shadow: var(--arbo-glass-inset);
 }
 
 .arbo-panel-header {
