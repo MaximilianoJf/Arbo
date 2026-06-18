@@ -14,6 +14,10 @@ export const getUserByGoogleId = async (googleId: string) => {
     return await User.findOne({ where: { googleId } });
 }
 
+export const getUserById = async (id: number) => {
+    return await User.findByPk(id);
+}
+
 export const findOrCreateGoogleUser = async (profile: {
     googleId: string;
     email: string;

@@ -98,6 +98,8 @@ async function callOpenAICompatible(
             "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        // Abort hung upstreams instead of holding the request open indefinitely.
+        signal: AbortSignal.timeout(60_000),
     });
 
     if (!response.ok) {

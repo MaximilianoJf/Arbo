@@ -67,6 +67,8 @@ export async function callOpenRouter(
                     temperature: options.temperature ?? 0.3,
                     max_tokens: options.max_tokens ?? 4000,
                 }),
+                // Abort hung upstreams instead of holding the request open indefinitely.
+                signal: AbortSignal.timeout(60_000),
             });
 
             if (!response.ok) {

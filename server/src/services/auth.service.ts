@@ -7,15 +7,17 @@ import { generateToken } from "../utils/jwt.util";
 
 export const loginUser = async ({ email, password }: Login): Promise<{ user: IUser, token: string }> => {
   const user = await getUserByEmail(email);
+  // Same generic message for "no such user" and "wrong password" so the endpoint
+  // can't be used to enumerate which emails are registered.
   if (!user) {
-    throw new Error("User not found");
+    throw new Error("Email o contraseña inválidos");
   }
   if (!user.password) {
-    throw new Error("This account uses Google login. Please sign in with Google.");
+    throw new Error("Esta cuenta usa inicio de sesión con Google.");
   }
   const validPassword = await bcrypt.compare(password, user.password);
   if (!validPassword) {
-    throw new Error("Invalid password");
+    throw new Error("Email o contraseña inválidos");
   }
   const token = generateToken({ email: user.email, name: user.name });
   return { user: user.get({ plain: true }) as IUser, token };

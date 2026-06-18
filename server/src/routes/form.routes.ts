@@ -45,13 +45,14 @@ import { generatePowerBi } from "../handlers/powerbi.handler";
 import { handleAIChat } from "../handlers/ai-chat.handler";
 import { handleAIScan } from "../handlers/ai-scan.handler";
 import { verifyTokenOrApiKey, optionalAuth } from "../middleware/auth.middleware";
+import { aiLimiter } from "../middleware/rate-limit.middleware";
 
 const router = Router();
 
 // ─── AI Chat (form builder assistant) — must be before /:id routes ───
-router.post("/ai/chat", verifyToken, handleAIChat);
+router.post("/ai/chat", aiLimiter, verifyToken, handleAIChat);
 // ─── AI Scan (photo of a form → schema) ───
-router.post("/ai/scan", verifyToken, handleAIScan);
+router.post("/ai/scan", aiLimiter, verifyToken, handleAIScan);
 
 // ─── Form CRUD ───
 router.post("/", verifyToken, createFormValidator, handleInpputErrors, createForm);

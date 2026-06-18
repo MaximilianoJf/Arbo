@@ -39,7 +39,8 @@ function readStats(): DailyStats {
 
 function writeStats(stats: DailyStats): void {
     ensureDataDir();
-    fs.writeFileSync(STATS_PATH, JSON.stringify(stats, null, 2), "utf-8");
+    // Fire-and-forget async write so request handling never blocks on disk I/O.
+    fs.writeFile(STATS_PATH, JSON.stringify(stats, null, 2), "utf-8", () => {});
 }
 
 /** Increment today's request count. Call after each successful OpenRouter call. */

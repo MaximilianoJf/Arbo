@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { getOpenRouterConfig, saveOpenRouterConfig } from "../config/openrouter-settings";
 import { getDailyStats } from "../config/openrouter-stats";
+import { getAIProvidersConfig } from "../config/ai-providers";
+import { getUserById } from "../repositories/user.repository";
 
 const OPENROUTER_KEY_API = "https://openrouter.ai/api/v1/auth/key";
 
@@ -66,13 +68,18 @@ export const getOpenRouterModels = async (_req: Request, res: Response) => {
     }
 };
 
-// Called by MCP server using X-API-Key — returns the actual key (not masked)
-export const getOpenRouterKeyForMcp = (_req: Request, res: Response) => {
-    const config = getOpenRouterConfig();
-    if (!config.apiKey) {
+// Called by MCP server using X-API-Key — returns the actual key (not masked).
+// Scoped to the API-key owner: returns THAT user's configured OpenRouter key
+// (falling back to the env key), instead of always handing out the global key.
+export const getOpenRouterKeyForMcp = async (req: Request, res: Response) => {
+    const userId = (req as any).apiKeyUserId as number | undefined;
+    const user = userId ? await getUserById(userId) : null;
+    const resolved = getAIProvidersConfig(user?.aiProviders).providers.openrouter;
+    const apiKey = resolved?.apiKey;
+    if (!apiKey) {
         return res.status(400).json({ ok: false, msg: "OpenRouter API key not configured. Set it in /form-builder/settings/openrouter" });
     }
-    return res.json({ ok: true, data: { apiKey: config.apiKey, model: config.model } });
+    return res.json({ ok: true, data: { apiKey, model: resolved.model } });
 };
 
 export const getOpenRouterUsage = async (_req: Request, res: Response) => {

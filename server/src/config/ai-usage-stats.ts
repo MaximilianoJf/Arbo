@@ -43,7 +43,8 @@ function readStats(): UsageFile {
 
 function writeStats(stats: UsageFile): void {
     ensureDataDir();
-    fs.writeFileSync(STATS_PATH, JSON.stringify(stats, null, 2), "utf-8");
+    // Fire-and-forget async write so request handling never blocks on disk I/O.
+    fs.writeFile(STATS_PATH, JSON.stringify(stats, null, 2), "utf-8", () => {});
 }
 
 function getOrInit(stats: UsageFile, provider: string): ProviderDayStats {

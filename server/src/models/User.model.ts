@@ -7,9 +7,10 @@ import FormResponse from "./FormResponse.model";
     timestamps: true,
 })
 class User extends Model {
+    // NOT unique: two different people can legitimately share a name (esp. once
+    // form respondents become User rows). Identity is the email / googleId.
     @Column({
         type: DataType.STRING,
-        unique: true,
         allowNull: false,
     })
     declare name: string;

@@ -26,6 +26,8 @@ export const login = async (req: Request, res: Response) => {
     }
 }
 
+const GOOGLE_TOKENINFO = "https://oauth2.googleapis.com/tokeninfo?id_token=";
+
 export const googleCallback = async (req: Request, res: Response) => {
     try {
         const { credential } = req.body;
@@ -36,27 +38,39 @@ export const googleCallback = async (req: Request, res: Response) => {
             });
         }
 
-        // Decode Google ID token (JWT from Google Sign-In)
-        // The token is a JWT — we decode the payload without verification
-        // since it was obtained directly from Google's client SDK
-        const parts = credential.split(".");
-        if (parts.length !== 3) {
-            return res.status(400).json({
+        // Verify the ID token WITH Google before trusting any claim. Google's tokeninfo
+        // endpoint validates the signature and expiry server-side. Decoding the payload
+        // locally (as before) let anyone forge a token and log in as any user.
+        const verifyRes = await fetch(`${GOOGLE_TOKENINFO}${encodeURIComponent(credential)}`);
+        if (!verifyRes.ok) {
+            return res.status(401).json({
                 ok: false,
-                errors: [{ msg: "Invalid Google credential format" }],
+                errors: [{ msg: "Invalid or expired Google credential" }],
+            });
+        }
+        const payload = await verifyRes.json() as Record<string, any>;
+
+        // The token must have been issued for OUR app, not any Google client.
+        const expectedAud = process.env.GOOGLE_CLIENT_ID;
+        if (expectedAud && payload.aud !== expectedAud) {
+            return res.status(401).json({
+                ok: false,
+                errors: [{ msg: "Google credential was issued for another application" }],
             });
         }
 
-        const payload = JSON.parse(
-            Buffer.from(parts[1], "base64url").toString("utf-8")
-        );
-
-        const { sub: googleId, email, name, picture } = payload;
+        const { sub: googleId, email, name, picture, email_verified } = payload;
 
         if (!email || !googleId) {
             return res.status(400).json({
                 ok: false,
                 errors: [{ msg: "Invalid Google profile data" }],
+            });
+        }
+        if (email_verified === false || email_verified === "false") {
+            return res.status(401).json({
+                ok: false,
+                errors: [{ msg: "Google email is not verified" }],
             });
         }
 
