@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Respuestas por Persona (Web) - Arbo Forms</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=Geist:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .glass-panel {
+            backdrop-filter: blur(64px);
+            background: rgba(19, 19, 21, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.1);
+        }
+        .glow-primary {
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+        }
+        .glow-active {
+            box-shadow: 0 0 15px rgba(74, 222, 128, 0.4);
+            border-color: #4ade80 !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.4; }
+        }
+        .atmospheric-glow {
+            animation: pulse-glow 8s ease-in-out infinite;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-variant": "#353437",
+                      "inverse-primary": "#006d36",
+                      "on-secondary-fixed-variant": "#5516be",
+                      "on-background": "#e5e1e4",
+                      "error-container": "#93000a",
+                      "background": "#131315",
+                      "on-secondary-fixed": "#23005c",
+                      "secondary-fixed": "#e9ddff",
+                      "surface-container-high": "#2a2a2c",
+                      "on-primary": "#003919",
+                      "surface-bright": "#39393b",
+                      "tertiary-fixed-dim": "#c4c7c9",
+                      "primary-container": "#4ade80",
+                      "outline-variant": "#3d4a3e",
+                      "on-tertiary-fixed-variant": "#444749",
+                      "error": "#ffb4ab",
+                      "secondary": "#d0bcff",
+                      "surface": "#131315",
+                      "surface-container-highest": "#353437",
+                      "surface-dim": "#131315",
+                      "on-error-container": "#ffdad6",
+                      "surface-container": "#201f22",
+                      "on-primary-fixed": "#00210c",
+                      "on-tertiary": "#2d3133",
+                      "on-tertiary-fixed": "#191c1e",
+                      "inverse-surface": "#e5e1e4",
+                      "tertiary": "#dee0e2",
+                      "on-surface-variant": "#bccabb",
+                      "surface-container-lowest": "#0e0e10",
+                      "outline": "#869486",
+                      "on-surface": "#e5e1e4",
+                      "primary-fixed-dim": "#4de082",
+                      "on-secondary": "#3c0091",
+                      "primary-fixed": "#6dfe9c",
+                      "surface-tint": "#4de082",
+                      "surface-container-low": "#1c1b1d",
+                      "on-secondary-container": "#c4abff",
+                      "on-primary-container": "#005e2d",
+                      "tertiary-fixed": "#e0e3e5",
+                      "secondary-container": "#571bc1",
+                      "primary": "#6bfb9a",
+                      "on-tertiary-container": "#4e5153",
+                      "inverse-on-surface": "#313032",
+                      "secondary-fixed-dim": "#d0bcff",
+                      "tertiary-container": "#c2c4c6",
+                      "on-error": "#690005",
+                      "on-primary-fixed-variant": "#005227"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin-tablet": "32px",
+                      "sidebar-width": "280px",
+                      "margin-desktop": "48px",
+                      "gutter": "24px",
+                      "stack-gap": "16px",
+                      "container-max": "1440px"
+              },
+              "fontFamily": {
+                      "headline-md": ["Sora"],
+                      "display-xl": ["Sora"],
+                      "label-md": ["Geist"],
+                      "display-lg": ["Sora"],
+                      "label-sm": ["Geist"],
+                      "body-lg": ["Inter"],
+                      "headline-lg": ["Sora"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                      "display-xl": ["72px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+                      "label-md": ["14px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "display-lg": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "label-sm": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.1em", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md overflow-hidden">
+<!-- Atmospheric Background Layers -->
+<div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+<div class="atmospheric-glow absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px]"></div>
+<div class="atmospheric-glow absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-on-secondary-fixed-variant/10 rounded-full blur-[120px]" style="animation-delay: -4s;"></div>
+
+</div>
+<!-- SideNavBar (Shared Component Blueprint) -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-surface/10 backdrop-blur-[64px] border-r border-white/20 flex flex-col py-8 px-4 z-50">
+<div class="mb-10 px-4">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Arbo Forms</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant tracking-widest mt-1">WORKSPACE</p>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-on-surface transition-all duration-300" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-label-md text-label-md">Formularios</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg relative text-primary font-bold after:absolute after:left-0 after:top-1/2 after:-translate-y-1/2 after:h-8 after:w-0.5 after:bg-primary after:shadow-[0_0_10px_#4ade80]" href="#">
+<span class="material-symbols-outlined">forum</span>
+<span class="font-label-md text-label-md">Respuestas</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-on-surface transition-all duration-300" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span class="font-label-md text-label-md">Relaciones</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-on-surface transition-all duration-300" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Panel</span>
+</a>
+</nav>
+<div class="mt-auto px-4 pt-6 border-t border-white/10">
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded-full border border-white/20 object-cover" data-alt="A professional studio portrait of a technology executive with sharp focus, wearing a minimalist black turtleneck, against a dark moody background with subtle green rim lighting that matches the brand aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0rUp-Ok6cpmqEwkd5TQXZAiWlTYRVNJP0KAu-ZAivUocY7eXseZ-z4NRWf0aoNKUJlmZoE5a9nnNOdbdGyHtj-6uoNOTVuvwZKRchAMRa6N2PxMsxZLpW65tGIyFYpm_QZVIDTbknmWFcglVR_e_gyiXpBZht5PHvq_tsmuTXpbyNJZsMVl0qZ73p2vLEMfWkGQ_QyvUWr_NMxNl3qRMCBi9XqadnyImx70Dv81-tSFlhNtXWyfhUoSN2Y-RSccaTd2lxEsJuvXbW"/>
+<div class="flex-1 min-w-0">
+<p class="font-label-md text-label-md text-on-surface truncate">Alex Arboleda</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-tighter">Admin Principal</p>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- TopNavBar (Shared Component Blueprint) -->
+<header class="fixed top-0 right-0 left-[280px] h-20 px-12 flex justify-between items-center bg-surface/5 backdrop-blur-[64px] border-b border-white/20 z-40">
+<div class="flex items-center flex-1 max-w-xl">
+<div class="relative w-full group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-white/5 border border-white/10 rounded-full py-2.5 pl-12 pr-4 text-on-surface focus:outline-none focus:ring-2 focus:ring-on-secondary-fixed-variant transition-all font-body-md text-sm" placeholder="Buscar por nombre o correo..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="relative text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-primary rounded-full"></span>
+</button>
+<div class="h-8 w-[1px] bg-white/10 mx-2"></div>
+<div class="flex flex-col items-end">
+<span class="font-headline-md text-headline-md text-primary">Respuestas por Persona</span>
+<span class="text-[10px] text-on-surface-variant tracking-widest uppercase">Vista Detallada CRM</span>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="ml-[280px] mt-20 p-12 h-[calc(100vh-80px)] overflow-hidden flex gap-8 z-10 relative">
+<!-- Left List: Respondents -->
+<section class="w-[400px] flex flex-col h-full gap-4">
+<div class="flex justify-between items-end mb-2">
+<div>
+<h3 class="font-headline-md text-lg text-on-surface">Respondientes</h3>
+<p class="font-label-sm text-on-surface-variant">124 usuarios activos</p>
+</div>
+<button class="text-primary hover:underline font-label-md">Filtrar</button>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
+<!-- Active Item -->
+<div class="glass-panel glow-active p-5 rounded-xl cursor-pointer group transition-all duration-300">
+<div class="flex items-start gap-4">
+<img class="w-12 h-12 rounded-lg object-cover grayscale group-hover:grayscale-0 transition-all" data-alt="A close-up portrait of a creative professional woman with vibrant aesthetic, natural lighting coming from the side, set against a dark minimalist studio background that emphasizes deep textures and clean lines." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAp8ENJ18XN1wqJTyq0rH0ANDD0HvGZWY33ojrx-fQNj5aCmniKT9BL2ARt_QJVeLk8ACDGJk7_19D2SjdOOOMIr2OPACQL11eCiqRAq4oCROSxR3kMpxLCW-PIrvGdKs01Ep2uhVr9_9vtbGvq-V7eRqsyVMtz6Izw6LMIoO8fd0AfeeKTt-3MaP2E9v6ggtlTYERQceZd-g8xQLm90sNI4fIG1VqvnSOEX3-z95RTpyqo7W1TgGlR6wPbGusUt5e2ATt0EZtWC-Qv"/>
+<div class="flex-1">
+<div class="flex justify-between">
+<h4 class="font-headline-md text-base text-primary">Elena Valdivia</h4>
+<span class="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">ACTIVO</span>
+</div>
+<p class="font-body-md text-sm text-on-surface-variant mb-3">elena.v@creative.io</p>
+<div class="flex gap-4">
+<div>
+<p class="text-[10px] uppercase text-on-surface-variant/60">Formularios</p>
+<p class="font-label-md text-on-surface">12</p>
+</div>
+<div>
+<p class="text-[10px] uppercase text-on-surface-variant/60">Última act.</p>
+<p class="font-label-md text-on-surface">Hoy, 10:24</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- List Items -->
+<div class="glass-panel p-5 rounded-xl cursor-pointer hover:bg-white/5 border-white/10 group transition-all duration-300">
+<div class="flex items-start gap-4">
+<img class="w-12 h-12 rounded-lg object-cover grayscale" data-alt="High-resolution portrait of a young male designer in a creative office environment with soft bokeh background. Cinematic lighting with purple and teal highlights reflecting off the glass partitions in the background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeYsgrwEpp_Tk9MEwTsWbzGHipPHMNOgIbpQmvorq6k_fcoCBbnJj1pGDsPUX8rJf7N4-nRZkv1zwCCkS9LIpy4JluNRGbPjKoVWj_t3UeXgCX3zSHn-lfHp_PCEdmdzm2ZAvqMSq20eMQlGHFbt1xDNgjMPyp9SBZ9_ih2rcR4KniPs_DbeHQIdfrS-sBLhLQbMIjF8zLjDXQxBh9gWkBgqkbPzxPCCQPBb04VdEhEp4_A-fAevAznC1h9rkQZEmSuYfGsTa35_hv"/>
+<div class="flex-1">
+<div class="flex justify-between">
+<h4 class="font-headline-md text-base text-on-surface">Marco Santis</h4>
+<span class="text-[10px] text-on-surface-variant bg-white/5 px-2 py-0.5 rounded-full">PENDIENTE</span>
+</div>
+<p class="font-body-md text-sm text-on-surface-variant mb-3">m.santis@techcorp.es</p>
+<div class="flex gap-4">
+<div>
+<p class="text-[10px] uppercase text-on-surface-variant/60">Formularios</p>
+<p class="font-label-md text-on-surface">8</p>
+</div>
+<div>
+<p class="text-[10px] uppercase text-on-surface-variant/60">Última act.</p>
+<p class="font-label-md text-on-surface">Ayer</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-5 rounded-xl cursor-pointer hover:bg-white/5 border-white/10 group transition-all duration-300">
+<div class="flex items-start gap-4">
+<div class="w-12 h-12 rounded-lg bg-secondary-container flex items-center justify-center text-secondary font-bold">AM</div>
+<div class="flex-1">
+<div class="flex justify-between">
+<h4 class="font-headline-md text-base text-on-surface">Adriana Méndez</h4>
+<span class="text-[10px] text-on-surface-variant bg-white/5 px-2 py-0.5 rounded-full">INACTIVO</span>
+</div>
+<p class="font-body-md text-sm text-on-surface-variant mb-3">a.mendez@cloud.net</p>
+<div class="flex gap-4">
+<div>
+<p class="text-[10px] uppercase text-on-surface-variant/60">Formularios</p>
+<p class="font-label-md text-on-surface">24</p>
+</div>
+<div>
+<p class="text-[10px] uppercase text-on-surface-variant/60">Última act.</p>
+<p class="font-label-md text-on-surface">12 Feb</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-5 rounded-xl cursor-pointer hover:bg-white/5 border-white/10 group transition-all duration-300">
+<div class="flex items-start gap-4">
+<img class="w-12 h-12 rounded-lg object-cover grayscale" data-alt="A portrait of a senior engineering lead with a focused and wise expression. He is wearing a dark navy blazer, and the lighting is high-contrast with a cool blue undertone, set in a modern industrial architectural space." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOAg2sl7eNvnsiy8rlZvrdR83TFrtvYH_hhq_r3E6lEPwA_so5RQUES3sugRwa5HS4HT_6gkdRyi_0wnQ-BfVMHaAXzMpLqg34jZuqg3pB3edwgfEgFi10VaRuhrqleAj06HgXXRvL7oN2Tpw4eTLYrPZCA7n7ZgUzIkfXAAGPW-A2pCbzFTup84YeORo7jfdkeUYcnYUmshdhT275SLuAR5Vtkc30LKfbyxCtfepNzHFo_Xuj6i48GqL-Kis2r1pGvcxGvguNVjaO"/>
+<div class="flex-1">
+<div class="flex justify-between">
+<h4 class="font-headline-md text-base text-on-surface">Julián Rivas</h4>
+<span class="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-bold">ACTIVO</span>
+</div>
+<p class="font-body-md text-sm text-on-surface-variant mb-3">jrivas@eng.studio</p>
+<div class="flex gap-4">
+<div>
+<p class="text-[10px] uppercase text-on-surface-variant/60">Formularios</p>
+<p class="font-label-md text-on-surface">5</p>
+</div>
+<div>
+<p class="text-[10px] uppercase text-on-surface-variant/60">Última act.</p>
+<p class="font-label-md text-on-surface">Hace 2h</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Content: Detail Glass View -->
+<section class="flex-1 flex flex-col h-full glass-panel rounded-3xl p-10 overflow-hidden relative">
+<!-- Details Header -->
+<div class="flex justify-between items-start mb-12">
+<div class="flex items-center gap-8">
+<div class="relative">
+<img class="w-32 h-32 rounded-2xl object-cover border-2 border-primary/50 shadow-[0_0_30px_rgba(74,222,128,0.2)]" data-alt="Portrait of Elena Valdivia, a creative professional woman with vibrant aesthetic, natural lighting, set against a dark minimalist studio background that emphasizes deep textures and clean lines. Professional and artistic mood." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBo3Q7LlIzERdkc-BkC5kSai7ALGwndKN1QOstYvhLgPwTJQp4BnrXg7hYXCZvDQWTynaJiN1_IuOPbvAuy0U1Ti8WxUjEVC-ECUIpDBc2F3OnYtBsdmM21DDUCKcbPEjaVjtlqvFbDOi6xtxrbBV5-sLanGgAt6ikrU93Jbiqi500NSGyT1pgiHWT8JiFc3vPoB_MAlQc3rkcftf6mHGz7bx5BKQ9ukmgbLkfbuNIgsNKNI9XNc25hHh2-d9qbKdcgiDzmrpy6CN8a"/>
+<div class="absolute -bottom-2 -right-2 bg-primary text-background p-2 rounded-lg">
+<span class="material-symbols-outlined text-base" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<div>
+<div class="flex items-center gap-4 mb-2">
+<h2 class="font-display-lg text-display-lg text-on-surface leading-none">Elena Valdivia</h2>
+<span class="px-3 py-1 rounded-full border border-primary/30 text-primary text-[12px] font-bold tracking-widest uppercase">Platinum User</span>
+</div>
+<div class="flex gap-6 text-on-surface-variant font-label-md">
+<span class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">mail</span>elena.v@creative.io</span>
+<span class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">location_on</span>Madrid, España</span>
+<span class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">event</span>Miembro desde Oct 2023</span>
+</div>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="h-12 px-6 rounded-xl bg-white/5 border border-white/20 hover:border-white/50 transition-all font-label-md">Exportar PDF</button>
+<button class="h-12 px-6 rounded-xl bg-primary text-background font-bold hover:glow-primary transition-all flex items-center gap-2">
+<span class="material-symbols-outlined">edit</span>
+                        Editar Perfil
+                    </button>
+</div>
+</div>
+<!-- Bento Stats -->
+<div class="grid grid-cols-4 gap-6 mb-12">
+<div class="glass-panel p-6 rounded-2xl border-white/5 bg-white/2">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Total Respuestas</p>
+<p class="font-display-lg text-4xl text-on-surface">342</p>
+<div class="mt-4 flex items-center gap-2 text-primary text-xs">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span>+12% este mes</span>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-2xl border-white/5 bg-white/2">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Tasa Completitud</p>
+<p class="font-display-lg text-4xl text-on-surface">94.2%</p>
+<div class="mt-4 flex items-center gap-2 text-on-surface-variant text-xs">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span>Excelente rendimiento</span>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-2xl border-white/5 bg-white/2">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Tiempo Promedio</p>
+<p class="font-display-lg text-4xl text-on-surface">2m 45s</p>
+<div class="mt-4 flex items-center gap-2 text-error text-xs">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>-15s vs promedio</span>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-2xl border-white/5 bg-white/2">
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Proyectos Activos</p>
+<p class="font-display-lg text-4xl text-on-surface">04</p>
+<div class="mt-4 flex items-center gap-2 text-secondary text-xs">
+<span class="material-symbols-outlined text-sm">layers</span>
+<span>Enfoque multicanal</span>
+</div>
+</div>
+</div>
+<!-- Timeline Section -->
+<div class="flex-1 flex flex-col min-h-0">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline-md text-xl text-on-surface">Historial Relacional</h3>
+<div class="flex bg-white/5 p-1 rounded-lg">
+<button class="px-4 py-1.5 rounded-md bg-white/10 text-on-surface text-xs font-bold transition-all">Todos</button>
+<button class="px-4 py-1.5 rounded-md text-on-surface-variant hover:text-on-surface text-xs font-bold transition-all">Formularios</button>
+<button class="px-4 py-1.5 rounded-md text-on-surface-variant hover:text-on-surface text-xs font-bold transition-all">Feedback</button>
+</div>
+</div>
+<!-- Timeline List -->
+<div class="flex-1 overflow-y-auto custom-scrollbar pr-4 space-y-6">
+<!-- Timeline Item 1 -->
+<div class="relative pl-8 before:absolute before:left-[11px] before:top-2 before:bottom-[-24px] before:w-[2px] before:bg-white/10">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-primary border-4 border-background z-10"></div>
+<div class="flex items-center gap-4 mb-2">
+<span class="text-[12px] font-label-md text-primary bg-primary/10 px-2 py-0.5 rounded">RECIENTE</span>
+<span class="text-on-surface-variant text-sm">Hoy, 10:24 AM</span>
+</div>
+<div class="glass-panel p-5 rounded-2xl border-white/5 hover:bg-white/5 transition-all">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h4 class="font-headline-md text-lg text-on-surface mb-1">Encuesta de Satisfacción Q1</h4>
+<p class="text-sm text-on-surface-variant">Proyecto: Arbo Cloud Solutions</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">open_in_new</span>
+</div>
+<div class="grid grid-cols-3 gap-4">
+<div class="bg-white/5 rounded-xl p-3">
+<p class="text-[10px] text-on-surface-variant uppercase mb-1">Puntuación</p>
+<p class="font-bold text-primary">10/10</p>
+</div>
+<div class="bg-white/5 rounded-xl p-3">
+<p class="text-[10px] text-on-surface-variant uppercase mb-1">NPS</p>
+<p class="font-bold text-on-surface">Promotor</p>
+</div>
+<div class="bg-white/5 rounded-xl p-3">
+<p class="text-[10px] text-on-surface-variant uppercase mb-1">Sentimiento</p>
+<p class="font-bold text-secondary">Positivo</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Timeline Item 2 -->
+<div class="relative pl-8 before:absolute before:left-[11px] before:top-2 before:bottom-[-24px] before:w-[2px] before:bg-white/10">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-white/20 border-4 border-background z-10"></div>
+<div class="flex items-center gap-4 mb-2">
+<span class="text-on-surface-variant text-sm">14 de Febrero, 2024</span>
+</div>
+<div class="glass-panel p-5 rounded-2xl border-white/5 hover:bg-white/5 transition-all opacity-80 hover:opacity-100">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h4 class="font-headline-md text-lg text-on-surface mb-1">Registro de Evento: Global Connect</h4>
+<p class="text-sm text-on-surface-variant">Proyecto: Marketing Ops</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">open_in_new</span>
+</div>
+<p class="text-sm italic text-on-surface-variant border-l-2 border-secondary pl-4 mb-4">
+                                "Muy interesada en participar como ponente en el panel de diseño estratégico."
+                            </p>
+</div>
+</div>
+<!-- Timeline Item 3 -->
+<div class="relative pl-8">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-white/20 border-4 border-background z-10"></div>
+<div class="flex items-center gap-4 mb-2">
+<span class="text-on-surface-variant text-sm">02 de Enero, 2024</span>
+</div>
+<div class="glass-panel p-5 rounded-2xl border-white/5 hover:bg-white/5 transition-all opacity-60 hover:opacity-100">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="font-headline-md text-lg text-on-surface mb-1">Actualización de Perfil Fiscal</h4>
+<p class="text-sm text-on-surface-variant">Proyecto: Workspace Admin</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">lock</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Contextual Floating Action Button (FAB) -->
+<div class="fixed bottom-12 right-12 flex flex-col gap-4 items-end z-50">
+<div class="hidden flex flex-col gap-3 mb-3 animate-in slide-in-from-bottom-4 duration-300" id="fab-menu">
+<button class="flex items-center gap-3 px-4 py-2 bg-surface-container rounded-full border border-white/10 text-on-surface hover:bg-white/10 transition-all font-label-md">
+<span class="material-symbols-outlined text-sm">mail</span>
+                Enviar Correo
+            </button>
+<button class="flex items-center gap-3 px-4 py-2 bg-surface-container rounded-full border border-white/10 text-on-surface hover:bg-white/10 transition-all font-label-md">
+<span class="material-symbols-outlined text-sm">download</span>
+                Bajar Historial
+            </button>
+</div>
+<button class="w-16 h-16 rounded-full bg-primary text-background flex items-center justify-center shadow-[0_0_30px_rgba(74,222,128,0.4)] hover:scale-105 active:scale-95 transition-all group" id="main-fab">
+<span class="material-symbols-outlined text-3xl transition-transform group-hover:rotate-12">add</span>
+</button>
+</div>
+<script>
+        // Simple FAB Interaction
+        const fab = document.getElementById('main-fab');
+        const fabMenu = document.getElementById('fab-menu');
+        let isOpen = false;
+
+        fab.addEventListener('click', () => {
+            isOpen = !isOpen;
+            if(isOpen) {
+                fabMenu.classList.remove('hidden');
+                fab.querySelector('span').textContent = 'close';
+            } else {
+                fabMenu.classList.add('hidden');
+                fab.querySelector('span').textContent = 'add';
+            }
+        });
+
+        // Hover effect for respondent list
+        const respondentItems = document.querySelectorAll('section.w-\\[400px\\] div.glass-panel');
+        respondentItems.forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                if(!item.classList.contains('glow-active')) {
+                    item.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                }
+            });
+            item.addEventListener('mouseleave', () => {
+                if(!item.classList.contains('glow-active')) {
+                    item.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                }
+            });
+        });
+    </script>
+</body></html>

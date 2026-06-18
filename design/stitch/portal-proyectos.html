@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Portal de Proyectos (Web) - Arbo Forms</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&family=Geist:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&family=Sora:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #131315;
+            color: #e5e1e4;
+            overflow-x: hidden;
+        }
+        .glass-card {
+            backdrop-filter: blur(64px);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            border-color: #4ade80;
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.1), inset 1px 1px 0px rgba(255, 255, 255, 0.1);
+            transform: translateY(-4px);
+        }
+        .glow-bg {
+            position: fixed;
+            width: 800px;
+            height: 800px;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        .primary-glow {
+            background: radial-gradient(circle, #4ade80 0%, transparent 70%);
+            top: -200px;
+            right: -200px;
+        }
+        .secondary-glow {
+            background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
+            bottom: -200px;
+            left: 200px;
+        }
+        .btn-primary-glow:hover {
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.4);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#353437",
+                        "inverse-primary": "#006d36",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "on-background": "#e5e1e4",
+                        "error-container": "#93000a",
+                        "background": "#131315",
+                        "on-secondary-fixed": "#23005c",
+                        "secondary-fixed": "#e9ddff",
+                        "surface-container-high": "#2a2a2c",
+                        "on-primary": "#003919",
+                        "surface-bright": "#39393b",
+                        "tertiary-fixed-dim": "#c4c7c9",
+                        "primary-container": "#4ade80",
+                        "outline-variant": "#3d4a3e",
+                        "on-tertiary-fixed-variant": "#444749",
+                        "error": "#ffb4ab",
+                        "secondary": "#d0bcff",
+                        "surface": "#131315",
+                        "surface-container-highest": "#353437",
+                        "surface-dim": "#131315",
+                        "on-error-container": "#ffdad6",
+                        "surface-container": "#201f22",
+                        "on-primary-fixed": "#00210c",
+                        "on-tertiary": "#2d3133",
+                        "on-tertiary-fixed": "#191c1e",
+                        "inverse-surface": "#e5e1e4",
+                        "tertiary": "#dee0e2",
+                        "on-surface-variant": "#bccabb",
+                        "surface-container-lowest": "#0e0e10",
+                        "outline": "#869486",
+                        "on-surface": "#e5e1e4",
+                        "primary-fixed-dim": "#4de082",
+                        "on-secondary": "#3c0091",
+                        "primary-fixed": "#6dfe9c",
+                        "surface-tint": "#4de082",
+                        "surface-container-low": "#1c1b1d",
+                        "on-secondary-container": "#c4abff",
+                        "on-primary-container": "#005e2d",
+                        "tertiary-fixed": "#e0e3e5",
+                        "secondary-container": "#571bc1",
+                        "primary": "#6bfb9a",
+                        "on-tertiary-container": "#4e5153",
+                        "inverse-on-surface": "#313032",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "tertiary-container": "#c2c4c6",
+                        "on-error": "#690005",
+                        "on-primary-fixed-variant": "#005227"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-tablet": "32px",
+                        "sidebar-width": "280px",
+                        "margin-desktop": "48px",
+                        "gutter": "24px",
+                        "stack-gap": "16px",
+                        "container-max": "1440px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Sora"],
+                        "display-xl": ["Sora"],
+                        "label-md": ["Geist"],
+                        "display-lg": ["Sora"],
+                        "label-sm": ["Geist"],
+                        "body-lg": ["Inter"],
+                        "headline-lg": ["Sora"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "display-xl": ["72px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+                        "label-md": ["14px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "display-lg": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-sm": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.1em", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- Atmospheric Glows -->
+<div class="glow-bg primary-glow"></div>
+<div class="glow-bg secondary-glow"></div>
+<!-- Side Navigation -->
+<aside class="fixed left-0 top-0 h-full w-[280px] border-r border-white/20 bg-surface/10 backdrop-blur-[64px] flex flex-col py-8 px-4 z-[100] inset-shadow-white/10">
+<div class="flex items-center gap-3 px-4 mb-10">
+<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">hub</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Arbo Forms</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Workspace</p>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<!-- Active Link: Formularios -->
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg relative text-primary font-bold after:absolute after:left-0 after:top-1/2 after:-translate-y-1/2 after:h-8 after:w-0.5 after:bg-primary after:shadow-[0_0_10px_#4ade80] transition-all duration-300" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">description</span>
+<span class="font-label-md text-label-md">Formularios</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-on-surface transition-all duration-300" href="#">
+<span class="material-symbols-outlined">forum</span>
+<span class="font-label-md text-label-md">Respuestas</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-on-surface transition-all duration-300" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span class="font-label-md text-label-md">Relaciones</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/10 hover:text-on-surface transition-all duration-300" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Panel</span>
+</a>
+</nav>
+<div class="mt-auto px-4 py-4 rounded-xl glass-card">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full border border-white/20 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a creative director in a futuristic office setting, high-key lighting, soft green environmental glows reflecting off spectacles, minimalist dark aesthetic, ultra-high definition photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBKhLDVXIwlZegRTRu9V44JrPHCMmk4oo_lVyhVlU7-q-bHX7XTwbQPX0_IoYOKX-Su8YaquVGxILpc5atqrTYleE1jz4QrG4gIbVIV8tyTlsi_fKPJfe_77cnx73AmRDN5iDZheNdUru9hbhofJv4gUatvkxuKitZKj8zy7LGrv1u6-flHMDbHeGTeoeIaaRr9E0ySvdAo3OIbGxZeCJbDccNzKJj-rNggoXPAvRoGV0nXxKpoBmQMTee07hWOakdSzW7AJ2QR2y0e"/>
+</div>
+<div>
+<p class="font-label-md text-label-md font-bold">Alex Rivera</p>
+<p class="text-[10px] uppercase tracking-wider text-primary">Pro Plan</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Top Navigation -->
+<header class="fixed top-0 right-0 left-[280px] h-20 bg-surface/5 backdrop-blur-[64px] border-b border-white/20 flex justify-between items-center px-margin-desktop z-50">
+<div class="flex items-center gap-8 flex-1">
+<div class="relative w-full max-w-md group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-secondary transition-colors">search</span>
+<input class="w-full bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-on-surface placeholder:text-on-surface-variant focus:ring-2 focus:ring-on-secondary-fixed-variant focus:border-transparent transition-all outline-none font-label-md text-label-md" placeholder="Buscar formularios..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<!-- Collaborator Bubbles -->
+<div class="flex -space-x-3 items-center">
+<div class="w-8 h-8 rounded-full border-2 border-background glass-card overflow-hidden transition-transform hover:scale-110 hover:z-10 cursor-pointer">
+<img class="w-full h-full object-cover" data-alt="Close-up portrait of a female developer with neon violet lighting accents, professional tech-focused atmosphere, high-end digital portrait, sharp focus on eyes, dark moody background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxiAPhzkc6zfgTNIpkUuVAHSErt6xsQxUsaGjHKl2u1iLoniukif7LZrFi4KwYrxamZpNxBO7gWbeWpyR1yItQf1f_WutmIvVS47elKm5uOFUAquV6YN3ftzdfnLT7p5g6h75eJBrrQh0eiJuxp1tXXaJcNdIlJgzkS-gaEwL4BQUEwzPEWCoY3Hd7t322hGSvS32OmplYgMZwTWJPxokOMtCk46ILamKPB6geZjAjvQKzsz1SnO1ixijSx5vQ83rY8GvVfgc-Vl0R"/>
+</div>
+<div class="w-8 h-8 rounded-full border-2 border-background glass-card overflow-hidden transition-transform hover:scale-110 hover:z-10 cursor-pointer">
+<img class="w-full h-full object-cover" data-alt="Studio portrait of a male data scientist, subtle green backlighting, sharp aesthetic, professional look, wearing a minimalist black turtleneck, dark atmospheric background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQeZAjBei5ctdbJpbLFdA5YIrD4Zy4c8mevCxBuDa-Sxera9MnkKgatuzEkgKEHVTGPY4F3X6ZGkLaorwwG5l_Ck6zbUj7V5FV6dDo4ZprbJtNYXiFIravGRBy2Hsu16Gi130Z-9QN_cyb7in_PbbsQNNsNnwrCh6li-z234FMgdYNVgX3xVLNzrYBtcGxgzFitgaIv9MIvBfR2SKGTsHpBKplKznRiMNQ7VuwOHcbRHHl3QCDBNXR38S77SDnOJYyshTP7bQTGC7a"/>
+</div>
+<div class="w-8 h-8 rounded-full border-2 border-background glass-card overflow-hidden transition-transform hover:scale-110 hover:z-10 cursor-pointer">
+<img class="w-full h-full object-cover" data-alt="Portrait of a creative strategist with violet and emerald lighting, blurred technological elements in the background, sleek futuristic professional look, high detail skin texture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAbqKGMt84v6QlD8Ln7LYgHS1DalP8hI6U7rvGYx-ClJLClMnuK6PlKgMYbuknuhLurlXnDyRjdn_ipLZJolCo-uL8hPQzCbn0zYgYlMVQSlwid-cmuSQ6uZd-brK3N2gHARJRvvtgW0-HEpzT804C7W76Jn_W0ANHBJS-1amwFIWKGQHNkR2DhabQurAFRAfPZ9uA5o9us0ASHl-tkonismMRG62ERrYPRCTtQ4w6tA8z27uaoWVOmgoyxmKox2i27q147_p_vxSMB"/>
+</div>
+<div class="w-8 h-8 rounded-full bg-white/10 border-2 border-background flex items-center justify-center font-label-sm text-label-sm text-primary transition-transform hover:scale-110 cursor-pointer">
+                    +4
+                </div>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<button class="p-2 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-[280px] mt-20 p-margin-desktop max-w-container-max mx-auto">
+<header class="mb-12 flex justify-between items-end">
+<div>
+<nav class="flex items-center gap-2 text-on-surface-variant mb-4 font-label-sm text-label-sm uppercase tracking-widest">
+<span>Espacio de Trabajo</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary">Proyectos</span>
+</nav>
+<h2 class="font-display-lg text-display-lg">Portal de Proyectos</h2>
+</div>
+<button class="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-full font-label-md text-label-md font-bold btn-primary-glow transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add</span>
+                Nuevo Formulario
+            </button>
+</header>
+<!-- Bento/Masonry Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+<!-- Card 1 -->
+<div class="glass-card rounded-2xl overflow-hidden flex flex-col">
+<div class="h-48 w-full relative group">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Detailed close-up of a futuristic UI dashboard with glowing green line charts and abstract data visualizations, shallow depth of field, blurred technological background, intense green and violet glow, professional glassmorphism style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB06xmX3oA9kh8bxMALxomP-3LTnYJ1BaDZeh1i4crwTzfLw86w5u2yvEXSR-O_UXzy-IrwP8MEW4Ky9tRzDEpMEIi7cVBk2QGGVkGpDu-lfRDpT_NJPUAAcBeWhk2Ipa1EaW0Y--tS5piFAtortLxX_YaiTgqSXydoyhK5fdQ7FkqZHZ6FzM4cAVhzECY2LD6k_OzERyVf1L7Nlai9z8kpKpch6_dBCGGiHToTBT3tXvXJn-sesNpGjcPD3eTBWXncL_XGHlnBBJtY"/>
+<div class="absolute top-4 left-4">
+<span class="bg-[#4ade80]/20 text-primary border border-primary/30 px-3 py-1 rounded-full font-label-sm text-label-sm backdrop-blur-md">Publicado</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-1">
+<h3 class="font-headline-md text-headline-md mb-2">Encuesta de Satisfacción 2024</h3>
+<p class="text-on-surface-variant font-body-md text-body-md mb-6 line-clamp-2">Recolección de feedback trimestral sobre la experiencia de usuario en la plataforma principal.</p>
+<div class="mt-auto flex items-center justify-between">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">group</span>
+<span class="font-label-sm text-label-sm">1.2k Respuestas</span>
+</div>
+<button class="bg-primary text-on-primary px-5 py-2 rounded-lg font-label-md text-label-md font-bold btn-primary-glow transition-all">Contestar</button>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="glass-card rounded-2xl overflow-hidden flex flex-col">
+<div class="h-48 w-full relative group">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Abstract 3D render of violet crystalline structures with light passing through them, creating sharp geometric shadows and glowing edges, dark background, professional high-end aesthetic, 8k resolution." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-NA5BVQGNkCYjB0Sg3-wywt9gWPwFfhgAC2C19c-NqmyugiXUkeM8TiqY8wm4PNrY9YLgOU3pIohilF5WEu0hTbAThuw5nMv79sThUCsfiulCgHaIFh7OEksZzPTJ3HAT9-NgRZe9B5h76S8NOx6aKcMMbCzXxD1yCPDJwnqElzD3BKFlFAV-qsJJ2CQLpS9BMNJKb_JnDTZy3NPB0YPwFBfiuEH-q8duDQHLEagevWu9PNn7HZx7fbe3WcKi4yDY9ffDyCf4L7E6"/>
+<div class="absolute top-4 left-4">
+<span class="bg-white/10 text-on-surface-variant border border-white/20 px-3 py-1 rounded-full font-label-sm text-label-sm backdrop-blur-md">Borrador</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-1">
+<h3 class="font-headline-md text-headline-md mb-2">Registro de Eventos Beta</h3>
+<p class="text-on-surface-variant font-body-md text-body-md mb-6 line-clamp-2">Formulario interno para la gestión de participantes en el lanzamiento de la nueva versión del ecosistema.</p>
+<div class="mt-auto flex items-center justify-between">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span class="font-label-sm text-label-sm">Hoy, 14:30</span>
+</div>
+<button class="bg-primary text-on-primary px-5 py-2 rounded-lg font-label-md text-label-md font-bold btn-primary-glow transition-all">Contestar</button>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="glass-card rounded-2xl overflow-hidden flex flex-col">
+<div class="h-48 w-full relative group">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="High-contrast macro photography of a motherboard circuit with neon green power paths, glowing diodes, professional tech lighting, shallow depth of field, futuristic electronics aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZ4QM4njHpGxgSjKuMbIY8pZZZeYT0XqaJs-sUpm46ZS3oZXplYs5j6Wm4LEbqS8ApxEwl4ADOkF2yS7uUDJlxheXOiRT0EsZTE17kwnt4mg0CHcKI9pIptJWczZrVDZ_fGkfzk69BUZrlESJuD_O5FadlAHX9a4tTZRMsw7t9zfaHBZByWdH9-11EKOQNnAcjdhPRzEEyOgdVVhdcoFn6dSGWS_gSAXrsfIeX-SNyfjNMuMKZUxASGarxUNtssVlYOtps0SMwREg5"/>
+<div class="absolute top-4 left-4">
+<span class="bg-[#4ade80]/20 text-primary border border-primary/30 px-3 py-1 rounded-full font-label-sm text-label-sm backdrop-blur-md">Publicado</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-1">
+<h3 class="font-headline-md text-headline-md mb-2">Auditoría de Seguridad T3</h3>
+<p class="text-on-surface-variant font-body-md text-body-md mb-6 line-clamp-2">Validación de protocolos de acceso y seguridad perimetral para el departamento técnico.</p>
+<div class="mt-auto flex items-center justify-between">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+<span class="font-label-sm text-label-sm">450 Completados</span>
+</div>
+<button class="bg-primary text-on-primary px-5 py-2 rounded-lg font-label-md text-label-md font-bold btn-primary-glow transition-all">Contestar</button>
+</div>
+</div>
+</div>
+<!-- Card 4 (Double Span for Masonry Look) -->
+<div class="glass-card rounded-2xl overflow-hidden flex flex-col md:col-span-2">
+<div class="flex flex-col md:flex-row h-full">
+<div class="md:w-1/2 h-64 md:h-full relative group overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Wide angle shot of a futuristic data center with rows of glowing server racks, violet and green ambient lighting, reflective floors, symmetrical composition, cinematic mood, high-end 3D visualization." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7Nna4s81qkqt0tS170b2RhSnA2s-AfJBP-fDk9jER7TfZ3mpeRFfukIsUfVDqBGD71IMZm8oLF2bAs5aam7JCk78XAIxMFDU1shrIb3mXUNZa2TFfFFFaTvW8IaeD5dqbJ0dEXo67TIcwtLPynXaC2nDgznUyBRXpre5tqVpq33l6i9LiXTlm0b2hPWL2Y8edKJJHnw9k6lvVZVQvtpUhpNQ-FsiES7rBfclif2DPz-X8z__grIlh847W67b4xuEw7qwDzLGV2gKT"/>
+<div class="absolute top-4 left-4">
+<span class="bg-[#4ade80]/20 text-primary border border-primary/30 px-3 py-1 rounded-full font-label-sm text-label-sm backdrop-blur-md">Publicado</span>
+</div>
+</div>
+<div class="md:w-1/2 p-8 flex flex-col">
+<div class="mb-4">
+<span class="text-secondary font-label-sm text-label-sm tracking-widest uppercase">Destacado</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg mb-4">Investigación de Mercado Global</h3>
+<p class="text-on-surface-variant font-body-lg text-body-lg mb-8">Un estudio exhaustivo sobre las tendencias de digitalización en el mercado hispanohablante. Este formulario contiene lógica condicional avanzada.</p>
+<div class="mt-auto flex items-center justify-between">
+<div class="flex items-center gap-6">
+<div class="text-center">
+<p class="text-primary font-bold text-headline-md">8.4k</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Alcance</p>
+</div>
+<div class="text-center">
+<p class="text-secondary font-bold text-headline-md">92%</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Tasa de Éxito</p>
+</div>
+</div>
+<button class="bg-primary text-on-primary px-8 py-3 rounded-xl font-label-md text-label-md font-bold btn-primary-glow transition-all">Contestar Ahora</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 5 -->
+<div class="glass-card rounded-2xl overflow-hidden flex flex-col">
+<div class="h-48 w-full relative group">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Abstract flowing liquid metal in deep violet tones with green bioluminescent accents, swirling organic shapes, reflective surface, futuristic dark aesthetic, high resolution render." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqOjvDUxHlW7oocSMHpJ3ebzLGcR4ivHjiocTReY_vzG5AxQUqe2fjl6fIsSJx79TvwDhpjt3VIx_uTxC8JzEH3uNL09Bf4yWE2B8hmz16WlxOWuSmQvWNbkm_f1KSXZ0zz3Y1wREkJkX5im6gUgtEp-Te7KKMlO9v9xmPOuvNXNdr25vfTRrZlDVHBYiBgIVTO8g6ta0vSzCz9PavuZogr43zKR5S3SnAiHJcfLFM9J80Xxnsxx_LNAZaDV0AmeOu1fnwccXxzNSG"/>
+<div class="absolute top-4 left-4">
+<span class="bg-white/10 text-on-surface-variant border border-white/20 px-3 py-1 rounded-full font-label-sm text-label-sm backdrop-blur-md">Borrador</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-1">
+<h3 class="font-headline-md text-headline-md mb-2">Test A/B: Onboarding</h3>
+<p class="text-on-surface-variant font-body-md text-body-md mb-6 line-clamp-2">Evaluación cualitativa de los dos nuevos flujos de bienvenida para usuarios nuevos.</p>
+<div class="mt-auto flex items-center justify-between">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">science</span>
+<span class="font-label-sm text-label-sm">Versión 2.1</span>
+</div>
+<button class="bg-primary text-on-primary px-5 py-2 rounded-lg font-label-md text-label-md font-bold btn-primary-glow transition-all">Contestar</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer / Load More -->
+<div class="mt-16 text-center">
+<button class="px-8 py-4 glass-card rounded-full font-label-md text-label-md hover:bg-white/10 transition-all border border-white/20">
+                Cargar más formularios
+            </button>
+</div>
+</main>
+<script>
+        // Micro-interactions and atmospheric mouse-follow glow
+        document.addEventListener('mousemove', (e) => {
+            const glow = document.querySelector('.primary-glow');
+            if(glow) {
+                const moveX = (e.clientX - window.innerWidth / 2) * 0.05;
+                const moveY = (e.clientY - window.innerHeight / 2) * 0.05;
+                glow.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            }
+        });
+
+        // Search bar focus effect
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.style.borderColor = 'rgba(139, 92, 246, 0.4)';
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+        });
+    </script>
+</body></html>

@@ -1,5 +1,5 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;600;700;800&family=Geist:wght@400;500;600&display=swap');
 @import "tailwindcss";
 @import "@heroui/styles";
 
@@ -31,6 +31,12 @@
   --arbo-shadow-lg: 0 8px 32px rgba(0,0,0,.5);
   --arbo-radius: 10px;
   --arbo-radius-lg: 14px;
+  /* ─── Glass design system (Stitch "Arbo Forms Visual System") ─── */
+  --arbo-violet: #8b5cf6;          /* secondary atmospheric / chart accent */
+  --arbo-glass-bg: rgba(255, 255, 255, 0.05);
+  --arbo-glass-border: rgba(255, 255, 255, 0.12);
+  --arbo-glass-inset: inset 1px 1px 0 rgba(255, 255, 255, 0.08);
+  --arbo-radius-glass: 20px;
 }
 
 /* ─── Base ─── */
@@ -145,6 +151,49 @@ body {
     0 4px 24px rgba(0, 0, 0, 0.3),
     0 0 0 1px rgba(74, 222, 128, 0.04) inset;
 }
+
+/* ─── Glass design system utilities (Stitch redesign) ─── */
+/* Frosted translucent surface — use on cards, panels, modals over a glow background. */
+.arbo-glass {
+  background: var(--arbo-glass-bg);
+  border: 1px solid var(--arbo-glass-border);
+  backdrop-filter: blur(64px);
+  -webkit-backdrop-filter: blur(64px);
+  box-shadow: var(--arbo-glass-inset);
+  transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Optional lift + green glow on hover (interactive cards). */
+.arbo-glass-hover:hover {
+  border-color: var(--arbo-accent);
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.12), var(--arbo-glass-inset);
+  transform: translateY(-4px);
+}
+
+/* Atmospheric background glows — render two fixed orbs behind the app shell. */
+.arbo-glow-bg {
+  position: fixed;
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: 0;
+  opacity: 0.15;
+  pointer-events: none;
+}
+.arbo-glow-primary {
+  background: radial-gradient(circle, var(--arbo-accent) 0%, transparent 70%);
+  top: -200px;
+  right: -200px;
+}
+.arbo-glow-secondary {
+  background: radial-gradient(circle, var(--arbo-violet) 0%, transparent 70%);
+  bottom: -200px;
+  left: 200px;
+}
+
+/* Display / label type ramps from the Stitch system. */
+.arbo-font-display { font-family: 'Sora', system-ui, sans-serif; letter-spacing: -0.02em; }
+.arbo-font-label { font-family: 'Geist', system-ui, sans-serif; letter-spacing: 0.05em; }
 
 @keyframes fadeInUp {
   from {
