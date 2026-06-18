@@ -1,0 +1,666 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+@import "@heroui/styles";
+
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ─── Arbo Dark Theme ─── */
+:root {
+  --arbo-bg: #0f0f14;
+  --arbo-surface: #1a1a24;
+  --arbo-surface-2: #22222e;
+  --arbo-surface-3: #2a2a38;
+  --arbo-border: #2e2e3e;
+  --arbo-border-light: #3a3a4a;
+  --arbo-accent: #4ADE80;
+  --arbo-accent-hover: #22C55E;
+  --arbo-accent-muted: rgba(74, 222, 128, 0.15);
+  --arbo-accent-subtle: rgba(74, 222, 128, 0.08);
+  --arbo-text: #F1F1F4;
+  --arbo-text-secondary: #A0A0B4;
+  --arbo-text-muted: #6B6B80;
+  --arbo-text-dim: #4A4A5A;
+  --arbo-danger: #EF4444;
+  --arbo-danger-muted: rgba(239, 68, 68, 0.15);
+  --arbo-warning: #F59E0B;
+  --arbo-info: #3B82F6;
+  --arbo-shadow: 0 2px 8px rgba(0,0,0,.4);
+  --arbo-shadow-lg: 0 8px 32px rgba(0,0,0,.5);
+  --arbo-radius: 10px;
+  --arbo-radius-lg: 14px;
+}
+
+/* ─── Base ─── */
+body {
+  background: var(--arbo-bg) !important;
+  color: var(--arbo-text);
+}
+
+/* ─── Sidebar ─── */
+.arbo-sidebar {
+  background: var(--arbo-surface);
+  border-right: 1px solid var(--arbo-border);
+  width: 220px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.arbo-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--arbo-text-secondary);
+  transition: all .15s ease;
+  cursor: pointer;
+  margin: 0 8px;
+}
+.arbo-sidebar-item:hover {
+  background: var(--arbo-accent-subtle);
+  color: var(--arbo-text);
+}
+.arbo-sidebar-item.active {
+  background: var(--arbo-accent);
+  color: var(--arbo-bg);
+  font-weight: 600;
+}
+
+/* ─── Top Bar ─── */
+.arbo-topbar {
+  background: var(--arbo-surface);
+  border-bottom: 1px solid var(--arbo-border);
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 8px;
+}
+
+.arbo-tab {
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--arbo-text-secondary);
+  border-radius: 6px;
+  transition: all .15s ease;
+  cursor: pointer;
+  position: relative;
+}
+.arbo-tab:hover {
+  color: var(--arbo-text);
+  background: var(--arbo-accent-subtle);
+}
+.arbo-tab.active {
+  color: var(--arbo-accent);
+}
+.arbo-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -13px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--arbo-accent);
+  border-radius: 1px;
+}
+
+/* ─── Cards ─── */
+.arbo-card {
+  background: var(--arbo-surface);
+  border: 1px solid var(--arbo-border);
+  border-radius: var(--arbo-radius);
+  box-shadow: var(--arbo-shadow);
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+.arbo-card:hover {
+  border-color: var(--arbo-border-light);
+  box-shadow: var(--arbo-shadow-lg);
+}
+
+.arbo-card-static {
+  background: var(--arbo-surface);
+  border: 1px solid var(--arbo-border);
+  border-radius: var(--arbo-radius);
+}
+
+/* ─── Auth Card ─── */
+.arbo-auth-card {
+  background: linear-gradient(
+    145deg,
+    rgba(26, 26, 36, 0.95) 0%,
+    rgba(34, 34, 46, 0.8) 100%
+  );
+  border: 1px solid var(--arbo-border);
+  border-radius: 16px;
+  padding: 40px 36px;
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(74, 222, 128, 0.04) inset;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Responsive form panels (contact + form side by side → stacked on mobile) ─── */
+.arbo-panel-responsive {
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+/* Mobile: no max-width constraint */
+@media (max-width: 1023px) {
+  .arbo-panel-responsive {
+    max-width: none;
+  }
+}
+/* Desktop: apply configured max-width */
+@media (min-width: 1024px) {
+  .arbo-panel-responsive {
+    width: auto;
+    max-width: var(--panel-max-w, 100%);
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+/* ─── Panels ─── */
+.arbo-panel {
+  background: var(--arbo-surface);
+  border: 1px solid var(--arbo-border);
+  border-radius: var(--arbo-radius-lg);
+}
+
+.arbo-panel-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--arbo-border);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--arbo-text-secondary);
+}
+
+/* ─── Buttons ─── */
+.arbo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.arbo-btn-primary {
+  background: var(--arbo-accent) !important;
+  color: var(--arbo-bg) !important;
+  border: none;
+}
+.arbo-btn-primary:hover {
+  background: var(--arbo-accent-hover) !important;
+  box-shadow: 0 0 16px rgba(74, 222, 128, 0.3);
+}
+
+.arbo-btn-secondary {
+  background: var(--arbo-surface-2) !important;
+  color: var(--arbo-text) !important;
+  border: 1px solid var(--arbo-border) !important;
+}
+.arbo-btn-secondary:hover {
+  background: var(--arbo-surface-3) !important;
+  border-color: var(--arbo-border-light) !important;
+}
+
+.arbo-btn-ghost {
+  background: transparent;
+  color: var(--arbo-text-secondary);
+  border: none;
+  padding: 6px 10px;
+}
+.arbo-btn-ghost:hover {
+  background: var(--arbo-accent-subtle);
+  color: var(--arbo-text);
+}
+
+.arbo-btn-danger {
+  background: var(--arbo-danger-muted) !important;
+  color: var(--arbo-danger) !important;
+  border: 1px solid transparent !important;
+}
+.arbo-btn-danger:hover {
+  background: var(--arbo-danger) !important;
+  color: white !important;
+}
+
+/* ─── Badge ─── */
+.arbo-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.arbo-badge-success {
+  background: var(--arbo-accent-muted);
+  color: var(--arbo-accent);
+}
+.arbo-badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--arbo-warning);
+}
+
+/* ─── Navigator tree ─── */
+.arbo-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--arbo-text-secondary);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.arbo-tree-item:hover {
+  background: var(--arbo-accent-subtle);
+  color: var(--arbo-text);
+}
+.arbo-tree-item.active {
+  color: var(--arbo-accent);
+  background: var(--arbo-accent-subtle);
+}
+
+/* ─── Status bar ─── */
+.arbo-statusbar {
+  background: var(--arbo-surface);
+  border-top: 1px solid var(--arbo-border);
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--arbo-text-muted);
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--arbo-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--arbo-border-light); }
+
+/* ─── Loading spinner ─── */
+.arbo-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--arbo-border);
+  border-top-color: var(--arbo-accent);
+  border-radius: 50%;
+  animation: arbo-spin 0.7s linear infinite;
+}
+@keyframes arbo-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── HeroUI Global Dark overrides ─── */
+
+/* Labels */
+[data-slot="label"] {
+  color: var(--arbo-text-secondary) !important;
+}
+[data-slot="description"] {
+  color: var(--arbo-text-muted) !important;
+}
+[data-slot="error-message"] {
+  color: var(--arbo-danger) !important;
+}
+
+/* Text inputs (HeroUI 3 renders data-slot="input" on the INPUT itself) */
+[data-slot="input"],
+[data-slot="input-wrapper"],
+[data-slot="inner-wrapper"] {
+  background: var(--arbo-surface-2) !important;
+  border-color: var(--arbo-border) !important;
+  color: var(--arbo-text) !important;
+  caret-color: var(--arbo-accent) !important;
+}
+[data-slot="input"]:hover,
+[data-slot="input-wrapper"]:hover {
+  border-color: var(--arbo-border-light) !important;
+}
+[data-slot="input"]:focus,
+[data-slot="input"]:focus-within,
+[data-slot="input-wrapper"]:focus-within {
+  border-color: var(--arbo-accent) !important;
+}
+[data-slot="input"]::placeholder {
+  color: var(--arbo-text-muted) !important;
+}
+
+/* Textareas */
+[data-slot="textarea"] {
+  background: var(--arbo-surface-2) !important;
+  border-color: var(--arbo-border) !important;
+  color: var(--arbo-text) !important;
+  caret-color: var(--arbo-accent) !important;
+}
+[data-slot="textarea"]:focus {
+  border-color: var(--arbo-accent) !important;
+}
+
+/* Select trigger (HeroUI 3 uses data-slot="select-trigger") */
+[data-slot="select-trigger"],
+[data-slot="trigger"] {
+  background: var(--arbo-surface-2) !important;
+  border-color: var(--arbo-border) !important;
+  color: var(--arbo-text) !important;
+}
+[data-slot="select-trigger"]:hover,
+[data-slot="trigger"]:hover {
+  border-color: var(--arbo-border-light) !important;
+}
+[data-slot="select-trigger"]:focus,
+[data-slot="select-trigger"][data-open="true"],
+[data-slot="trigger"]:focus,
+[data-slot="trigger"][data-open="true"] {
+  border-color: var(--arbo-accent) !important;
+}
+[data-slot="select-value"],
+[data-slot="value"] {
+  color: var(--arbo-text) !important;
+}
+[data-slot="select-default-indicator"],
+[data-slot="selector-icon"],
+[data-slot="indicator"] {
+  color: var(--arbo-text-muted) !important;
+}
+
+/* Checkbox */
+[data-slot="wrapper"] {
+  border-color: var(--arbo-border-light) !important;
+  background: transparent !important;
+}
+[data-selected="true"] [data-slot="wrapper"],
+[data-slot="wrapper"][data-selected="true"],
+.group[data-selected="true"] [data-slot="wrapper"] {
+  border-color: var(--arbo-accent) !important;
+  background: var(--arbo-accent) !important;
+}
+[data-slot="wrapper"] svg,
+[data-slot="icon"] {
+  color: white !important;
+}
+
+/* Modal / Dialog */
+[data-slot="dialog"],
+[data-slot="modal-dialog"],
+[data-slot="panel"] {
+  background: var(--arbo-surface) !important;
+  color: var(--arbo-text) !important;
+}
+[data-slot="modal-body"],
+[data-slot="modal-header"],
+[data-slot="modal-footer"],
+[data-slot="header"],
+[data-slot="body"],
+[data-slot="footer"] {
+  background: var(--arbo-surface) !important;
+  color: var(--arbo-text) !important;
+}
+[data-slot="modal-heading"],
+[data-slot="heading"],
+[data-slot="title"] {
+  color: var(--arbo-text) !important;
+}
+[data-slot="modal-close-trigger"],
+[data-slot="close-trigger"] {
+  color: var(--arbo-text-muted) !important;
+}
+[data-slot="modal-close-trigger"]:hover,
+[data-slot="close-trigger"]:hover {
+  color: var(--arbo-text) !important;
+}
+[data-slot="backdrop"],
+[data-slot="modal-backdrop"] {
+  background: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Select / dropdown popover */
+[data-slot="popover"],
+[data-slot="select-popover"],
+[data-slot="listbox"],
+[data-slot="content"] {
+  background: var(--arbo-surface-2) !important;
+  border: 1px solid var(--arbo-border) !important;
+  color: var(--arbo-text) !important;
+}
+[data-slot="option"],
+[role="option"] {
+  color: var(--arbo-text) !important;
+}
+[data-slot="option"]:hover,
+[data-slot="option"][data-focused="true"],
+[role="option"]:hover,
+[role="option"][data-focused="true"] {
+  background: var(--arbo-accent-subtle) !important;
+}
+[data-slot="option"][data-selected="true"],
+[role="option"][aria-selected="true"] {
+  background: var(--arbo-accent-muted) !important;
+  color: var(--arbo-accent) !important;
+}
+
+/* HeroUI button variants */
+[data-slot="button"].button--primary,
+button[data-slot="button"][type="submit"] {
+  background: var(--arbo-accent) !important;
+  color: var(--arbo-bg) !important;
+}
+[data-slot="button"].button--secondary {
+  background: var(--arbo-surface-3) !important;
+  color: var(--arbo-text) !important;
+  border: 1px solid var(--arbo-border) !important;
+}
+[data-slot="button"].button--secondary:hover {
+  background: var(--arbo-surface-2) !important;
+  border-color: var(--arbo-border-light) !important;
+}
+
+/* Option tags / chips */
+.bg-default\/40 {
+  background: var(--arbo-surface-3) !important;
+  color: var(--arbo-text) !important;
+}
+
+/* ─── Per-field custom styles ─── */
+.arbo-field-styled label,
+.arbo-field-styled [data-slot="label"] {
+  color: var(--field-label-color) !important;
+  transition: color 0.2s ease;
+}
+.arbo-field-styled input,
+.arbo-field-styled textarea,
+.arbo-field-styled [data-slot="input"],
+.arbo-field-styled [data-slot="input-wrapper"] {
+  background: var(--field-input-bg) !important;
+  color: var(--field-input-text) !important;
+  border-color: var(--field-input-border) !important;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.arbo-field-styled select,
+.arbo-field-styled [data-slot="trigger"] {
+  background: var(--field-input-bg) !important;
+  color: var(--field-input-text) !important;
+  border-color: var(--field-input-border) !important;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+/* Hover states */
+.arbo-field-styled:hover label,
+.arbo-field-styled:hover [data-slot="label"] {
+  color: var(--field-label-color-hover, var(--field-label-color)) !important;
+}
+.arbo-field-styled:hover input,
+.arbo-field-styled:hover textarea,
+.arbo-field-styled:hover [data-slot="input"],
+.arbo-field-styled:hover [data-slot="input-wrapper"] {
+  background: var(--field-input-bg-hover, var(--field-input-bg)) !important;
+  color: var(--field-input-text-hover, var(--field-input-text)) !important;
+  border-color: var(--field-input-border-hover, var(--field-input-border)) !important;
+}
+.arbo-field-styled:hover select,
+.arbo-field-styled:hover [data-slot="trigger"] {
+  background: var(--field-input-bg-hover, var(--field-input-bg)) !important;
+  color: var(--field-input-text-hover, var(--field-input-text)) !important;
+  border-color: var(--field-input-border-hover, var(--field-input-border)) !important;
+}
+
+/* ─── Utility ─── */
+.arbo-text { color: var(--arbo-text); }
+.arbo-text-secondary { color: var(--arbo-text-secondary); }
+.arbo-text-muted { color: var(--arbo-text-muted); }
+.arbo-text-accent { color: var(--arbo-accent); }
+.arbo-bg { background: var(--arbo-bg); }
+.arbo-surface { background: var(--arbo-surface); }
+
+/* ═══════════════════════════════════════════════════
+   Entrance Animations
+   ═══════════════════════════════════════════════════ */
+
+@keyframes arbo-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes arbo-slideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes arbo-slideDown {
+  from { opacity: 0; transform: translateY(-24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes arbo-scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes arbo-bounceIn {
+  0%   { opacity: 0; transform: scale(0.3); }
+  50%  { opacity: 1; transform: scale(1.06); }
+  70%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+@keyframes arbo-flipIn {
+  from { opacity: 0; transform: perspective(600px) rotateX(-20deg); }
+  to   { opacity: 1; transform: perspective(600px) rotateX(0); }
+}
+
+.arbo-anim-fadeIn     { animation-name: arbo-fadeIn; }
+.arbo-anim-slideUp    { animation-name: arbo-slideUp; }
+.arbo-anim-slideDown  { animation-name: arbo-slideDown; }
+.arbo-anim-scaleIn    { animation-name: arbo-scaleIn; }
+.arbo-anim-bounceIn   { animation-name: arbo-bounceIn; }
+.arbo-anim-flipIn     { animation-name: arbo-flipIn; }
+
+/* ═══════════════════════════════════════════════════
+   Card Hover Effects
+   ═══════════════════════════════════════════════════ */
+
+.arbo-hover-lift {
+  transition: transform var(--arbo-transition-speed, 250ms) ease, box-shadow var(--arbo-transition-speed, 250ms) ease;
+}
+.arbo-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.25);
+}
+
+.arbo-hover-glow {
+  transition: box-shadow var(--arbo-transition-speed, 250ms) ease;
+}
+.arbo-hover-glow:hover {
+  box-shadow: 0 0 20px var(--arbo-hover-glow-color, rgba(74,222,128,0.3)),
+              0 0 40px var(--arbo-hover-glow-color, rgba(74,222,128,0.12));
+}
+
+.arbo-hover-scale {
+  transition: transform var(--arbo-transition-speed, 250ms) ease;
+}
+.arbo-hover-scale:hover {
+  transform: scale(1.02);
+}
+
+.arbo-hover-tilt {
+  transition: transform var(--arbo-transition-speed, 250ms) ease;
+}
+.arbo-hover-tilt:hover {
+  transform: perspective(600px) rotateY(2deg) rotateX(-1deg);
+}
+
+@keyframes arbo-border-pulse {
+  0%, 100% { border-color: var(--arbo-hover-glow-color, rgba(74,222,128,0.3)); }
+  50%      { border-color: var(--arbo-hover-glow-color, rgba(74,222,128,0.7)); }
+}
+.arbo-hover-borderPulse {
+  transition: border-color var(--arbo-transition-speed, 250ms) ease;
+}
+.arbo-hover-borderPulse:hover {
+  animation: arbo-border-pulse 1.5s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════
+   Field Focus Effects
+   ═══════════════════════════════════════════════════ */
+
+.arbo-focus-glow input:focus,
+.arbo-focus-glow textarea:focus,
+.arbo-focus-glow select:focus,
+.arbo-focus-glow [data-slot="input-wrapper"]:has(:focus) {
+  box-shadow: 0 0 0 2px var(--arbo-focus-color, rgba(74,222,128,0.25)),
+              0 0 12px var(--arbo-focus-color, rgba(74,222,128,0.15));
+  transition: box-shadow var(--arbo-transition-speed, 250ms) ease;
+}
+
+.arbo-focus-scale input:focus,
+.arbo-focus-scale textarea:focus,
+.arbo-focus-scale select:focus,
+.arbo-focus-scale [data-slot="input-wrapper"]:has(:focus) {
+  transform: scale(1.02);
+  transition: transform var(--arbo-transition-speed, 250ms) ease;
+}
+
+.arbo-focus-slideRight input:focus,
+.arbo-focus-slideRight textarea:focus,
+.arbo-focus-slideRight select:focus,
+.arbo-focus-slideRight [data-slot="input-wrapper"]:has(:focus) {
+  transform: translateX(4px);
+  transition: transform var(--arbo-transition-speed, 250ms) ease;
+}
+
+.arbo-focus-borderGlow input:focus,
+.arbo-focus-borderGlow textarea:focus,
+.arbo-focus-borderGlow select:focus,
+.arbo-focus-borderGlow [data-slot="input-wrapper"]:has(:focus) {
+  border-color: var(--arbo-focus-color, rgba(74,222,128,0.6));
+  box-shadow: 0 0 8px var(--arbo-focus-color, rgba(74,222,128,0.2));
+  transition: border-color var(--arbo-transition-speed, 250ms) ease, box-shadow var(--arbo-transition-speed, 250ms) ease;
+}

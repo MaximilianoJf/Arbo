@@ -1,0 +1,97 @@
+import { Request, Response } from "express";
+import { getOpenRouterConfig, saveOpenRouterConfig } from "../config/openrouter-settings";
+import { getDailyStats } from "../config/openrouter-stats";
+
+const OPENROUTER_KEY_API = "https://openrouter.ai/api/v1/auth/key";
+
+export const getOpenRouterSettings = (_req: Request, res: Response) => {
+    const config = getOpenRouterConfig();
+    res.json({
+        ok: true,
+        data: {
+            hasApiKey: !!config.apiKey,
+            apiKeyMasked: config.apiKey
+                ? `sk-or-v1-${"•".repeat(20)}${config.apiKey.slice(-6)}`
+                : null,
+            model: config.model,
+        },
+    });
+};
+
+export const updateOpenRouterSettings = (req: Request, res: Response) => {
+    const { apiKey, model } = req.body as { apiKey?: string; model?: string };
+    saveOpenRouterConfig({
+        ...(apiKey !== undefined && { apiKey }),
+        ...(model !== undefined && { model }),
+    });
+    res.json({ ok: true, msg: "Configuración actualizada" });
+};
+
+export const getOpenRouterModels = async (_req: Request, res: Response) => {
+    const config = getOpenRouterConfig();
+    if (!config.apiKey) {
+        return res.status(400).json({ ok: false, msg: "No API key configured" });
+    }
+    try {
+        const response = await fetch("https://openrouter.ai/api/v1/models", {
+            headers: { Authorization: `Bearer ${config.apiKey}` },
+        });
+        if (!response.ok) {
+            return res.status(response.status).json({ ok: false, msg: "Error al obtener modelos de OpenRouter" });
+        }
+        const data = await response.json() as any;
+        const freeModels = (data.data as any[])
+            .filter((m) => parseFloat(m.pricing?.prompt ?? "1") === 0 && parseFloat(m.pricing?.completion ?? "1") === 0)
+            .map((m) => ({
+                id: m.id,
+                name: m.name,
+                contextLength: m.context_length ?? 0,
+                description: m.description ?? "",
+            }))
+            .sort((a, b) => b.contextLength - a.contextLength);
+        return res.json({ ok: true, data: freeModels });
+    } catch {
+        return res.status(500).json({ ok: false, msg: "Error al conectar con OpenRouter" });
+    }
+};
+
+// Called by MCP server using X-API-Key — returns the actual key (not masked)
+export const getOpenRouterKeyForMcp = (_req: Request, res: Response) => {
+    const config = getOpenRouterConfig();
+    if (!config.apiKey) {
+        return res.status(400).json({ ok: false, msg: "OpenRouter API key not configured. Set it in /form-builder/settings/openrouter" });
+    }
+    return res.json({ ok: true, data: { apiKey: config.apiKey, model: config.model } });
+};
+
+export const getOpenRouterUsage = async (_req: Request, res: Response) => {
+    const config = getOpenRouterConfig();
+    if (!config.apiKey) {
+        return res.status(400).json({ ok: false, msg: "No hay API key configurada" });
+    }
+
+    try {
+        const response = await fetch(OPENROUTER_KEY_API, {
+            headers: { Authorization: `Bearer ${config.apiKey}` },
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            return res.status(response.status).json({
+                ok: false,
+                msg: (err as any)?.error?.message || "Error al consultar OpenRouter",
+            });
+        }
+
+        const data = await response.json() as any;
+        return res.json({
+            ok: true,
+            data: {
+                ...data.data,
+                daily: getDailyStats(),
+            },
+        });
+    } catch {
+        return res.status(500).json({ ok: false, msg: "Error al conectar con OpenRouter" });
+    }
+};

@@ -1,0 +1,23 @@
+{
+  "name": "arbo-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Arbo Forms — analyze forms, responses, and interact with the backend",
+  "type": "module",
+  "main": "src/index.ts",
+  "bin": {
+    "arbo-mcp": "src/index.ts"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

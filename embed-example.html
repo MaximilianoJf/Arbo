@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejemplo - Arbo Forms Embed</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            min-height: 100vh;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #0f0f14 0%, #1a1a24 100%);
+            color: white;
+            padding: 80px 24px 60px;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .hero p {
+            font-size: 1.1rem;
+            opacity: 0.7;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: -30px auto 60px;
+            padding: 0 24px;
+        }
+
+        .embed-wrapper {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 8px;
+            overflow: hidden;
+        }
+
+        .info {
+            text-align: center;
+            margin-top: 40px;
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e5e5e5;
+        }
+        .info h3 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+        .info code {
+            display: block;
+            background: #f5f5f7;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+            font-size: 0.8rem;
+            text-align: left;
+            overflow-x: auto;
+            white-space: pre;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="hero">
+        <h1>Mi Sitio Web</h1>
+        <p>Ejemplo de un formulario de Arbo embebido en una web externa</p>
+    </div>
+
+    <div class="container">
+        <div class="embed-wrapper">
+            <!--
+                Opciones:
+                  /embed/TU-SLUG           → Solo el formulario
+                  /embed/TU-SLUG?contact=1  → Formulario + campos de contacto (nombre, email)
+            -->
+<iframe
+  src="http://localhost:5173/embed/resea-mpnchtno"
+  width="100%"
+  height="600"
+  frameborder="0"
+  style="border: none; border-radius: 12px; max-width: 700px;"
+  allow="clipboard-write"
+></iframe>
+<script>
+  window.addEventListener("message", function(e) {
+    if (e.data && e.data.type === "arbo-embed-resize") {
+      var frames = document.querySelectorAll('iframe[src*="/embed/resea-mpnchtno"]');
+      frames.forEach(function(f) { f.style.height = e.data.height + "px"; });
+    }
+  });
+</script>
+        </div>
+
+        <div class="info">
+            <h3>Como usar</h3>
+            <p style="font-size: 0.9rem; color: #666; line-height: 1.8;">
+                1. Crea un formulario en Arbo<br>
+                2. Click en <strong>"Embed"</strong> en la tarjeta del formulario<br>
+                3. Activa o desactiva los <strong>campos de contacto</strong> con el toggle<br>
+                4. Copia el codigo y pegalo en tu HTML
+            </p>
+            <code>&lt;!-- Solo formulario --&gt;
+&lt;iframe src="http://localhost:5173/embed/TU-SLUG" ...&gt;&lt;/iframe&gt;
+
+&lt;!-- Con campos de contacto (nombre + email) --&gt;
+&lt;iframe src="http://localhost:5173/embed/TU-SLUG?contact=1" ...&gt;&lt;/iframe&gt;</code>
+        </div>
+    </div>
+
+</body>
+</html>
