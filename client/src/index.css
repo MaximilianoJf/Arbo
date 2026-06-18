@@ -84,9 +84,22 @@ h1, h2, h3, .arbo-heading {
   color: var(--arbo-text);
 }
 .arbo-sidebar-item.active {
+  background: transparent;
+  color: var(--arbo-accent);
+  font-weight: 700;
+  position: relative;
+}
+.arbo-sidebar-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 22px;
+  width: 3px;
+  border-radius: 2px;
   background: var(--arbo-accent);
-  color: var(--arbo-bg);
-  font-weight: 600;
+  box-shadow: 0 0 10px var(--arbo-accent);
 }
 
 /* ─── Top Bar ─── */

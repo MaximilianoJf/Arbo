@@ -96,7 +96,7 @@ export const Sidebar = () => {
             </nav>
 
             {/* Bottom Nav */}
-            <div className="flex flex-col gap-0.5 px-1 pb-4 border-t border-[var(--arbo-border)] pt-3 mt-auto">
+            <div className="flex flex-col gap-0.5 px-1 pb-3 border-t border-white/10 pt-3 mt-auto">
                 <LanguageSwitcher />
                 {bottomItems.map((item) => (
                     <Link
@@ -109,6 +109,19 @@ export const Sidebar = () => {
                         {item.label}
                     </Link>
                 ))}
+
+                {/* User card (glass) */}
+                <div className="arbo-glass rounded-xl mx-2 mt-2 px-3 py-2.5 flex items-center gap-3">
+                    <div className="size-9 rounded-full bg-[var(--arbo-accent-muted)] border border-[var(--arbo-accent)]/30 flex items-center justify-center shrink-0">
+                        <span className="text-sm font-bold arbo-text-accent">
+                            {(user?.name || user?.email || "?").trim().charAt(0).toUpperCase()}
+                        </span>
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-xs font-bold arbo-text truncate">{user?.name || "Usuario"}</p>
+                        <p className="text-[10px] uppercase tracking-wider arbo-text-accent">Pro Plan</p>
+                    </div>
+                </div>
             </div>
         </aside>
     );
