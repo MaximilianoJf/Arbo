@@ -4,7 +4,7 @@ import { projectApi } from "@/services/api";
 import { PortalContext, THEME_VARS, type PortalTheme } from "./portal/PortalContext";
 import {
     House, LayoutList, Persons, Gear, ArrowLeft, ArrowRightFromSquare, Moon, Sun, Droplet,
-    FileText, Sparkles, GraphNode, Printer,
+    FileText, Sparkles, GraphNode, Printer, PersonMagnifier,
 } from "@gravity-ui/icons";
 
 const parseToken = (): { name?: string; email?: string } | null => {
@@ -19,6 +19,7 @@ const NAV = [
     { id: "dashboard", label: "Dashboard",      icon: House,      path: "" },
     { id: "forms",     label: "Formularios",    icon: LayoutList, path: "/forms" },
     { id: "responses", label: "Respuestas",     icon: FileText,   path: "/responses" },
+    { id: "respondents", label: "Por persona",  icon: PersonMagnifier, path: "/respondents" },
     { id: "docs",      label: "Documentación",  icon: Printer,    path: "/docs" },
     { id: "analysis",  label: "Análisis IA",    icon: Sparkles,   path: "/analysis" },
     { id: "database",  label: "Base de datos",  icon: GraphNode,  path: "/database" },

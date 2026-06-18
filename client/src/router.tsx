@@ -13,6 +13,7 @@ import { PortalForms } from "./features/form-builder/views/portal/PortalForms";
 import { PortalUsers } from "./features/form-builder/views/portal/PortalUsers";
 import { PortalSettings } from "./features/form-builder/views/portal/PortalSettings";
 import { PortalResponses } from "./features/form-builder/views/portal/PortalResponses";
+import { PortalRespondents } from "./features/form-builder/views/portal/PortalRespondents";
 import { PortalAnalysis } from "./features/form-builder/views/portal/PortalAnalysis";
 import { PortalDatabase } from "./features/form-builder/views/portal/PortalDatabase";
 import { PortalDocs } from "./features/form-builder/views/portal/PortalDocs";
@@ -101,6 +102,7 @@ export const router = createBrowserRouter([
             { index: true, element: <PortalDashboard /> },
             { path: "forms", element: <PortalForms /> },
             { path: "responses", element: <PortalResponses /> },
+            { path: "respondents", element: <PortalRespondents /> },
             { path: "docs", element: <PortalDocs /> },
             { path: "analysis", element: <PortalAnalysis /> },
             { path: "database", element: <PortalDatabase /> },
