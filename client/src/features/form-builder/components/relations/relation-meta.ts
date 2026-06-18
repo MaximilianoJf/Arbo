@@ -50,7 +50,7 @@ export interface FormLite {
     fields: { name: string; label: string }[];
 }
 
-export interface RelationEdgeData {
+export interface RelationEdgeData extends Record<string, unknown> {
     type: RelationType;
     joinFormId: number | null;
     keyField: string | null;

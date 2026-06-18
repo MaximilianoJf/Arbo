@@ -146,7 +146,7 @@ export const DynamicForm = ({ className }: DynamicFormProps) => {
             handleSubmit={handleSubmit}
             renderViewFields={renderViewFields}
             isPreview={isPreview}
-            setSchemaMode={setSchemaMode}
+            setSchemaMode={(mode) => setSchemaMode(mode as Parameters<typeof setSchemaMode>[0])}
             cardTitleColor={cardTitleColor}
             cardSubColor={cardSubColor}
         />

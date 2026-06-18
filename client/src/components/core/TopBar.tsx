@@ -20,7 +20,7 @@ export const TopBar = ({ showTabs = true, showPublish = false, formSlug }: TopBa
         navigate("/");
     };
 
-    const tabs = [
+    const tabs: { label: string; path: string; disabled?: boolean }[] = [
         { label: t("nav.dashboard"), path: "/form-builder" },
     ];
 
