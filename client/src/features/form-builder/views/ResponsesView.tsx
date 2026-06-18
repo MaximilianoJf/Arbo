@@ -7,9 +7,14 @@ import {
     ArrowDownToLine, Sparkles, ChevronDown, ChevronUp, TrashBin,
     Sliders, FileText,
 } from "@gravity-ui/icons";
-import { formApi } from "@/services/api";
+import { formApi, apiKeyApi, projectApi } from "@/services/api";
 import { PdfDesignerModal } from "../components/pdf-designer/PdfDesignerModal";
 import type { PdfDesign } from "../components/pdf-designer/types";
+import { DashboardTab } from "../components/dashboard-designer/DashboardTab";
+import type { DashboardDesign } from "../components/dashboard-designer/types";
+import { PowerBiConnectPanel } from "../components/PowerBiConnectPanel";
+import { ChainTab } from "../components/responses/ChainTab";
+import { FieldAnswer, formatAnswer } from "../components/responses/answer-render";
 
 interface FormResponse {
     id: number;
@@ -37,156 +42,6 @@ interface FormData {
     styles?: any;
 }
 
-// Normalise options to { label, value } regardless of format
-const normaliseOptions = (opts?: FormField["options"]) => {
-    if (!opts) return [];
-    return opts.map((o: any) =>
-        typeof o === "string" ? { label: o, value: o } : { label: o.label ?? o.value, value: o.value }
-    );
-};
-
-const formatAnswer = (value: any, t?: (key: string) => string): string => {
-    if (value === null || value === undefined || value === "") return "";
-    if (typeof value === "boolean") return value ? (t?.("common.yes") ?? "Sí") : (t?.("common.no") ?? "No");
-    if (Array.isArray(value)) return value.join(", ");
-    // Comma-separated checkbox values → display as readable list
-    if (typeof value === "string" && value.includes(",")) return value.split(",").filter(Boolean).join(", ");
-    return String(value);
-};
-
-// ── Renders a single field with the answer filled in ──────────────────────────
-const FieldAnswer = ({ field, value, t }: { field: FormField; value: any; t: (key: string) => string }) => {
-    const opts = normaliseOptions(field.options);
-    const isEmpty = value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
-    const displayValue = formatAnswer(value, t);
-
-    const inputBase =
-        "w-full px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] text-sm arbo-text";
-
-    const labelEl = (
-        <label className="text-xs font-medium arbo-text-secondary block mb-1.5">
-            {field.label || field.name}
-        </label>
-    );
-
-    // ── Checkbox / Checkbox group ──
-    if (field.componentType === "DynamicCheckbox" || field.componentType === "DynamicCheckboxGroup") {
-        // Checkbox values are stored as comma-separated strings ("A,B,C") or arrays
-        const selected: string[] = Array.isArray(value)
-            ? value.map(String)
-            : typeof value === "string" && value
-                ? value.split(",").filter(Boolean)
-                : [];
-        if (opts.length > 0) {
-            return (
-                <div>
-                    {labelEl}
-                    <div className="flex flex-col gap-2">
-                        {opts.map((opt) => {
-                            const checked = selected.includes(opt.value);
-                            return (
-                                <label key={opt.value} className="flex items-center gap-2.5 cursor-default select-none">
-                                    <div className={`size-4 rounded flex items-center justify-center shrink-0 border transition-colors ${
-                                        checked
-                                            ? "bg-[var(--arbo-accent)] border-[var(--arbo-accent)]"
-                                            : "bg-[var(--arbo-surface-2)] border-[var(--arbo-border)]"
-                                    }`}>
-                                        {checked && (
-                                            <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                                                <path d="M1 3.5L3.5 6L8 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                            </svg>
-                                        )}
-                                    </div>
-                                    <span className={`text-sm ${checked ? "arbo-text font-medium" : "arbo-text-muted"}`}>{opt.label}</span>
-                                </label>
-                            );
-                        })}
-                    </div>
-                </div>
-            );
-        }
-    }
-
-    // ── Radio group ──
-    if (field.componentType === "DynamicRadioGroup") {
-        const selected = value ? String(value) : "";
-        if (opts.length > 0) {
-            return (
-                <div>
-                    {labelEl}
-                    <div className="flex flex-col gap-2">
-                        {opts.map((opt) => {
-                            const checked = selected === opt.value;
-                            return (
-                                <label key={opt.value} className="flex items-center gap-2.5 cursor-default select-none">
-                                    <div className={`size-4 rounded-full flex items-center justify-center shrink-0 border transition-colors ${
-                                        checked
-                                            ? "border-[var(--arbo-accent)]"
-                                            : "bg-[var(--arbo-surface-2)] border-[var(--arbo-border)]"
-                                    }`}>
-                                        {checked && <div className="size-2 rounded-full bg-[var(--arbo-accent)]" />}
-                                    </div>
-                                    <span className={`text-sm ${checked ? "arbo-text font-medium" : "arbo-text-muted"}`}>{opt.label}</span>
-                                </label>
-                            );
-                        })}
-                    </div>
-                </div>
-            );
-        }
-    }
-
-    // ── Select ──
-    if (field.componentType === "DynamicSelect") {
-        const selected = opts.find((o) => o.value === String(value ?? ""));
-        return (
-            <div>
-                {labelEl}
-                <div className={`${inputBase} flex items-center justify-between ${isEmpty ? "arbo-text-muted" : ""}`}>
-                    <span>{selected?.label || displayValue || <span className="italic arbo-text-muted">{t("common.noResponse")}</span>}</span>
-                    <svg className="size-3.5 arbo-text-muted shrink-0" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                    </svg>
-                </div>
-            </div>
-        );
-    }
-
-    // ── Signature ──
-    if (field.componentType === "DynamicSignature") {
-        return (
-            <div>
-                {labelEl}
-                {value
-                    ? <img src={String(value)} alt="Firma" className="max-h-32 rounded-lg border border-[var(--arbo-border)] p-2" style={{ background: "#fff" }} />
-                    : <div className={`${inputBase} italic arbo-text-muted`}>{t("common.noResponse")}</div>}
-            </div>
-        );
-    }
-
-    // ── Textarea ──
-    if (field.componentType === "DynamicTextarea" || field.type === "textarea") {
-        return (
-            <div>
-                {labelEl}
-                <div className={`${inputBase} min-h-[80px] leading-relaxed whitespace-pre-wrap ${isEmpty ? "italic arbo-text-muted" : ""}`}>
-                    {displayValue || t("common.noResponse")}
-                </div>
-            </div>
-        );
-    }
-
-    // ── Default: text / number / email / etc ──
-    return (
-        <div>
-            {labelEl}
-            <div className={`${inputBase} ${isEmpty ? "italic arbo-text-muted" : ""}`}>
-                {displayValue || t("common.noResponse")}
-            </div>
-        </div>
-    );
-};
-
 // ── Main View ─────────────────────────────────────────────────────────────────
 export const ResponsesView = () => {
     const { t } = useTranslation();
@@ -207,6 +62,17 @@ export const ResponsesView = () => {
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
     const [showPdfConfig, setShowPdfConfig] = useState(false);
     const [exportingPdfId, setExportingPdfId] = useState<number | null>(null);
+    const [generatingDashboard, setGeneratingDashboard] = useState(false);
+    const [dashboardError, setDashboardError] = useState<string | null>(null);
+    const [generatingPbi, setGeneratingPbi] = useState(false);
+    const [showDashboardPrompt, setShowDashboardPrompt] = useState(false);
+    const [dashboardPromptText, setDashboardPromptText] = useState("");
+    const [savedDashboard, setSavedDashboard] = useState<DashboardDesign | null>(null);
+    const [activeTab, setActiveTab] = useState<"responses" | "dashboard" | "chain">("responses");
+    const [hasChain, setHasChain] = useState(false);
+    const [projectId, setProjectId] = useState<number | null>(null);
+    const [showPbiPanel, setShowPbiPanel] = useState(false);
+    const [apiKeys, setApiKeys] = useState<{ id: number; name: string; key: string }[]>([]);
 
     const handleExportResponsePdf = async (responseId: number) => {
         setExportingPdfId(responseId);
@@ -249,6 +115,31 @@ export const ResponsesView = () => {
         }
     };
 
+    const handleGenerateDashboard = async (prompt?: string) => {
+        setGeneratingDashboard(true);
+        setShowDashboardPrompt(false);
+        setDashboardError(null);
+        try {
+            await formApi.generateDashboard(Number(id), prompt || undefined, savedDashboard || undefined);
+        } catch (err: any) {
+            setDashboardError(err.message || "Error al generar el dashboard");
+        } finally {
+            setGeneratingDashboard(false);
+        }
+    };
+
+    const handleGeneratePbi = async () => {
+        setGeneratingPbi(true);
+        setDashboardError(null);
+        try {
+            await formApi.generatePowerBi(Number(id));
+        } catch (err: any) {
+            setDashboardError(err.message || "Error al generar el proyecto de Power BI");
+        } finally {
+            setGeneratingPbi(false);
+        }
+    };
+
     const handleAnalyze = async (prompt?: string) => {
         setAnalyzing(true);
         setAnalysisError(null);
@@ -267,13 +158,28 @@ export const ResponsesView = () => {
     useEffect(() => {
         const load = async () => {
             try {
-                const [formRes, responsesRes] = await Promise.all([
+                const [formRes, responsesRes, keysRes] = await Promise.all([
                     formApi.getById(Number(id)),
                     formApi.getResponses(Number(id)),
+                    apiKeyApi.list().catch(() => ({ ok: true, data: [] })),
                 ]);
                 setForm(formRes.data);
                 setResponses(responsesRes.data);
+                setApiKeys((keysRes as any).data || []);
+                const savedLayout = formRes.data?.styles?.dashboardLayout;
+                if (savedLayout) setSavedDashboard(savedLayout);
                 if (responsesRes.data.length > 0) setSelectedResponse(responsesRes.data[0]);
+
+                // Show the nested-forms tab only when this form participates in a relation
+                const pid = formRes.data?.projectId ?? formRes.data?.Project?.id ?? formRes.data?.project?.id ?? null;
+                setProjectId(pid);
+                if (pid) {
+                    try {
+                        const rel = await projectApi.getRelations(pid);
+                        const fid = Number(id);
+                        setHasChain((rel.data || []).some((r: any) => r.parentFormId === fid || r.childFormId === fid));
+                    } catch { /* relations are optional */ }
+                }
             } catch (err: any) {
                 setError(err.message || "Error al cargar respuestas");
             } finally {
@@ -314,7 +220,7 @@ export const ResponsesView = () => {
     const selectedIndex = selectedResponse ? responses.findIndex((r) => r.id === selectedResponse.id) + 1 : 0;
 
     return (
-        <div className="flex flex-col gap-5 max-w-6xl mx-auto w-full">
+        <div className="flex flex-col gap-5 max-w-[1600px] mx-auto w-full">
             {/* Header */}
             <div className="flex items-center gap-3">
                 <button onClick={() => navigate("/form-builder")} className="p-2 rounded-lg hover:bg-[var(--arbo-surface-2)] arbo-text-secondary transition-colors">
@@ -324,8 +230,8 @@ export const ResponsesView = () => {
                     <h1 className="text-lg font-bold arbo-text">{form?.title}</h1>
                     <p className="text-sm arbo-text-muted">{t("responses.responses", { count: responses.length })}</p>
                 </div>
-                {responses.length > 0 && (
-                    <div className="flex items-center gap-2">
+                {responses.length > 0 && activeTab === "responses" && (
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
                         <button
                             onClick={() => setShowPromptBox((v) => !v)}
                             disabled={analyzing}
@@ -341,20 +247,119 @@ export const ResponsesView = () => {
                             <Sliders className="size-3.5" /> Diseñar PDF
                         </button>
                         <button
+                            onClick={() => setShowPbiPanel((v) => !v)}
+                            className="arbo-btn arbo-btn-secondary text-xs py-1.5 px-3"
+                            title="Conectar Power BI Desktop a esta API"
+                        >
+                            Power BI
+                        </button>
+                        <button
+                            onClick={() => setShowDashboardPrompt((v) => !v)}
+                            disabled={generatingDashboard}
+                            className="arbo-btn arbo-btn-primary text-xs py-1.5 px-3 disabled:opacity-50"
+                            title="La IA genera un dashboard HTML interactivo según lo que necesitás"
+                        >
+                            <Sparkles className="size-3.5" />
+                            {generatingDashboard ? "Generando…" : "Dashboard IA"}
+                        </button>
+                        <button
                             onClick={() => formApi.exportExcel(Number(id))}
                             className="arbo-btn arbo-btn-secondary text-xs py-1.5 px-3"
                         >
                             <ArrowDownToLine className="size-3.5" /> Excel
                         </button>
-                        <button
-                            onClick={() => formApi.exportPdf(Number(id))}
-                            className="arbo-btn arbo-btn-ghost text-xs py-1.5 px-3"
-                        >
-                            <ArrowDownToLine className="size-3.5" /> PDF
-                        </button>
                     </div>
                 )}
             </div>
+
+            {/* Tabs */}
+            {responses.length > 0 && (
+                <div className="flex items-center gap-1 border-b border-[var(--arbo-border)]">
+                    {([
+                        { id: "responses", label: t("responses.title") || "Respuestas" },
+                        ...(hasChain ? [{ id: "chain", label: "Formularios anidados" } as const] : []),
+                        { id: "dashboard", label: "Dashboard" },
+                    ] as const).map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                                activeTab === tab.id
+                                    ? "border-[var(--arbo-accent)] arbo-text"
+                                    : "border-transparent arbo-text-muted hover:arbo-text"
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* ── Dashboard tab ── */}
+            {activeTab === "dashboard" && responses.length > 0 && form && (
+                <DashboardTab
+                    formId={Number(id)}
+                    formTitle={form.title}
+                    fields={(form.fields || []).filter((f) => !f.name.startsWith("__page_break_")) as any}
+                    responses={responses as any}
+                    initial={savedDashboard}
+                    defaultAccent={form.styles?.accentColor || "#4ADE80"}
+                    onSaved={(d) => setSavedDashboard(d)}
+                />
+            )}
+
+            {/* ── Nested forms tab ── */}
+            {activeTab === "chain" && form && (
+                <ChainTab formId={Number(id)} projectId={projectId} t={t} />
+            )}
+
+            {/* ════ Responses tab ════ */}
+            {activeTab === "responses" && (<>
+
+            {/* Power BI connection panel */}
+            {showPbiPanel && (
+                <PowerBiConnectPanel formId={id!} apiKeys={apiKeys} onClose={() => setShowPbiPanel(false)} />
+            )}
+
+            {/* Dashboard IA prompt box */}
+            {showDashboardPrompt && (
+                <div className="arbo-panel p-4 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold arbo-text">¿Qué querés ver en el dashboard?</p>
+                        <button onClick={() => setShowDashboardPrompt(false)} className="text-xs arbo-text-muted hover:arbo-text">✕</button>
+                    </div>
+                    <p className="text-xs arbo-text-muted -mt-1">
+                        Describí lo que necesitás. Si lo dejás vacío, la IA decide qué mostrar según los datos.
+                        {savedDashboard ? " Se basará en el dashboard que diseñaste." : ""}
+                    </p>
+                    <textarea
+                        value={dashboardPromptText}
+                        onChange={(e) => setDashboardPromptText(e.target.value)}
+                        placeholder="Ej: quiero ver un gráfico de torta por edad, un ranking de las respuestas más frecuentes y destacar el NPS"
+                        rows={3}
+                        autoFocus
+                        className="w-full px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-sm placeholder:arbo-text-muted focus:outline-none focus:border-[var(--arbo-accent)] resize-none"
+                        onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleGenerateDashboard(dashboardPromptText || undefined); }}
+                    />
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => handleGenerateDashboard(dashboardPromptText || undefined)}
+                            disabled={generatingDashboard}
+                            className="arbo-btn arbo-btn-primary text-sm disabled:opacity-50"
+                        >
+                            <Sparkles className="size-4" /> {generatingDashboard ? "Generando…" : "Generar dashboard"}
+                        </button>
+                        <button
+                            onClick={() => handleGenerateDashboard()}
+                            disabled={generatingDashboard}
+                            className="arbo-btn arbo-btn-ghost text-sm disabled:opacity-50"
+                        >
+                            Sin descripción
+                        </button>
+                        <span className="text-xs arbo-text-muted ml-auto">Ctrl+Enter para generar</span>
+                    </div>
+                </div>
+            )}
 
             {/* Prompt input box */}
             {showPromptBox && (
@@ -394,6 +399,12 @@ export const ResponsesView = () => {
             {analysisError && (
                 <div className="p-3 rounded-lg bg-[var(--arbo-danger-muted)] border border-[var(--arbo-danger)]/20">
                     <p className="text-sm text-[var(--arbo-danger)]">{analysisError}</p>
+                </div>
+            )}
+            {dashboardError && (
+                <div className="p-3 rounded-lg bg-[var(--arbo-danger-muted)] border border-[var(--arbo-danger)]/20 flex items-center justify-between">
+                    <p className="text-sm text-[var(--arbo-danger)]">{dashboardError}</p>
+                    <button onClick={() => setDashboardError(null)} className="text-[var(--arbo-danger)] opacity-60 hover:opacity-100 ml-3 text-xs">✕</button>
                 </div>
             )}
             {analysis && (
@@ -665,6 +676,9 @@ export const ResponsesView = () => {
                     )}
                 </div>
             )}
+
+            </>)}
+            {/* ════ end Responses tab ════ */}
 
             {/* PDF visual designer modal */}
             {showPdfConfig && form && (

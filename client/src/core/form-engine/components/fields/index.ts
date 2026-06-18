@@ -4,5 +4,6 @@ export * from "./DynamicTextArea";
 export * from "./DynamicNumberField";
 export * from "./DynamicCheckbox";
 export * from "./DynamicSelect";
+export * from "./DynamicMultiSelect";
 export * from "./DynamicDateField";
-export * from "./DynamicSignature";
+export * from "./DynamicFileUpload";

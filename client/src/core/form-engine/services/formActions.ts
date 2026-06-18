@@ -6,6 +6,12 @@ export const FormFunctions = {
     SaveToDB: "SaveToDB",
 } as const;
 
+/** Parses a comma-separated onSubmit value into the list of actions to run (defaults to SaveToDB). */
+export const parseSubmitActions = (onSubmit?: string): string[] => {
+    const actions = (onSubmit || FormFunctions.SaveToDB).split(",").map((a) => a.trim()).filter(Boolean);
+    return actions.length > 0 ? actions : [FormFunctions.SaveToDB];
+};
+
 const sendToEmail: FormActionFn = async (data) => {
     const { _formId, _respondentName, _respondentEmail, ...answers } = data;
     const mailto = `mailto:?subject=Form Response&body=${encodeURIComponent(JSON.stringify(answers))}`;

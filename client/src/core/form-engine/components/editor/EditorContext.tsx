@@ -23,7 +23,7 @@ interface EditorContextValue {
     formState: Record<string, { value: string | number; error: string | null }>;
     handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-    removeField: (fieldName: string) => void;
+    removeField: (fieldName: string) => void | Promise<void>;
     reorderFields: (oldIndex: number, newIndex: number) => void;
 
     // Editor UI state
@@ -118,6 +118,8 @@ interface EditorContextValue {
     // Save & navigation
     handleSaveForm: () => Promise<void>;
     saveError: string | null;
+    isSaving: boolean;
+    savedOk: boolean;
     navigate: (path: string) => void;
 
     // DnD
@@ -450,6 +452,10 @@ export const EditorProvider = ({ children, renderField, renderViewFields }: {
             validate: [],
             sortOrder: schema.fields.length,
             page: currentPageNumber,
+            // Sensible defaults so the field works out of the box
+            ...(item.componentType === "DynamicMultiSelect" ? { options: ["Opción 1", "Opción 2", "Opción 3"] } : {}),
+            ...(item.componentType === "DynamicFileUpload" && item.type === "image" ? { accept: ["image/*"] } : {}),
+            ...(item.componentType === "DynamicFileUpload" && item.type === "file" ? { accept: [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".zip"] } : {}),
         };
 
         setSchema((prev) => ({ ...prev, fields: [...prev.fields, newField] }));
@@ -470,9 +476,13 @@ export const EditorProvider = ({ children, renderField, renderViewFields }: {
 
     // --- Save ---
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [savedOk, setSavedOk] = useState(false);
 
     const handleSaveForm = useCallback(async () => {
         setSaveError(null);
+        setSavedOk(false);
+        setIsSaving(true);
         try {
             const cleanFields = schema.fields.filter((f) => !f.name?.startsWith("__page_break_"));
             const payload = {
@@ -511,13 +521,16 @@ export const EditorProvider = ({ children, renderField, renderViewFields }: {
                     setSchemaRaw((prev) => ({ ...prev, id: newId }));
                 }
             }
-            navigate("/form-builder", { replace: true });
+            setSavedOk(true);
+            setTimeout(() => setSavedOk(false), 2500);
         } catch (err: any) {
             const msg = err?.message || "Error al guardar el formulario";
             console.error("Failed to save form:", err);
             setSaveError(msg);
+        } finally {
+            setIsSaving(false);
         }
-    }, [schema, navigate, projectId, setSchemaRaw]);
+    }, [schema, projectId, setSchemaRaw]);
 
     // --- Active field ---
     const activeField = schema.fields.find((f) => f.name === selectedField);
@@ -547,7 +560,7 @@ export const EditorProvider = ({ children, renderField, renderViewFields }: {
         collabError, setCollabError, handleAddCollaborator, handleRemoveCollaborator,
         projectId, setProjectId,
         renderField, renderViewFields,
-        handleSaveForm, saveError, navigate,
+        handleSaveForm, saveError, isSaving, savedOk, navigate,
         handleDragEnd, sensors,
         undo, redo, canUndo, canRedo,
     }), [
@@ -558,7 +571,7 @@ export const EditorProvider = ({ children, renderField, renderViewFields }: {
         draggingGlowId, animReplayKey, previewWidth,
         previewContainerActualWidth, embedContainerActualWidth,
         contextMenu, collaborators, newCollabEmail, newCollabRole, collabError,
-        projectId, saveError, canUndo, canRedo,
+        projectId, saveError, isSaving, savedOk, canUndo, canRedo,
         renderField, renderViewFields,
     ]);
 

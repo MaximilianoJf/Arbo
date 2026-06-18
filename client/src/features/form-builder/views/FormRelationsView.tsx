@@ -1,0 +1,745 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+    ReactFlow, Background, Controls, Handle, Position, MarkerType,
+    useNodesState, useEdgesState, addEdge,
+    type Node, type Edge, type Connection, type NodeProps,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import { ArrowLeft, FloppyDisk, ArrowsRotateLeft, TrashBin, TriangleExclamation, Sparkles, Xmark, Eye } from "@gravity-ui/icons";
+import { projectApi, formApi, type AIGeneratedSchema } from "@/services/api";
+import { RelationInspector } from "../components/relations/RelationInspector";
+import { REL_TYPE_META, pickDefaultKeyField, type FormLite, type RelationEdgeData } from "../components/relations/relation-meta";
+import { FormBuilder } from "@/core/form-engine/FormBuilder";
+import type { FormSchema, FormField, ComponentType } from "@/core/form-engine/types";
+
+// ─── Node-based form relations, scoped to a project ───
+// Connect forms and choose the cardinality (1:1, 1:N, N:M). An edge A → B means
+// B's responses reference A's via parentResponseId. Relations persist to the
+// backend; node positions are pure UI layout and stay in localStorage.
+
+const storageKey = (projectId: number) => `arbo:form-relations:${projectId}`;
+const DEFAULT_EDGE_DATA: RelationEdgeData = { type: "one_to_many", joinFormId: null, keyField: null };
+
+// Styled edge for a relation, coloured/labelled by its cardinality type.
+const makeRelationEdge = (parentFormId: number | string, childFormId: number | string, data: RelationEdgeData): Edge => {
+    const meta = REL_TYPE_META[data.type];
+    return {
+        id: `e${parentFormId}-${childFormId}`,
+        source: String(parentFormId),
+        target: String(childFormId),
+        animated: true,
+        label: meta.short,
+        labelStyle: { fill: meta.color, fontWeight: 700, fontSize: 11 },
+        labelBgStyle: { fill: "var(--arbo-surface)" },
+        labelBgPadding: [4, 2] as [number, number],
+        labelBgBorderRadius: 4,
+        style: { stroke: meta.color, strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: meta.color },
+        data,
+    };
+};
+
+// ── Custom form node: title + its existing fields ──
+const FormNode = ({ id, data }: NodeProps) => {
+    const d = data as {
+        title: string; sub: string; isRoot: boolean;
+        fields: { name: string; label: string }[];
+        onPreview?: (id: string) => void;
+    };
+    const handle = { width: 12, height: 12, border: "2px solid var(--arbo-surface)" };
+    const shown = d.fields.slice(0, 5);
+    return (
+        <div className="rounded-xl border px-3 py-2.5 min-w-44 max-w-64"
+            style={{ background: "var(--arbo-surface-2)", borderColor: d.isRoot ? "#4ADE80" : "var(--arbo-border)" }}>
+            <Handle id="in" type="target" position={Position.Left} style={{ ...handle, background: "var(--arbo-text-muted)" }} />
+            <div className="flex items-center gap-1.5">
+                {d.isRoot && <span className="text-[8px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "rgba(74,222,128,0.15)", color: "#4ADE80" }}>base</span>}
+                <p className="text-xs font-semibold truncate flex-1" style={{ color: "var(--arbo-text)" }}>{d.title}</p>
+                {d.onPreview && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); d.onPreview!(id); }}
+                        className="nodrag shrink-0 p-0.5 rounded hover:bg-[var(--arbo-surface-3)] transition-colors"
+                        title="Vista previa"
+                    >
+                        <Eye className="size-3" style={{ color: "var(--arbo-text-muted)" }} />
+                    </button>
+                )}
+            </div>
+            <p className="text-[9px] font-mono truncate mt-0.5" style={{ color: "var(--arbo-text-muted)" }}>{d.sub}</p>
+            {shown.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                    {shown.map((f) => (
+                        <span key={f.name} className="text-[8px] px-1.5 py-0.5 rounded" style={{ background: "var(--arbo-surface-3)", color: "var(--arbo-text-secondary)" }}>
+                            {f.label || f.name}
+                        </span>
+                    ))}
+                    {d.fields.length > shown.length && (
+                        <span className="text-[8px] px-1 arbo-text-muted">+{d.fields.length - shown.length}</span>
+                    )}
+                </div>
+            )}
+            <Handle id="out" type="source" position={Position.Right} style={{ ...handle, background: "#4ADE80" }} />
+        </div>
+    );
+};
+
+const nodeTypes = { form: FormNode };
+
+const mapForms = (raw: any[]): FormLite[] =>
+    (raw || []).map((f: any) => ({
+        id: f.id,
+        title: f.title,
+        slug: f.slug,
+        fields: (f.fields || f.FormFields || [])
+            .filter((ff: any) => !ff.name?.startsWith("__page_break_"))
+            .map((ff: any) => ({ name: ff.name, label: ff.label || ff.name })),
+    }));
+
+export const FormRelationsView = () => {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const projectId = Number(id);
+    const [projectName, setProjectName] = useState("");
+    const [forms, setForms] = useState<FormLite[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+    const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+    const [creatingJoin, setCreatingJoin] = useState(false);
+    const [saved, setSaved] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [saveErr, setSaveErr] = useState<string | null>(null);
+    // form IDs (as strings) that already have at least one response — used to warn before edit.
+    const [formsWithData, setFormsWithData] = useState<Set<string>>(new Set());
+    const [confirmClear, setConfirmClear] = useState(false);
+    // Shown when the user tries to draw a connection that creates a cycle (A→B and B→A).
+    const [cycleWarn, setCycleWarn] = useState<{ a: string; b: string } | null>(null);
+    const [cycleJoinFormId, setCycleJoinFormId] = useState<string>("");
+    // AI schema generation panel
+    const [aiOpen, setAiOpen] = useState(false);
+    const [aiPrompt, setAiPrompt] = useState("");
+    const [aiGenerating, setAiGenerating] = useState(false);
+    const [aiProgress, setAiProgress] = useState<string[]>([]);
+    const [aiError, setAiError] = useState<string | null>(null);
+    // Form preview modal
+    const [previewFormId, setPreviewFormId] = useState<string | null>(null);
+    const [previewSchema, setPreviewSchema] = useState<FormSchema | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+
+    const openPreview = useCallback(async (formId: string) => {
+        setPreviewFormId(formId);
+        setPreviewSchema(null);
+        setPreviewLoading(true);
+        try {
+            const res = await formApi.getById(Number(formId));
+            const f = res.data;
+            const rawFields: any[] = f.FormFields || f.fields || [];
+            const schema: FormSchema = {
+                id: Number(f.id),
+                title: f.title || "",
+                description: f.description || "",
+                slug: f.slug || "",
+                fields: rawFields
+                    .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                    .map((ff: any): FormField => ({
+                        id: String(ff.id),
+                        name: ff.name,
+                        label: ff.label || "",
+                        placeholder: ff.placeholder || "",
+                        type: ff.type,
+                        componentType: ff.componentType as ComponentType,
+                        value: ff.defaultValue || "",
+                        required: ff.required || false,
+                        minLength: ff.minLength,
+                        maxLength: ff.maxLength,
+                        validate: ff.validations || [],
+                        dependencies: ff.dependencies || [],
+                        options: ff.options || [],
+                        sortOrder: ff.sortOrder || 0,
+                        page: ff.page ?? 0,
+                        fieldStyles: ff.fieldStyles || undefined,
+                        groupId: ff.groupId || undefined,
+                        groupLabel: ff.groupLabel || undefined,
+                        visibleWhen: ff.visibleWhen || undefined,
+                    })),
+                styles: f.styles || undefined,
+                onSubmit: f.onSubmit || undefined,
+            };
+            setPreviewSchema(schema);
+        } catch {
+            setPreviewSchema(null);
+        } finally {
+            setPreviewLoading(false);
+        }
+    }, []);
+
+    const nodeFromForm = useCallback((f: FormLite, pos: { x: number; y: number }): Node => ({
+        id: String(f.id),
+        type: "form",
+        position: pos,
+        data: { title: f.title, sub: `#${f.id}${f.slug ? " · " + f.slug : ""}`, isRoot: false, fields: f.fields, onPreview: openPreview },
+    }), [openPreview]);
+
+    // Load the forms (with fields) + their persisted relations → build nodes/edges
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const [projRes, relRes] = await Promise.all([
+                    projectApi.getById(projectId),
+                    projectApi.getRelations(projectId),
+                ]);
+                const proj = projRes.data;
+                setProjectName(proj?.name || "");
+                const list = mapForms(proj?.forms || proj?.userForms || proj?.UserForms || []);
+                setForms(list);
+
+                const savedPos: Record<string, { x: number; y: number }> =
+                    JSON.parse(localStorage.getItem(storageKey(projectId)) || "null")?.positions || {};
+                const validIds = new Set(list.map((f) => String(f.id)));
+
+                setNodes(list.map((f, i) =>
+                    nodeFromForm(f, savedPos[String(f.id)] || { x: 60 + (i % 3) * 260, y: 60 + Math.floor(i / 3) * 170 })
+                ));
+
+                const validRelations = (relRes.data || [])
+                    .filter((r) => validIds.has(String(r.parentFormId)) && validIds.has(String(r.childFormId)));
+                const edgesFromRelations = validRelations.map((r) =>
+                    makeRelationEdge(r.parentFormId, r.childFormId, {
+                        type: r.type || "one_to_many",
+                        joinFormId: r.joinFormId ?? null,
+                        keyField: r.keyField ?? null,
+                    })
+                );
+                setEdges(edgesFromRelations);
+
+                // Check which child forms already have responses so we can warn before edits.
+                const childIds = [...new Set(validRelations.map((r) => r.childFormId))];
+                const counts = await Promise.all(
+                    childIds.map((cid) =>
+                        formApi.getResponseCount(cid).then((r) => ({ id: String(cid), count: r.data.count })).catch(() => ({ id: String(cid), count: 0 }))
+                    )
+                );
+                setFormsWithData(new Set(counts.filter((c) => c.count > 0).map((c) => c.id)));
+            } catch {
+                navigate("/form-builder/projects");
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, [projectId, navigate, setNodes, setEdges, nodeFromForm]);
+
+    // Highlight forms that are a parent of someone
+    useEffect(() => {
+        const parents = new Set(edges.map((e) => e.source));
+        setNodes((ns) => ns.map((n) => ({ ...n, data: { ...n.data, isRoot: parents.has(n.id) } })));
+    }, [edges, setNodes]);
+
+    const onConnect = useCallback((c: Connection) => {
+        if (!c.source || !c.target || c.source === c.target) return;
+        // Block cycles: if the reverse edge already exists, this would create A↔B.
+        // In relational DBs this requires a pivot/junction table (N:M), not two direct edges.
+        const reverseExists = edges.some((e) => e.source === c.target && e.target === c.source);
+        const forwardExists = edges.some((e) => e.source === c.source && e.target === c.target);
+        if (reverseExists || forwardExists) {
+            setCycleWarn({ a: c.source, b: c.target });
+            return;
+        }
+        const src = forms.find((f) => String(f.id) === c.source);
+        const tgt = forms.find((f) => String(f.id) === c.target);
+        const keyField = src && tgt ? pickDefaultKeyField(src, tgt) : null;
+        const edge = makeRelationEdge(c.source, c.target, { ...DEFAULT_EDGE_DATA, keyField });
+        setEdges((eds) => addEdge(edge, eds));
+        setSelectedEdgeId(edge.id);
+        setSaved(false);
+    }, [setEdges, forms]);
+
+    const updateEdgeData = useCallback((edgeId: string, patch: Partial<RelationEdgeData>) => {
+        setEdges((eds) => eds.map((e) => {
+            if (e.id !== edgeId) return e;
+            const data = { ...(e.data as RelationEdgeData), ...patch };
+            return makeRelationEdge(e.source, e.target, data);
+        }));
+        setSaved(false);
+    }, [setEdges]);
+
+    const deleteEdge = useCallback((edgeId: string) => {
+        setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+        setSelectedEdgeId(null);
+        setSaved(false);
+    }, [setEdges]);
+
+    const formById = useMemo(() => new Map(forms.map((f) => [String(f.id), f])), [forms]);
+
+    // Create a blank bridge form in this project and attach it to the selected edge.
+    const createJoinForm = useCallback(async (edge: Edge) => {
+        if (creatingJoin) return;
+        setCreatingJoin(true);
+        setSaveErr(null);
+        try {
+            const a = formById.get(edge.source)?.title || "A";
+            const b = formById.get(edge.target)?.title || "B";
+            const res = await formApi.create({ title: `Puente: ${a} ↔ ${b}`, description: "", fields: [], projectId, onSubmit: "SaveToDB" });
+            const nf = res.data;
+            const lite: FormLite = { id: nf.id, title: nf.title, slug: nf.slug, fields: [] };
+            setForms((prev) => [...prev, lite]);
+            setNodes((ns) => [...ns, nodeFromForm(lite, { x: 60 + (ns.length % 3) * 260, y: 60 + Math.floor(ns.length / 3) * 170 })]);
+            updateEdgeData(edge.id, { joinFormId: nf.id });
+        } catch (e: any) {
+            setSaveErr(e.message || "No se pudo crear el formulario puente");
+        } finally {
+            setCreatingJoin(false);
+        }
+    }, [creatingJoin, formById, projectId, setNodes, nodeFromForm, updateEdgeData]);
+
+    const relations = useMemo(() =>
+        edges.map((e) => {
+            const d = (e.data as RelationEdgeData) || DEFAULT_EDGE_DATA;
+            return {
+                edgeId: e.id,
+                parentFormId: Number(e.source),
+                childFormId: Number(e.target),
+                parent: formById.get(e.source)?.title || e.source,
+                child: formById.get(e.target)?.title || e.target,
+                type: d.type,
+                joinFormId: d.joinFormId,
+                keyField: d.keyField,
+            };
+        }), [edges, formById]);
+
+    const handleSave = async () => {
+        if (saving) return;
+        const positions: Record<string, { x: number; y: number }> = {};
+        nodes.forEach((n) => { positions[n.id] = n.position; });
+        localStorage.setItem(storageKey(projectId), JSON.stringify({ positions }));
+
+        setSaving(true);
+        setSaveErr(null);
+        try {
+            await projectApi.saveRelations(projectId, relations.map((r) => ({
+                parentFormId: r.parentFormId,
+                childFormId: r.childFormId,
+                type: r.type,
+                joinFormId: r.joinFormId,
+                keyField: r.keyField,
+            })));
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (e: any) {
+            setSaveErr(e.message || "No se pudieron guardar las relaciones");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleGenerateSchema = async () => {
+        if (!aiPrompt.trim() || aiGenerating) return;
+        setAiGenerating(true);
+        setAiError(null);
+        setAiProgress(["Consultando IA..."]);
+
+        try {
+            const res = await projectApi.generateSchema(projectId, aiPrompt.trim());
+            const schema: AIGeneratedSchema = res.data;
+
+            setAiProgress(["Esquema generado. Creando formularios..."]);
+
+            // Map from AI title → created form id
+            const titleToId = new Map<string, number>();
+
+            for (const genForm of schema.forms) {
+                setAiProgress((p) => [...p, `Creando "${genForm.title}"…`]);
+                const fieldPayload = genForm.fields.map((f, i) => ({
+                    name: f.name,
+                    label: f.label,
+                    type: f.type,
+                    componentType: f.componentType,
+                    required: f.required,
+                    options: f.options,
+                    sortOrder: i,
+                    page: 0,
+                    value: "",
+                }));
+                const created = await formApi.create({
+                    title: genForm.title,
+                    description: genForm.description,
+                    fields: fieldPayload,
+                    projectId,
+                    onSubmit: "SaveToDB",
+                });
+                const newForm: FormLite = {
+                    id: created.data.id,
+                    title: created.data.title,
+                    slug: created.data.slug,
+                    fields: fieldPayload.map((f) => ({ name: f.name, label: f.label })),
+                };
+                titleToId.set(genForm.title, created.data.id);
+
+                setForms((prev) => [...prev, newForm]);
+                setNodes((ns) => [
+                    ...ns,
+                    nodeFromForm(newForm, {
+                        x: 60 + (ns.length % 3) * 280,
+                        y: 60 + Math.floor(ns.length / 3) * 180,
+                    }),
+                ]);
+            }
+
+            setAiProgress((p) => [...p, "Conectando relaciones…"]);
+
+            const newEdges: Edge[] = [];
+            for (const rel of schema.relations) {
+                const srcId = titleToId.get(rel.parentForm);
+                const tgtId = titleToId.get(rel.childForm);
+                if (!srcId || !tgtId) continue;
+                const edge = makeRelationEdge(srcId, tgtId, {
+                    type: (rel.type as any) || "one_to_many",
+                    joinFormId: null,
+                    keyField: null,
+                });
+                newEdges.push(edge);
+            }
+            setEdges((eds) => [...eds, ...newEdges]);
+            setSaved(false);
+
+            setAiProgress((p) => [...p, `✓ Listo — ${schema.forms.length} formularios y ${newEdges.length} relaciones creadas.`]);
+            setAiPrompt("");
+        } catch (e: any) {
+            const raw: string = e.message || "";
+            const friendly = raw.includes("API key") || raw.includes("Configurá")
+                ? "No hay una API key de OpenRouter configurada. Andá a Configuración → OpenRouter."
+                : raw.includes("Todos los modelos") || raw.includes("No response")
+                ? "Ningún modelo pudo responder. Intentá de nuevo en unos segundos o reformulá la descripción."
+                : raw || "Error al generar el esquema.";
+            setAiError(friendly);
+        } finally {
+            setAiGenerating(false);
+        }
+    };
+
+    const clearHasData = edges.some((e) => formsWithData.has(e.target));
+
+    const handleClear = () => {
+        if (clearHasData && !confirmClear) { setConfirmClear(true); return; }
+        setEdges([]); setSelectedEdgeId(null); setSaved(false); setConfirmClear(false);
+    };
+
+    const selectedEdge = edges.find((e) => e.id === selectedEdgeId) || null;
+    const selSource = selectedEdge ? formById.get(selectedEdge.source) : null;
+    const selTarget = selectedEdge ? formById.get(selectedEdge.target) : null;
+
+    if (loading) return <div className="flex items-center justify-center py-20"><div className="arbo-spinner" /></div>;
+
+    return (
+        <div className="flex flex-col gap-4 max-w-[1600px] mx-auto w-full">
+            <div className="flex items-center gap-3">
+                <button onClick={() => navigate(`/form-builder/projects/${projectId}`)} className="p-2 rounded-lg hover:bg-[var(--arbo-surface-2)] arbo-text-secondary transition-colors shrink-0">
+                    <ArrowLeft className="size-5" />
+                </button>
+                <div className="flex-1">
+                    <h1 className="text-lg font-bold arbo-text">Conexiones — {projectName}</h1>
+                    <p className="text-sm arbo-text-muted">Arrastrá del punto derecho de un formulario al de otro para conectarlos. Tocá una conexión para elegir el tipo (1:1, 1:N, N:M).</p>
+                </div>
+                {confirmClear ? (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--arbo-danger-muted)] border border-[var(--arbo-danger)]/30">
+                        <TriangleExclamation className="size-3.5 text-[var(--arbo-danger)] shrink-0" />
+                        <span className="text-xs text-[var(--arbo-danger)]">¿Borrar todas las conexiones? Hay datos vinculados.</span>
+                        <button onClick={handleClear} className="text-xs font-semibold text-[var(--arbo-danger)] hover:opacity-80 ml-1">Sí</button>
+                        <button onClick={() => setConfirmClear(false)} className="text-xs arbo-text-muted hover:arbo-text">Cancelar</button>
+                    </div>
+                ) : (
+                    <button onClick={handleClear} className="arbo-btn arbo-btn-ghost text-xs py-1.5 px-3">
+                        <ArrowsRotateLeft className="size-3.5" /> Limpiar
+                    </button>
+                )}
+                <button
+                    onClick={() => { setAiOpen((v) => !v); setAiError(null); setAiProgress([]); }}
+                    className={`arbo-btn text-xs py-1.5 px-3 gap-1.5 transition-colors ${aiOpen ? "arbo-btn-secondary" : "arbo-btn-ghost"}`}
+                >
+                    <Sparkles className="size-3.5" /> Generar con IA
+                </button>
+                <button onClick={handleSave} disabled={saving} className="arbo-btn arbo-btn-primary text-xs py-1.5 px-3 disabled:opacity-50">
+                    <FloppyDisk className="size-3.5" /> {saving ? "Guardando..." : saved ? "Guardado" : "Guardar"}
+                </button>
+            </div>
+
+            {saveErr && (
+                <p className="text-sm text-[var(--arbo-danger)] bg-[var(--arbo-danger-muted)] px-3 py-2 rounded-lg">{saveErr}</p>
+            )}
+
+            {/* ── AI generation panel ── */}
+            {aiOpen && (
+                <div className="rounded-xl border border-[var(--arbo-border)] bg-[var(--arbo-surface-2)] overflow-hidden">
+                    {/* Header */}
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--arbo-border)] bg-gradient-to-r from-[var(--arbo-accent)]/5 to-transparent">
+                        <Sparkles className="size-4 text-[var(--arbo-accent)]" />
+                        <p className="text-sm font-semibold arbo-text flex-1">Generar base de datos relacional con IA</p>
+                        <button onClick={() => setAiOpen(false)} className="p-1 rounded arbo-text-muted hover:arbo-text transition-colors">
+                            <Xmark className="size-4" />
+                        </button>
+                    </div>
+
+                    <div className="p-4 flex flex-col gap-3">
+                        <p className="text-xs arbo-text-muted leading-relaxed">
+                            Describí tu sistema en lenguaje natural. La IA creará los formularios con sus campos y los conectará automáticamente en el canvas.
+                        </p>
+                        <textarea
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                            disabled={aiGenerating}
+                            placeholder="Ej: Quiero una base de datos para una clínica con pacientes, médicos, turnos y diagnósticos. Los pacientes pueden tener muchos turnos, cada turno pertenece a un médico..."
+                            rows={4}
+                            className="w-full px-3 py-2 rounded-lg bg-[var(--arbo-surface)] border border-[var(--arbo-border)] arbo-text text-sm placeholder:arbo-text-muted resize-none focus:border-[var(--arbo-accent)] focus:outline-none disabled:opacity-50"
+                            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleGenerateSchema(); }}
+                        />
+
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-[10px] arbo-text-muted">Ctrl/Cmd + Enter para generar</p>
+                            <button
+                                onClick={handleGenerateSchema}
+                                disabled={!aiPrompt.trim() || aiGenerating}
+                                className="arbo-btn arbo-btn-primary text-xs py-1.5 px-4 disabled:opacity-50 gap-1.5"
+                            >
+                                <Sparkles className="size-3.5" />
+                                {aiGenerating ? "Generando…" : "Generar"}
+                            </button>
+                        </div>
+
+                        {/* Progress log */}
+                        {aiProgress.length > 0 && (
+                            <div className="rounded-lg bg-[var(--arbo-surface)] border border-[var(--arbo-border)] p-3 flex flex-col gap-1">
+                                {aiProgress.map((msg, i) => (
+                                    <p key={i} className={`text-xs font-mono ${msg.startsWith("✓") ? "text-[var(--arbo-accent)]" : "arbo-text-muted"}`}>
+                                        {msg}
+                                    </p>
+                                ))}
+                                {aiGenerating && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <div className="arbo-spinner size-3" />
+                                        <span className="text-xs arbo-text-muted">Procesando…</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {aiError && (
+                            <p className="text-xs text-[var(--arbo-danger)] bg-[var(--arbo-danger-muted)] px-3 py-2 rounded-lg">{aiError}</p>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {cycleWarn && (() => {
+                const nameA = formById.get(cycleWarn.a)?.title || cycleWarn.a;
+                const nameB = formById.get(cycleWarn.b)?.title || cycleWarn.b;
+                const pivotCandidates = forms.filter(
+                    (f) => String(f.id) !== cycleWarn.a && String(f.id) !== cycleWarn.b
+                );
+                const canConfirm = !!cycleJoinFormId;
+                return (
+                    <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                        <TriangleExclamation className="size-4 text-amber-400 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0 flex flex-col gap-2">
+                            <div>
+                                <p className="text-sm font-semibold text-amber-400">Relación circular detectada</p>
+                                <p className="text-xs text-amber-400/80 mt-0.5 leading-snug">
+                                    Ya existe una conexión entre <span className="font-medium">{nameA}</span> y <span className="font-medium">{nameB}</span>.
+                                    En bases de datos relacionales esto requiere una <span className="font-medium">tabla pivote</span> (N:M).
+                                    ¿Qué formulario querés usar como pivote?
+                                </p>
+                            </div>
+
+                            {pivotCandidates.length === 0 ? (
+                                <p className="text-xs text-amber-400/60 italic">
+                                    No hay formularios disponibles para usar como pivote. Creá uno primero desde "Mis Formularios".
+                                </p>
+                            ) : (
+                                <select
+                                    value={cycleJoinFormId}
+                                    onChange={(e) => setCycleJoinFormId(e.target.value)}
+                                    className="w-full px-2 py-1.5 rounded-md bg-[var(--arbo-surface-2)] text-xs border border-amber-500/30 text-amber-300 focus:border-amber-500 focus:outline-none"
+                                >
+                                    <option value="">— Elegí un formulario pivote —</option>
+                                    {pivotCandidates.map((f) => (
+                                        <option key={f.id} value={String(f.id)}>{f.title}</option>
+                                    ))}
+                                </select>
+                            )}
+
+                            <div className="flex gap-2">
+                                <button
+                                    disabled={!canConfirm}
+                                    onClick={() => {
+                                        setEdges((eds) => eds.filter((e) =>
+                                            !(e.source === cycleWarn.a && e.target === cycleWarn.b) &&
+                                            !(e.source === cycleWarn.b && e.target === cycleWarn.a)
+                                        ));
+                                        const nmEdge = makeRelationEdge(cycleWarn.a, cycleWarn.b, {
+                                            type: "many_to_many",
+                                            joinFormId: Number(cycleJoinFormId),
+                                            keyField: null,
+                                        });
+                                        setEdges((eds) => [...eds, nmEdge]);
+                                        setSelectedEdgeId(nmEdge.id);
+                                        setSaved(false);
+                                        setCycleWarn(null);
+                                        setCycleJoinFormId("");
+                                    }}
+                                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    Sí, convertir a N:M
+                                </button>
+                                <button
+                                    onClick={() => { setCycleWarn(null); setCycleJoinFormId(""); }}
+                                    className="text-xs px-3 py-1.5 rounded-lg text-amber-400/60 hover:text-amber-400 border border-amber-500/20 hover:border-amber-500/40 transition-colors"
+                                >
+                                    No, cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            <div className="flex gap-4 items-start">
+                {/* Canvas */}
+                <div className="arbo-panel flex-1 min-w-0" style={{ height: "70vh" }}>
+                    {forms.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-sm arbo-text-muted">No tenés formularios para conectar.</div>
+                    ) : (
+                        <ReactFlow
+                            nodes={nodes}
+                            edges={edges}
+                            onNodesChange={onNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            onConnect={onConnect}
+                            onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
+                            onPaneClick={() => setSelectedEdgeId(null)}
+                            nodeTypes={nodeTypes}
+                            fitView
+                            proOptions={{ hideAttribution: true }}
+                        >
+                            <Background color="var(--arbo-border)" gap={20} />
+                            <Controls />
+                        </ReactFlow>
+                    )}
+                </div>
+
+                {/* Right panel: inspector when a connection is selected, else the list */}
+                <div className="arbo-panel w-80 shrink-0 flex flex-col max-h-[70vh]">
+                    {selectedEdge && selSource && selTarget ? (
+                        <>
+                            <div className="arbo-panel-header flex items-center justify-between">
+                                <span>Configurar conexión</span>
+                                <button onClick={() => setSelectedEdgeId(null)} className="text-xs arbo-text-muted hover:arbo-text">✕</button>
+                            </div>
+                            <RelationInspector
+                                source={selSource}
+                                target={selTarget}
+                                data={(selectedEdge.data as RelationEdgeData) || DEFAULT_EDGE_DATA}
+                                forms={forms}
+                                creatingJoin={creatingJoin}
+                                hasData={formsWithData.has(selectedEdge.target)}
+                                onChange={(patch) => updateEdgeData(selectedEdge.id, patch)}
+                                onCreateJoinForm={() => createJoinForm(selectedEdge)}
+                                onDelete={() => deleteEdge(selectedEdge.id)}
+                            />
+                        </>
+                    ) : (
+                        <>
+                            <div className="arbo-panel-header flex items-center justify-between">
+                                <span>Conexiones</span>
+                                <span className="arbo-badge arbo-badge-success">{relations.length}</span>
+                            </div>
+                            <div className="p-3 flex flex-col gap-2 overflow-y-auto">
+                                {relations.length === 0 ? (
+                                    <p className="text-xs arbo-text-muted">Conectá dos formularios arrastrando del punto verde (derecha) al punto del otro.</p>
+                                ) : (
+                                    relations.map((r) => {
+                                        const meta = REL_TYPE_META[r.type];
+                                        const joinTitle = r.joinFormId ? formById.get(String(r.joinFormId))?.title : null;
+                                        return (
+                                            <button
+                                                key={r.edgeId}
+                                                onClick={() => setSelectedEdgeId(r.edgeId)}
+                                                className="text-left flex flex-col gap-1 p-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] hover:border-[var(--arbo-accent)]/40 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-2 text-xs">
+                                                    <span className="font-semibold arbo-text truncate">{r.parent}</span>
+                                                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: `${meta.color}22`, color: meta.color }}>{meta.short}</span>
+                                                    <span className="arbo-text-secondary truncate">{r.child}</span>
+                                                    <TrashBin
+                                                        className="size-3.5 ml-auto shrink-0 arbo-text-muted hover:text-[var(--arbo-danger)]"
+                                                        onClick={(e) => { e.stopPropagation(); deleteEdge(r.edgeId); }}
+                                                    />
+                                                </div>
+                                                {r.type === "many_to_many" && (
+                                                    <span className="text-[10px] arbo-text-muted">
+                                                        Puente: {joinTitle || <span className="text-[var(--arbo-warning)]">sin asignar</span>}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        );
+                                    })
+                                )}
+                                {relations.length > 0 && (
+                                    <p className="text-[10px] arbo-text-muted mt-1">Tocá una conexión para configurar su tipo y campos.</p>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* ── Form preview modal ── */}
+            {previewFormId && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+                    onClick={() => setPreviewFormId(null)}
+                >
+                    <div
+                        className="relative flex flex-col rounded-2xl border overflow-hidden"
+                        style={{
+                            background: "var(--arbo-surface)",
+                            borderColor: "var(--arbo-border)",
+                            width: "min(560px, 96vw)",
+                            maxHeight: "88vh",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Modal header */}
+                        <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0" style={{ borderColor: "var(--arbo-border)" }}>
+                            <Eye className="size-4" style={{ color: "var(--arbo-accent)" }} />
+                            <p className="text-sm font-semibold arbo-text flex-1 truncate">
+                                {previewSchema?.title || forms.find((f) => String(f.id) === previewFormId)?.title || "Vista previa"}
+                            </p>
+                            <button
+                                onClick={() => setPreviewFormId(null)}
+                                className="p-1 rounded arbo-text-muted hover:arbo-text transition-colors"
+                            >
+                                <Xmark className="size-4" />
+                            </button>
+                        </div>
+
+                        {/* Modal body */}
+                        <div className="overflow-y-auto flex-1 p-4">
+                            {previewLoading && (
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="arbo-spinner" />
+                                </div>
+                            )}
+                            {!previewLoading && previewSchema && (
+                                <FormBuilder formSchema={previewSchema} mode="view" isSystemForm={false} />
+                            )}
+                            {!previewLoading && !previewSchema && (
+                                <p className="text-sm arbo-text-muted text-center py-8">No se pudo cargar el formulario.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};

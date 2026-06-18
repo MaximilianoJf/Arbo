@@ -1,7 +1,8 @@
-import { Plus, Xmark, Gear, TrashBin, BucketPaint, Eye, ArrowRotateLeft, ArrowRotateRight } from "@gravity-ui/icons";
+import { useRef, useState } from "react";
+import { Plus, Xmark, Gear, TrashBin, BucketPaint, Eye, ArrowRotateLeft, ArrowRotateRight, Display, Smartphone } from "@gravity-ui/icons";
 import { Form } from "@heroui/react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, verticalListSortingStrategy, rectSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { useTranslation } from "react-i18next";
 import { SortableField } from "../ui/sortable/SortableField";
@@ -11,17 +12,23 @@ import { ModalWrapper, FieldSettingsForm } from "../forms";
 import { getGlassStyle, getAccentStyle, getPageBgCss } from "../../utils/style-helpers";
 import { getShadowCss } from "../../constants/style-presets";
 import { useEditorContext } from "./EditorContext";
+import { FieldSpanResizer } from "./FieldSpanResizer";
+import { FieldRowsResizer } from "./FieldRowsResizer";
+import { CardWidthHandle } from "./CardWidthHandle";
+import { FIELD_GRID_COLS, getFieldCellStyle, getFieldGridGap, getFieldGridStyle, getFieldSpan, spanKeyForBp } from "../../utils/field-grid";
+import type { PageBreakpoint } from "../../types";
 
 /** Simple preview button replacing the old toggle switch */
-const PreviewButton = () => {
+const PreviewButton = ({ compact }: { compact?: boolean }) => {
     const { setSchemaMode } = useFormStore();
     const { t } = useTranslation();
     return (
         <button
             onClick={() => setSchemaMode(FORM_MODES.preview)}
-            className="arbo-btn arbo-btn-ghost text-xs py-1.5 px-3"
+            className={`arbo-btn arbo-btn-ghost text-xs py-1.5 ${compact ? "px-2" : "px-3"}`}
+            title={t("common.preview")}
         >
-            <Eye className="size-3.5" /> {t("common.preview")}
+            <Eye className="size-3.5" /> {!compact && t("common.preview")}
         </button>
     );
 };
@@ -33,7 +40,7 @@ interface EditorCanvasProps {
 export const EditorCanvas = ({ className = "" }: EditorCanvasProps) => {
     const { t } = useTranslation();
     const {
-        schema, setSchema, handleSubmit, styles,
+        schema, setSchema, handleSubmit, styles, updateStyles,
         currentPage, setCurrentPage, currentPageFields, pages, totalPages, currentPageNumber,
         selectedField, setSelectedField, setRightTab,
         hoveredField, setHoveredField,
@@ -42,6 +49,34 @@ export const EditorCanvas = ({ className = "" }: EditorCanvasProps) => {
         handleDragEnd, sensors,
         undo, redo, canUndo, canRedo,
     } = useEditorContext();
+
+    // --- Field grid mode ---
+    const gridEnabled = !!styles.fieldGridEnabled;
+    const [gridBp, setGridBp] = useState<PageBreakpoint>("desktop");
+    const gridWrapRef = useRef<HTMLDivElement>(null);
+    const cardWrapRef = useRef<HTMLDivElement>(null);
+
+    /** Px width of one column step (col + gap) in the editor grid. */
+    const getColWidth = () => {
+        const w = gridWrapRef.current?.offsetWidth ?? 0;
+        return (w + getFieldGridGap(styles)) / FIELD_GRID_COLS;
+    };
+
+    const setFieldSpan = (name: string, next: number) => {
+        const key = spanKeyForBp(gridBp);
+        setSchema((prev) => ({
+            ...prev,
+            fields: prev.fields.map((f) => (f.name === name ? { ...f, [key]: next } : f)),
+        }));
+    };
+
+    // Simulated canvas width per breakpoint (desktop respects the resizable card width)
+    const canvasMaxW = gridEnabled && gridBp === "mobile" ? "390px"
+        : gridEnabled && gridBp === "tablet" ? "600px"
+        : styles.cardCustomWidth ? `${styles.cardCustomWidth}px` : "640px";
+
+    // Narrow canvas → icon-only toolbar so it doesn't overflow
+    const compact = gridEnabled && gridBp !== "desktop";
 
     const renderEditFields = () => {
         const visibleFields = currentPageFields.filter((f) => !f.name?.startsWith("__page_break_"));
@@ -62,12 +97,9 @@ export const EditorCanvas = ({ className = "" }: EditorCanvasProps) => {
             );
         }
         const fieldIds = visibleFields.map((f) => f.name);
-        return (
-            <DndContext sensors={sensors} collisionDetection={closestCenter}
-                modifiers={[restrictToVerticalAxis]} onDragEnd={handleDragEnd}>
-                <SortableContext items={fieldIds} strategy={verticalListSortingStrategy}>
-                    {visibleFields.map((field) => (
-                        <SortableField key={field.name} id={field.name}>
+        const fieldBlocks = visibleFields.map((field) => {
+            const block = (
+                <SortableField key={field.name} id={field.name} compact={gridEnabled}>
                             <div
                                 className={`relative flex items-start gap-2 p-3 rounded-lg transition-colors ${
                                     copiedFieldStyle
@@ -129,7 +161,38 @@ export const EditorCanvas = ({ className = "" }: EditorCanvasProps) => {
                                 )}
                             </div>
                         </SortableField>
-                    ))}
+            );
+            if (!gridEnabled) return block;
+            // Grid cell: span width + resize handle on the right edge
+            return (
+                <div key={field.name} className="relative group" style={getFieldCellStyle(field, gridBp)}>
+                    {block}
+                    <FieldSpanResizer
+                        span={getFieldSpan(field, gridBp)}
+                        onChange={(s) => setFieldSpan(field.name, s)}
+                        getColWidth={getColWidth}
+                    />
+                    {field.componentType === "DynamicTextArea" && (
+                        <FieldRowsResizer
+                            rows={field.rows ?? 4}
+                            onChange={(r) => setSchema((prev) => ({
+                                ...prev,
+                                fields: prev.fields.map((f) => (f.name === field.name ? { ...f, rows: r } : f)),
+                            }))}
+                        />
+                    )}
+                </div>
+            );
+        });
+        return (
+            <DndContext sensors={sensors} collisionDetection={closestCenter}
+                modifiers={gridEnabled ? [] : [restrictToVerticalAxis]} onDragEnd={handleDragEnd}>
+                <SortableContext items={fieldIds} strategy={gridEnabled ? rectSortingStrategy : verticalListSortingStrategy}>
+                    {gridEnabled ? (
+                        <div ref={gridWrapRef} className="w-full arbo-field-grid" style={getFieldGridStyle(styles)}>
+                            {fieldBlocks}
+                        </div>
+                    ) : fieldBlocks}
                 </SortableContext>
             </DndContext>
         );
@@ -170,7 +233,14 @@ export const EditorCanvas = ({ className = "" }: EditorCanvasProps) => {
 
             {/* Fields Canvas */}
             <div className="w-full rounded-xl p-6 flex-1" style={{ background: editorBg }}>
-                <div className="mx-auto w-full" style={{ maxWidth: "640px" }}>
+                <div ref={cardWrapRef} className="mx-auto w-full relative" style={{ maxWidth: canvasMaxW }}>
+                    {/* Card width resize — only on the desktop layout */}
+                    {(!gridEnabled || gridBp === "desktop") && (
+                        <CardWidthHandle wrapRef={cardWrapRef} onChange={(px) => updateStyles({ cardCustomWidth: px })} />
+                    )}
+                    {styles.cardCustomWidth && (!gridEnabled || gridBp === "desktop") && (
+                        <span className="absolute -top-5 right-0 text-[9px] arbo-text-muted font-mono">{styles.cardCustomWidth}px</span>
+                    )}
                     <div
                         className={`p-5 rounded-[var(--arbo-radius-lg)] w-full ${className}`}
                         style={{
@@ -193,14 +263,32 @@ export const EditorCanvas = ({ className = "" }: EditorCanvasProps) => {
                                 </button>
                             </div>
                         )}
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                                <PreviewButton />
+                        <div className="flex items-center justify-between mb-4 gap-2">
+                            <div className={`flex items-center flex-wrap ${compact ? "gap-1.5" : "gap-3"}`}>
+                                <PreviewButton compact={compact} />
                                 <ModalWrapper content={<FieldSettingsForm />}>
-                                    <button className="arbo-btn arbo-btn-secondary text-xs py-1.5 px-3">
-                                        <Plus className="size-3.5" /> {t("editor.canvas.addField")}
+                                    <button className={`arbo-btn arbo-btn-secondary text-xs py-1.5 ${compact ? "px-2" : "px-3"}`}
+                                        title={t("editor.canvas.addField")}>
+                                        <Plus className="size-3.5" /> {!compact && t("editor.canvas.addField")}
                                     </button>
                                 </ModalWrapper>
+                                {/* Breakpoint switcher (grid mode — toggle lives in the Form tab) */}
+                                {gridEnabled && (
+                                    <div className="flex items-center gap-0.5 p-0.5 rounded-md bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)]">
+                                        {([
+                                            { key: "desktop", label: "PC", icon: <Display className="size-3" /> },
+                                            { key: "tablet", label: "Tablet", icon: <Display className="size-3" /> },
+                                            { key: "mobile", label: "Móvil", icon: <Smartphone className="size-3" /> },
+                                        ] as { key: PageBreakpoint; label: string; icon: React.ReactNode }[]).map((b) => (
+                                            <button key={b.key} type="button" onClick={() => setGridBp(b.key)} title={b.label}
+                                                className={`flex items-center gap-1 px-1.5 py-1 rounded text-[10px] font-medium transition-colors cursor-pointer ${
+                                                    gridBp === b.key ? "bg-[var(--arbo-accent)] text-[var(--arbo-bg)]" : "arbo-text-muted hover:arbo-text"
+                                                }`}>
+                                                {b.icon}{!compact && b.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                                 {/* Undo / Redo */}
                                 <div className="flex items-center gap-0.5 ml-1">
                                     <button
@@ -225,8 +313,10 @@ export const EditorCanvas = ({ className = "" }: EditorCanvasProps) => {
                                     </button>
                                 </div>
                             </div>
-                            <span className="text-xs arbo-text-muted">
-                                {t("editor.canvas.pageOf", { current: currentPage + 1, total: totalPages })}
+                            <span className="text-xs arbo-text-muted whitespace-nowrap shrink-0">
+                                {compact
+                                    ? `${currentPage + 1}/${totalPages}`
+                                    : t("editor.canvas.pageOf", { current: currentPage + 1, total: totalPages })}
                             </span>
                         </div>
                         <Form validationBehavior="aria" onSubmit={handleSubmit} className="flex flex-col gap-3">

@@ -160,11 +160,10 @@ export const FormViewMode = ({
                 </div>
             )}
 
-            {/* Form card */}
-            <div className={`w-full overflow-hidden ${entranceClass} ${hoverClass} ${focusClass}`.trim()}
+            {/* Form card — overflow visible so dropdowns/popovers aren't clipped by the card */}
+            <div className={`w-full ${entranceClass} ${hoverClass} ${focusClass}`.trim()}
                 style={{ ...cardStyle, ...getEntranceAnimStyle(styles, showHeaderCard ? 1 : 0) }}>
-                {/* Accent bar moves onto the form card when there's no header card to carry it */}
-                {!showHeaderCard && <div className="h-2" style={getAccentStyle(styles)} />}
+                <div className="h-2" style={{ ...getAccentStyle(styles), borderRadius: `${styles.borderRadius ?? 14}px ${styles.borderRadius ?? 14}px 0 0` }} />
                 <div className="p-6">
                     <Form validationBehavior="aria"
                         onSubmit={isPreview ? (e) => e.preventDefault() : handleSubmit}

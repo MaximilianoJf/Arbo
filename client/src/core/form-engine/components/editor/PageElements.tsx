@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useTranslation } from "react-i18next";
 import {
-    getGlassStyle, getAccentStyle, getPageHeadingSizeClass,
+    getGlassStyle, getAccentStyle, getPageHeadingSizeClass, getPageImageStyle,
     getEntranceAnimClass, getEntranceAnimStyle, getHoverAnimClass, getFieldFocusClass,
 } from "../../utils/style-helpers";
 import { getShadowCss } from "../../constants/style-presets";
@@ -77,12 +77,10 @@ export const FormPreview = () => {
 
     return (
         <div className="w-full" key={animReplayKey}>
-            <div className={`w-full overflow-hidden ${entranceClass} ${hoverClass} ${focusClass}`.trim()} style={{ ...cardStyle, ...getEntranceAnimStyle(styles, headerOn ? 1 : 0) }}>
-                {!headerOn && (
-                    <label className="block h-2 cursor-pointer" style={getAccentStyle(styles)} title="Clic para cambiar accent">
-                        <input type="color" value={styles.accentColor || "#4ADE80"} onChange={(e) => updateStyles({ accentColor: e.target.value, gradient: undefined })} className="opacity-0 w-full h-full cursor-pointer block" />
-                    </label>
-                )}
+            <div className={`w-full ${entranceClass} ${hoverClass} ${focusClass}`.trim()} style={{ ...cardStyle, ...getEntranceAnimStyle(styles, headerOn ? 1 : 0) }}>
+                <label className="block h-2 cursor-pointer overflow-hidden" style={{ ...getAccentStyle(styles), borderRadius: `${styles.borderRadius ?? 14}px ${styles.borderRadius ?? 14}px 0 0` }} title="Clic para cambiar accent">
+                    <input type="color" value={styles.accentColor || "#4ADE80"} onChange={(e) => updateStyles({ accentColor: e.target.value, gradient: undefined })} className="opacity-0 w-full h-full cursor-pointer block" />
+                </label>
                 <div className="p-6 flex flex-col gap-4">
                     {visibleFields.length > 0
                         ? renderViewFields(visibleFields)
@@ -139,7 +137,7 @@ export const ImagePreview = () => {
             src={styles.pageBgImage}
             alt=""
             className="w-full h-full"
-            style={{ objectFit: styles.pageImageFit || "cover", borderRadius: `${styles.borderRadius ?? 14}px` }}
+            style={getPageImageStyle(styles)}
         />
     );
 };

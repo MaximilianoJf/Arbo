@@ -1,13 +1,12 @@
+import "./config/env"; // must be first — loads layered dotenv before any other import
 import express from "express";
 import db from "./config/db";
 import router from "./routes";
-import dotenv from "dotenv";
 import colors from "colors";
 
-dotenv.config();
-
 const app = express();
-app.use(express.json());
+// 15mb: form-scan photos arrive as base64 data URLs
+app.use(express.json({ limit: "15mb" }));
 
 const ALLOWED_ORIGINS = new Set([
     process.env.CLIENT_URL || "http://localhost:5173",

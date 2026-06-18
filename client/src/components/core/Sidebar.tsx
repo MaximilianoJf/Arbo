@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Logo } from "../ui";
 import { LanguageSwitcher } from "../widgets/LanguageSwitcher";
-import { LayoutList, FolderOpen, Archive, TrashBin, CircleQuestion, Gear, SquarePlus, BranchesRight, Key, Sparkles } from "@gravity-ui/icons";
+import { LayoutList, FolderOpen, Archive, TrashBin, CircleQuestion, Gear, SquarePlus, Key, Sparkles, LayoutCellsLarge } from "@gravity-ui/icons";
 
 const getToken = () => localStorage.getItem("token");
 const parseToken = (): { name?: string; email?: string } | null => {
@@ -23,7 +23,7 @@ export const Sidebar = () => {
 
     const navItems = [
         { label: t("nav.myForms"), icon: LayoutList, path: "/form-builder" },
-        { label: t("nav.projects"), icon: BranchesRight, path: "/form-builder/projects" },
+        { label: "Componentes", icon: LayoutCellsLarge, path: "/form-builder/components" },
         { label: t("nav.sharedWithMe"), icon: FolderOpen, path: "/form-builder/shared" },
         { label: t("nav.archive"), icon: Archive, path: "/form-builder/archive" },
         { label: t("nav.trash"), icon: TrashBin, path: "/form-builder/trash" },
@@ -74,9 +74,8 @@ export const Sidebar = () => {
                             ? location.pathname === "/form-builder" ||
                               location.pathname.startsWith("/form-builder/edit") ||
                               location.pathname.startsWith("/form-builder/create") ||
-                              location.pathname.startsWith("/form-builder/responses")
-                            : item.path === "/form-builder/projects"
-                            ? location.pathname.startsWith("/form-builder/projects")
+                              location.pathname.startsWith("/form-builder/responses") ||
+                              location.pathname.startsWith("/form-builder/projects")
                             : item.path === "/form-builder/api-keys"
                             ? location.pathname.startsWith("/form-builder/api-keys")
                             : item.path === "/form-builder/settings/openrouter"

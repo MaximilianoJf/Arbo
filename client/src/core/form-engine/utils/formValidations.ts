@@ -7,6 +7,7 @@ export const VALIDATION_PATTERNS = {
     url: /^https?:\/\/.+\..+/,
     phone: /^[+]?[\d\s()-]{7,15}$/,
     noSpaces: /^\S+$/,
+    rut: /^\d{1,2}\.?\d{3}\.?\d{3}-?[\dkK]$/,
     uppercase: /[A-Z]/,
     lowercase: /[a-z]/,
     hasNumber: /\d/,
@@ -47,6 +48,10 @@ export const VALIDATION_RULES: Record<string, (value: ValueValidation, allValues
     phone: (value) =>
         (!value || VALIDATION_PATTERNS.phone.test(String(value)))
             ? null : "Must be a valid phone number",
+
+    rut: (value) =>
+        (!value || VALIDATION_PATTERNS.rut.test(String(value)))
+            ? null : "Debe ser un RUT válido (ej: 12.345.678-9)",
 
     noSpaces: (value) =>
         (!value || VALIDATION_PATTERNS.noSpaces.test(String(value)))
@@ -136,13 +141,29 @@ export const VALIDATION_RULES: Record<string, (value: ValueValidation, allValues
     },
 };
 
-export const getValidationFn = (keys: string[], fieldName?: string) => {
+export interface PatternConfig {
+    pattern?: string;
+    patternMessage?: string;
+}
+
+export const getValidationFn = (keys: string[], fieldName?: string, patternCfg?: PatternConfig) => {
     return (value: ValueValidation, allValues?: Record<string, any>): string | null => {
         for (const key of keys) {
             const rule = VALIDATION_RULES[key];
             if (rule) {
                 const error = rule(value, allValues, fieldName);
                 if (error) return error;
+            }
+        }
+        // Custom per-field regex (configured in the editor)
+        if (patternCfg?.pattern && value !== undefined && value !== null && String(value) !== "") {
+            try {
+                const re = new RegExp(patternCfg.pattern);
+                if (!re.test(String(value))) {
+                    return patternCfg.patternMessage || "El valor no tiene el formato esperado";
+                }
+            } catch {
+                // Invalid regex configured — don't block the user
             }
         }
         return null;

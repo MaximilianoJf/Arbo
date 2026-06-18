@@ -138,14 +138,63 @@ export const getPageBgCss = (styles?: FormStyles): string => {
         }
     }
 
-    // Image as a CSS background only when NOT using the free grid (there it's a positionable element)
+    // Image as a CSS background only when NOT using the free grid (there it's a positionable element).
+    // Fade and opacity are simulated with page-color gradients painted over the image,
+    // so the same controls work in both modes.
     if (styles?.pageBgImage && !styles?.pageLayout?.enabled) {
         const fit = styles.pageImageFit || "cover";
-        layers.push(`url("${styles.pageBgImage}") center/${fit} no-repeat`);
+        const posX = styles.pageImagePosX ?? 50;
+        const posY = styles.pageImagePosY ?? 50;
+        const opacity = styles.pageImageOpacity ?? 100;
+        const fadeTop = styles.pageImageFadeTop ?? 0;
+        const fadeBottom = styles.pageImageFadeBottom ?? 0;
+        if (opacity < 100) {
+            const veil = applyAlpha(base, 1 - opacity / 100);
+            layers.push(`linear-gradient(${veil}, ${veil})`);
+        }
+        if (fadeTop > 0) layers.push(`linear-gradient(to bottom, ${base} 0%, transparent ${fadeTop}%)`);
+        if (fadeBottom > 0) layers.push(`linear-gradient(to top, ${base} 0%, transparent ${fadeBottom}%)`);
+        layers.push(`url("${styles.pageBgImage}") ${posX}% ${posY}%/${fit} no-repeat`);
     }
 
     layers.push(base);
     return layers.length === 1 ? base : layers.join(", ");
+};
+
+/** Builds the CSS background for the embed area: its own glow orbs over pageBgColor. */
+export const getEmbedBgCss = (styles?: FormStyles): string => {
+    const base = styles?.pageBgColor || "#0f0f14";
+    const layers: string[] = [];
+
+    if (styles?.embedGlowEnabled && styles.embedGlowOrbs?.length) {
+        for (const orb of styles.embedGlowOrbs) {
+            const rgba = applyAlpha(orb.color, orb.opacity / 100);
+            layers.push(`radial-gradient(ellipse ${orb.size}% ${Math.round(orb.size * 0.65)}% at ${orb.x}% ${orb.y}%, ${rgba} 0%, transparent 70%)`);
+        }
+    }
+
+    layers.push(base);
+    return layers.length === 1 ? base : layers.join(", ");
+};
+
+/** Style for the positionable background image: fit, opacity, radius and fade masks. */
+export const getPageImageStyle = (styles?: FormStyles): React.CSSProperties => {
+    const css: React.CSSProperties = {
+        objectFit: styles?.pageImageFit || "cover",
+        objectPosition: `${styles?.pageImagePosX ?? 50}% ${styles?.pageImagePosY ?? 50}%`,
+    };
+    const opacity = styles?.pageImageOpacity ?? 100;
+    if (opacity < 100) css.opacity = opacity / 100;
+    if (styles?.pageImageRadius) css.borderRadius = `${styles.pageImageRadius}px`;
+
+    const fadeTop = styles?.pageImageFadeTop ?? 0;
+    const fadeBottom = styles?.pageImageFadeBottom ?? 0;
+    if (fadeTop > 0 || fadeBottom > 0) {
+        const mask = `linear-gradient(to bottom, transparent 0%, black ${fadeTop}%, black ${100 - fadeBottom}%, transparent 100%)`;
+        css.maskImage = mask;
+        css.WebkitMaskImage = mask;
+    }
+    return css;
 };
 
 /** Returns the accent style object for buttons, bars, etc. */
@@ -155,8 +204,9 @@ export const getAccentStyle = (styles?: FormStyles): React.CSSProperties => {
     return { background: "var(--arbo-accent)" };
 };
 
-/** Returns max-width for the form card based on cardSize. */
+/** Returns max-width for the form card based on cardSize (or custom px width if resized). */
 export const getCardMaxWidth = (styles?: FormStyles): string => {
+    if (styles?.cardCustomWidth) return `${styles.cardCustomWidth}px`;
     const CARD_SIZES: { value: string; width: string }[] = [
         { value: "sm", width: "480px" },
         { value: "md", width: "640px" },

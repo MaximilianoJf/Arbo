@@ -1,7 +1,11 @@
-import { Check, TrashBin, Xmark, Plus, BucketPaint, Persons } from "@gravity-ui/icons";
+import { useState } from "react";
+import { Check, TrashBin, Xmark, Plus, BucketPaint, Persons, ArrowRotateRight } from "@gravity-ui/icons";
 import { useTranslation } from "react-i18next";
 import { getValidationLabels } from "../../../constants/editor-constants";
+import { SPAN_PRESETS, getFieldSpan, spanKeyForBp } from "../../../utils/field-grid";
+import type { FieldOptionsSource, PageBreakpoint } from "../../../types";
 import { useEditorContext } from "../EditorContext";
+import { useRemoteOptions } from "../../../hooks/useRemoteOptions";
 
 export const FieldTab = () => {
     const { t } = useTranslation();
@@ -77,6 +81,46 @@ export const FieldTab = () => {
                 />
             </div>
 
+            {/* Field width (grid mode) */}
+            {styles.fieldGridEnabled && (
+                <div>
+                    <label className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider block mb-1.5">Ancho del campo</label>
+                    <div className="flex flex-col gap-1.5">
+                        {([
+                            { key: "desktop", label: "PC" },
+                            { key: "tablet", label: "Tablet" },
+                            { key: "mobile", label: "Móvil" },
+                        ] as { key: PageBreakpoint; label: string }[]).map((bp) => (
+                            <div key={bp.key} className="flex items-center gap-1.5">
+                                <span className="text-[9px] arbo-text-muted w-10 shrink-0">{bp.label}</span>
+                                <div className="flex gap-1 flex-1">
+                                    {SPAN_PRESETS.map((p) => {
+                                        const isActive = getFieldSpan(activeField, bp.key) === p.cols;
+                                        return (
+                                            <button key={p.cols}
+                                                onClick={() => {
+                                                    const key = spanKeyForBp(bp.key);
+                                                    setSchema((prev) => ({
+                                                        ...prev,
+                                                        fields: prev.fields.map((f) => f.name === activeField.name ? { ...f, [key]: p.cols } : f),
+                                                    }));
+                                                }}
+                                                className={`flex-1 px-1 py-1 rounded text-[9px] font-medium transition-colors ${
+                                                    isActive
+                                                        ? "bg-[var(--arbo-accent)] text-[var(--arbo-bg)]"
+                                                        : "bg-[var(--arbo-surface-2)] arbo-text-muted border border-[var(--arbo-border)] hover:arbo-text"
+                                                }`}>
+                                                {p.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Placeholder */}
             <div>
                 <label className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider block mb-1">{t("editor.field.placeholder")}</label>
@@ -127,26 +171,92 @@ export const FieldTab = () => {
                 </div>
             )}
 
-            {/* Options (Checkbox / Select / Radio) */}
-            {(activeField.componentType === "DynamicCheckbox" || activeField.componentType === "DynamicSelect" || activeField.componentType === "DynamicRadioGroup") && (
+            {/* Custom regex validation (text-like fields) */}
+            {["DynamicTextField", "DynamicTextArea", "DynamicPasswordWithToggle", "DynamicNumberField"].includes(activeField.componentType) && (
                 <div>
-                    <label className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider block mb-1">{t("editor.field.options")}</label>
-                    <div className="flex flex-col gap-1">
-                        {(activeField.options || []).map((opt, i) => (
-                            <div key={i} className="flex items-center gap-1">
-                                <input className="flex-1 px-2 py-1 rounded bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-xs focus:border-[var(--arbo-accent)] focus:outline-none"
-                                    value={opt}
-                                    onChange={(e) => { const val = e.target.value; setSchema((prev) => ({ ...prev, fields: prev.fields.map((f) => f.name === activeField.name ? { ...f, options: (f.options || []).map((o, j) => j === i ? val : o) } : f) })); }}
-                                />
-                                <button onClick={() => setSchema((prev) => ({ ...prev, fields: prev.fields.map((f) => f.name === activeField.name ? { ...f, options: (f.options || []).filter((_, j) => j !== i) } : f) }))} className="p-1 text-[var(--arbo-danger)] hover:bg-[var(--arbo-danger-muted)] rounded"><Xmark className="size-3" /></button>
-                            </div>
-                        ))}
-                        <button onClick={() => setSchema((prev) => ({ ...prev, fields: prev.fields.map((f) => f.name === activeField.name ? { ...f, options: [...(f.options || []), `Option ${(f.options || []).length + 1}`] } : f) }))}
-                            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs arbo-text-muted hover:text-[var(--arbo-accent)] hover:bg-[var(--arbo-accent-subtle)] transition-colors">
-                            <Plus className="size-3" /> {t("editor.field.addOption")}
-                        </button>
+                    <label className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider block mb-1">Validación Regex personalizada</label>
+                    <div className="flex flex-col gap-1.5">
+                        <input
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-xs font-mono focus:border-[var(--arbo-accent)] focus:outline-none"
+                            placeholder="Ej: ^[A-Z]{3}-\d{4}$"
+                            value={activeField.pattern || ""}
+                            onChange={(e) => { const val = e.target.value; setSchema((prev) => ({ ...prev, fields: prev.fields.map((f) => f.name === activeField.name ? { ...f, pattern: val || undefined } : f) })); }}
+                        />
+                        {activeField.pattern && (() => {
+                            try { new RegExp(activeField.pattern); return null; }
+                            catch { return <p className="text-[10px] text-[var(--arbo-danger)]">Expresión regular inválida — se ignora hasta corregirla.</p>; }
+                        })()}
+                        {activeField.pattern && (
+                            <input
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-xs focus:border-[var(--arbo-accent)] focus:outline-none"
+                                placeholder="Mensaje de error (ej: Debe tener formato ABC-1234)"
+                                value={activeField.patternMessage || ""}
+                                onChange={(e) => { const val = e.target.value; setSchema((prev) => ({ ...prev, fields: prev.fields.map((f) => f.name === activeField.name ? { ...f, patternMessage: val || undefined } : f) })); }}
+                            />
+                        )}
+                        <p className="text-[9px] arbo-text-muted">Se aplica además de las validaciones de arriba. Sin barras: escribí el patrón directo.</p>
                     </div>
                 </div>
+            )}
+
+            {/* Accepted file types (FileUpload) */}
+            {activeField.componentType === "DynamicFileUpload" && (
+                <div>
+                    <label className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider block mb-1.5">Tipos de archivo aceptados</label>
+                    <div className="flex flex-wrap gap-1">
+                        {[
+                            { label: "Imágenes", value: "image/*" },
+                            { label: "PDF", value: ".pdf" },
+                            { label: "Word", value: ".doc,.docx" },
+                            { label: "Excel", value: ".xls,.xlsx" },
+                            { label: "CSV", value: ".csv" },
+                            { label: "Texto", value: ".txt" },
+                            { label: "ZIP/RAR", value: ".zip,.rar" },
+                            { label: "Audio", value: "audio/*" },
+                            { label: "Video", value: "video/*" },
+                        ].map((ft) => {
+                            const parts = ft.value.split(",");
+                            const isActive = parts.every((p) => (activeField.accept || []).includes(p));
+                            return (
+                                <button key={ft.value}
+                                    onClick={() => setSchema((prev) => ({
+                                        ...prev,
+                                        fields: prev.fields.map((f) => {
+                                            if (f.name !== activeField.name) return f;
+                                            const current = f.accept || [];
+                                            const next = isActive
+                                                ? current.filter((a) => !parts.includes(a))
+                                                : [...current, ...parts.filter((p) => !current.includes(p))];
+                                            return { ...f, accept: next };
+                                        }),
+                                    }))}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+                                        isActive
+                                            ? "bg-[var(--arbo-accent-muted)] text-[var(--arbo-accent)] border border-[var(--arbo-accent)]/30"
+                                            : "bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text-muted hover:arbo-text"
+                                    }`}>
+                                    {ft.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <p className="text-[9px] arbo-text-muted mt-1.5">
+                        {(activeField.accept || []).length === 0
+                            ? "Sin restricción: acepta cualquier archivo."
+                            : `Acepta: ${(activeField.accept || []).join(", ")}`}
+                    </p>
+                </div>
+            )}
+
+            {/* Options (Checkbox / Select / Radio / MultiSelect) */}
+            {(activeField.componentType === "DynamicCheckbox" || activeField.componentType === "DynamicSelect" || activeField.componentType === "DynamicRadioGroup" || activeField.componentType === "DynamicMultiSelect") && (
+                <OptionsSection
+                    activeFieldName={activeField.name}
+                    options={activeField.options || []}
+                    optionsSource={activeField.optionsSource}
+                    setSchema={setSchema}
+                    t={t}
+                />
             )}
 
             {/* Page selector */}
@@ -207,9 +317,18 @@ export const FieldTab = () => {
                     fs={fieldStyleGlobal ? (styles.globalFieldStyles || {}) : (activeField.fieldStyles || {})}
                     onUpdate={(patch) => {
                         if (fieldStyleGlobal) {
+                            // Strip the edited keys from every field's individual styles —
+                            // otherwise per-field values override the global and don't sync.
+                            const patchKeys = Object.keys(patch);
                             setSchema((prev) => ({
                                 ...prev,
                                 styles: { ...prev.styles, globalFieldStyles: { ...(prev.styles?.globalFieldStyles || {}), ...patch } },
+                                fields: prev.fields.map((f) => {
+                                    if (!f.fieldStyles) return f;
+                                    const fs: Record<string, any> = { ...f.fieldStyles };
+                                    patchKeys.forEach((k) => delete fs[k]);
+                                    return { ...f, fieldStyles: fs };
+                                }),
                             }));
                         } else {
                             setSchema((prev) => ({
@@ -264,6 +383,175 @@ const FieldStylePickers = ({ fs, onUpdate }: {
             {row(t("editor.formStyles.fieldColors.text"), "inputTextColorHover", "#ffffff")}
             {row(t("editor.formStyles.fieldColors.bg"), "inputBgColorHover", "#2a2a38")}
             {row(t("editor.formStyles.fieldColors.border"), "inputBorderColorHover", "#3a3a4a")}
+        </div>
+    );
+};
+
+// ---------------------------------------------------------------------------
+// Options section: static list + optional API source
+// ---------------------------------------------------------------------------
+interface OptionsSectionProps {
+    activeFieldName: string;
+    options: string[];
+    optionsSource?: FieldOptionsSource;
+    setSchema: (updater: (prev: any) => any) => void;
+    t: (key: string) => string;
+}
+
+const OptionsSection = ({ activeFieldName, options, optionsSource, setSchema, t }: OptionsSectionProps) => {
+    const hasSource = !!optionsSource?.url;
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [draftSource, setDraftSource] = useState<FieldOptionsSource>(
+        optionsSource ?? { url: "", valueKey: "id", labelKey: "name", dataPath: "" }
+    );
+
+    const { items: previewItems, loading: previewLoading, error: previewError } = useRemoteOptions(
+        previewOpen ? draftSource : undefined
+    );
+
+    const patchField = (patch: Partial<{ options: string[]; optionsSource: FieldOptionsSource | undefined }>) =>
+        setSchema((prev: any) => ({
+            ...prev,
+            fields: prev.fields.map((f: any) =>
+                f.name === activeFieldName ? { ...f, ...patch } : f
+            ),
+        }));
+
+    const saveSource = () => patchField({ optionsSource: draftSource.url ? draftSource : undefined });
+    const clearSource = () => {
+        setDraftSource({ url: "", valueKey: "id", labelKey: "name", dataPath: "" });
+        patchField({ optionsSource: undefined });
+    };
+
+    const inputCls = "flex-1 px-2 py-1 rounded bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-xs focus:border-[var(--arbo-accent)] focus:outline-none";
+
+    return (
+        <div className="flex flex-col gap-2">
+            {/* Header with API toggle */}
+            <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">{t("editor.field.options")}</label>
+                <button
+                    onClick={() => setPreviewOpen((v) => !v)}
+                    className={`text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors ${hasSource || previewOpen ? "text-[var(--arbo-accent)] bg-[var(--arbo-accent-muted)]" : "arbo-text-muted hover:text-[var(--arbo-accent)]"}`}
+                >
+                    {hasSource ? "⚡ Desde API" : "⚡ Conectar API"}
+                </button>
+            </div>
+
+            {/* API source panel */}
+            {previewOpen && (
+                <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-accent)]/30">
+                    <p className="text-[9px] arbo-text-muted font-semibold uppercase tracking-wider">Fuente de datos API</p>
+
+                    <input
+                        className={inputCls}
+                        placeholder="URL del endpoint (ej: https://api.ejemplo.com/paises)"
+                        value={draftSource.url}
+                        onChange={(e) => setDraftSource((d) => ({ ...d, url: e.target.value }))}
+                    />
+
+                    <div className="flex gap-1">
+                        <div className="flex-1">
+                            <p className="text-[9px] arbo-text-muted mb-0.5">Campo valor <span className="opacity-60">(se guarda)</span></p>
+                            <input
+                                className={inputCls + " w-full"}
+                                placeholder='ej: "id"'
+                                value={draftSource.valueKey}
+                                onChange={(e) => setDraftSource((d) => ({ ...d, valueKey: e.target.value }))}
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-[9px] arbo-text-muted mb-0.5">Campo visible <span className="opacity-60">(se muestra)</span></p>
+                            <input
+                                className={inputCls + " w-full"}
+                                placeholder='ej: "nombre"'
+                                value={draftSource.labelKey}
+                                onChange={(e) => setDraftSource((d) => ({ ...d, labelKey: e.target.value }))}
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <p className="text-[9px] arbo-text-muted mb-0.5">Ruta al array <span className="opacity-60">(opcional, ej: "data" o "results.items")</span></p>
+                        <input
+                            className={inputCls + " w-full"}
+                            placeholder='vacío si la respuesta ES el array'
+                            value={draftSource.dataPath ?? ""}
+                            onChange={(e) => setDraftSource((d) => ({ ...d, dataPath: e.target.value }))}
+                        />
+                    </div>
+
+                    {/* Preview */}
+                    {previewItems && (
+                        <div className="rounded-md p-1.5 text-[9px] font-mono max-h-28 overflow-auto" style={{ background: "var(--arbo-surface-3)" }}>
+                            {previewItems.slice(0, 8).map((i) => (
+                                <div key={i.value} className="arbo-text-muted"><span className="arbo-text">{i.label}</span> → <span className="text-[var(--arbo-accent)]">{i.value}</span></div>
+                            ))}
+                            {previewItems.length > 8 && <div className="arbo-text-muted">…y {previewItems.length - 8} más</div>}
+                        </div>
+                    )}
+                    {previewLoading && <p className="text-[9px] arbo-text-muted">Cargando preview…</p>}
+                    {previewError && <p className="text-[9px] text-[var(--arbo-danger)]">{previewError}</p>}
+
+                    <div className="flex gap-1 pt-0.5">
+                        <button
+                            onClick={saveSource}
+                            disabled={!draftSource.url || !draftSource.valueKey || !draftSource.labelKey}
+                            className="flex-1 px-2 py-1 rounded-md text-[10px] font-semibold bg-[var(--arbo-accent)] text-[var(--arbo-bg)] disabled:opacity-40 transition-opacity"
+                        >
+                            Guardar fuente
+                        </button>
+                        <button
+                            onClick={() => setPreviewOpen(false)}
+                            className="px-2 py-1 rounded-md text-[10px] arbo-text-muted bg-[var(--arbo-surface-3)]"
+                        >
+                            <ArrowRotateRight className="size-3 inline mr-0.5" /> Preview
+                        </button>
+                        {hasSource && (
+                            <button onClick={clearSource} className="px-2 py-1 rounded-md text-[10px] text-[var(--arbo-danger)] bg-[var(--arbo-danger-muted)]">
+                                Quitar
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Static options (hidden when API source active) */}
+            {!hasSource && !previewOpen && (
+                <div className="flex flex-col gap-1">
+                    {options.map((opt, i) => (
+                        <div key={i} className="flex items-center gap-1">
+                            <input
+                                className={inputCls}
+                                value={opt}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    patchField({ options: options.map((o, j) => j === i ? val : o) });
+                                }}
+                            />
+                            <button
+                                onClick={() => patchField({ options: options.filter((_, j) => j !== i) })}
+                                className="p-1 text-[var(--arbo-danger)] hover:bg-[var(--arbo-danger-muted)] rounded"
+                            >
+                                <Xmark className="size-3" />
+                            </button>
+                        </div>
+                    ))}
+                    <button
+                        onClick={() => patchField({ options: [...options, `Opción ${options.length + 1}`] })}
+                        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs arbo-text-muted hover:text-[var(--arbo-accent)] hover:bg-[var(--arbo-accent-subtle)] transition-colors"
+                    >
+                        <Plus className="size-3" /> {t("editor.field.addOption")}
+                    </button>
+                </div>
+            )}
+
+            {hasSource && !previewOpen && (
+                <p className="text-[10px] arbo-text-muted px-1">
+                    ⚡ Las opciones se cargan desde <span className="arbo-text font-mono break-all">{optionsSource!.url}</span>
+                    {" · "}<button onClick={() => setPreviewOpen(true)} className="text-[var(--arbo-accent)] hover:underline">Editar</button>
+                </p>
+            )}
         </div>
     );
 };

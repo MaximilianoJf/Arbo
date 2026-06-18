@@ -1,0 +1,288 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronDown, ChevronRight, Person, Magnifier, LayoutHeaderCells, ArrowRight } from "@gravity-ui/icons";
+import { formApi, projectApi } from "@/services/api";
+import { FieldAnswer, getOrderedAnswers, type ChainResponse, type RespField } from "./answer-render";
+
+interface ChainData {
+    forms: Record<string, { id: number; title: string; fields: RespField[] }>;
+    parents: Record<string, { id: number; formId: number; respondentName: string | null; respondentEmail: string | null; createdAt: string }>;
+    tree: ChainResponse[];
+}
+
+interface FormLite { id: number; title: string }
+
+const fmtDate = (iso: string) =>
+    `${new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })} ${new Date(iso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}`;
+
+const respondentLabel = (r: ChainResponse, t: (k: string) => string) =>
+    r.respondentName || r.respondentEmail || t("responses.anonymous");
+
+// Total descendants under a node (for the "N relacionadas" badge)
+const countDescendants = (node: ChainResponse): number =>
+    (node.children || []).reduce((acc, c) => acc + 1 + countDescendants(c), 0);
+
+// ── Form-level chain: the related forms, navigable to review each one ──
+const FormChainNode = ({
+    formId, currentFormId, formsById, childrenOf, depth, onOpen,
+}: {
+    formId: number;
+    currentFormId: number;
+    formsById: Map<number, FormLite>;
+    childrenOf: Map<number, number[]>;
+    depth: number;
+    onOpen: (id: number) => void;
+}) => {
+    const f = formsById.get(formId);
+    const kids = childrenOf.get(formId) || [];
+    const isCurrent = formId === currentFormId;
+    return (
+        <div>
+            <div className="flex items-center gap-2">
+                {depth > 0 && <ArrowRight className="size-3.5 arbo-text-muted shrink-0" />}
+                <button
+                    onClick={() => !isCurrent && onOpen(formId)}
+                    disabled={isCurrent}
+                    className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
+                        isCurrent
+                            ? "bg-[var(--arbo-accent)] text-[var(--arbo-bg)] border-[var(--arbo-accent)] cursor-default"
+                            : "bg-[var(--arbo-surface-2)] arbo-text border-[var(--arbo-border)] hover:border-[var(--arbo-accent)]/50 hover:text-[var(--arbo-accent)]"
+                    }`}
+                    title={isCurrent ? "Formulario actual" : "Ver respuestas de este formulario"}
+                >
+                    {f?.title || `#${formId}`}
+                </button>
+            </div>
+            {kids.length > 0 && (
+                <div className="ml-3 mt-1.5 pl-3 border-l border-dashed border-[var(--arbo-border)] flex flex-col gap-1.5">
+                    {kids.map((k) => (
+                        <FormChainNode
+                            key={k}
+                            formId={k}
+                            currentFormId={currentFormId}
+                            formsById={formsById}
+                            childrenOf={childrenOf}
+                            depth={depth + 1}
+                            onOpen={onOpen}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ── A single response node in the tree (recursive) ──
+const ResponseNode = ({ node, data, t, depth }: { node: ChainResponse; data: ChainData; t: (k: string) => string; depth: number }) => {
+    const [open, setOpen] = useState(depth < 1);
+    const [showAnswers, setShowAnswers] = useState(false);
+    const form = node.formId != null ? data.forms[node.formId] : undefined;
+    const childCount = node.children?.length || 0;
+    const descendants = countDescendants(node);
+    const answers = form ? getOrderedAnswers(node.answers, form.fields) : [];
+    const filledAnswers = answers.filter((a) => a.value !== null && a.value !== undefined && a.value !== "");
+
+    return (
+        <div className="relative">
+            <div className="rounded-xl border border-[var(--arbo-border)] bg-[var(--arbo-surface)] overflow-hidden">
+                {/* Header row */}
+                <div className="flex items-center gap-3 px-3 py-2.5">
+                    <button
+                        onClick={() => setOpen((v) => !v)}
+                        className="shrink-0 arbo-text-muted hover:arbo-text transition-colors"
+                        aria-label={open ? "Colapsar" : "Expandir"}
+                    >
+                        {childCount > 0
+                            ? (open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />)
+                            : <span className="inline-block size-4" />}
+                    </button>
+
+                    <div className="flex items-center justify-center size-8 rounded-full bg-[var(--arbo-accent-muted)] shrink-0">
+                        <Person className="size-4 text-[var(--arbo-accent)]" />
+                    </div>
+
+                    <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-medium arbo-text truncate">{respondentLabel(node, t)}</span>
+                            {form && (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--arbo-surface-2)] arbo-text-muted shrink-0">
+                                    {form.title}
+                                </span>
+                            )}
+                        </div>
+                        <span className="text-[11px] arbo-text-muted truncate">
+                            {node.respondentEmail || t("responses.noEmail")} · {fmtDate(node.createdAt)}
+                        </span>
+                    </div>
+
+                    {descendants > 0 && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--arbo-accent-subtle)] text-[var(--arbo-accent)] shrink-0">
+                            {descendants} {descendants === 1 ? "relacionada" : "relacionadas"}
+                        </span>
+                    )}
+
+                    <button
+                        onClick={() => setShowAnswers((v) => !v)}
+                        className="text-[10px] arbo-text-muted hover:arbo-text border border-[var(--arbo-border)] rounded-md px-2 py-1 shrink-0 transition-colors"
+                    >
+                        {showAnswers ? "Ocultar" : "Ver respuestas"}
+                    </button>
+                </div>
+
+                {/* Answers */}
+                {showAnswers && (
+                    <div className="px-3 pb-3 pt-1 border-t border-[var(--arbo-border)]">
+                        {filledAnswers.length === 0 ? (
+                            <p className="text-xs arbo-text-muted py-2">{t("responses.noRecordedResponses")}</p>
+                        ) : (
+                            <div className="flex flex-col gap-3 pt-2">
+                                {filledAnswers.map(({ key, field, value }) =>
+                                    field ? (
+                                        <FieldAnswer key={key} field={field} value={value} t={t} />
+                                    ) : (
+                                        <div key={key}>
+                                            <label className="text-xs font-medium arbo-text-secondary block mb-1.5">{key}</label>
+                                            <div className="w-full px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] text-sm arbo-text">{String(value)}</div>
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Children — indented with a guide line */}
+            {open && childCount > 0 && (
+                <div className="ml-5 mt-2 pl-4 border-l border-dashed border-[var(--arbo-border)] flex flex-col gap-2">
+                    {node.children!.map((c) => (
+                        <ResponseNode key={c.id} node={c} data={data} t={t} depth={depth + 1} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ── Tab: nested forms + their responses, grouped by user/relation ──
+export const ChainTab = ({ formId, projectId, t }: { formId: number; projectId: number | null; t: (k: string) => string }) => {
+    const navigate = useNavigate();
+    const [data, setData] = useState<ChainData | null>(null);
+    const [relations, setRelations] = useState<{ parentFormId: number; childFormId: number }[]>([]);
+    const [projectForms, setProjectForms] = useState<FormLite[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [query, setQuery] = useState("");
+
+    useEffect(() => {
+        let alive = true;
+        setLoading(true);
+        Promise.all([
+            formApi.getResponseChain(formId),
+            projectId ? projectApi.getRelations(projectId).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+            projectId ? projectApi.getById(projectId).catch(() => ({ data: null })) : Promise.resolve({ data: null }),
+        ])
+            .then(([chainRes, relRes, projRes]) => {
+                if (!alive) return;
+                setData(chainRes.data as ChainData);
+                setRelations((relRes.data || []) as any);
+                const raw = (projRes.data as any)?.forms || (projRes.data as any)?.userForms || [];
+                setProjectForms(raw.map((f: any) => ({ id: f.id, title: f.title })));
+            })
+            .catch((e: any) => { if (alive) setError(e.message || "Error al cargar la cadena"); })
+            .finally(() => { if (alive) setLoading(false); });
+        return () => { alive = false; };
+    }, [formId, projectId]);
+
+    // Build the form-level chain (titles from project forms, falling back to the response chain)
+    const formChain = useMemo(() => {
+        const formsById = new Map<number, FormLite>();
+        projectForms.forEach((f) => formsById.set(f.id, f));
+        if (data) {
+            Object.values(data.forms).forEach((f) => { if (!formsById.has(f.id)) formsById.set(f.id, { id: f.id, title: f.title }); });
+        }
+        const childrenOf = new Map<number, number[]>();
+        const childIds = new Set<number>();
+        relations.forEach((r) => {
+            const arr = childrenOf.get(r.parentFormId) || [];
+            arr.push(r.childFormId);
+            childrenOf.set(r.parentFormId, arr);
+            childIds.add(r.childFormId);
+        });
+        // Roots = forms that are a parent but never a child
+        const roots = [...new Set(relations.map((r) => r.parentFormId))].filter((id) => !childIds.has(id));
+        return { formsById, childrenOf, roots };
+    }, [relations, projectForms, data]);
+
+    const roots = useMemo(() => {
+        const all = data?.tree || [];
+        const q = query.trim().toLowerCase();
+        if (!q) return all;
+        return all.filter((r) =>
+            (r.respondentName || "").toLowerCase().includes(q) ||
+            (r.respondentEmail || "").toLowerCase().includes(q)
+        );
+    }, [data, query]);
+
+    if (loading) return <div className="flex items-center justify-center py-16"><div className="arbo-spinner" /></div>;
+    if (error) return <p className="text-sm text-[var(--arbo-danger)] p-4">{error}</p>;
+
+    return (
+        <div className="flex flex-col gap-4">
+            {/* Form chain — review the related forms */}
+            {formChain.roots.length > 0 && (
+                <div className="arbo-panel p-4">
+                    <p className="text-[11px] font-bold arbo-text-muted uppercase tracking-wider mb-3">Formularios de la cadena</p>
+                    <div className="flex flex-col gap-2">
+                        {formChain.roots.map((rootId) => (
+                            <FormChainNode
+                                key={rootId}
+                                formId={rootId}
+                                currentFormId={formId}
+                                formsById={formChain.formsById}
+                                childrenOf={formChain.childrenOf}
+                                depth={0}
+                                onOpen={(id) => navigate(`/form-builder/responses/${id}`)}
+                            />
+                        ))}
+                    </div>
+                    <p className="text-[11px] arbo-text-muted mt-3">Tocá un formulario para revisar sus respuestas.</p>
+                </div>
+            )}
+
+            {/* Nested responses */}
+            {!data || data.tree.length === 0 ? (
+                <div className="arbo-card-static flex flex-col items-center gap-3 p-12 text-center">
+                    <LayoutHeaderCells className="size-8 arbo-text-muted" />
+                    <p className="text-sm arbo-text-muted">Todavía no hay respuestas para mostrar anidadas.</p>
+                </div>
+            ) : (
+                <>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] max-w-sm">
+                        <Magnifier className="size-4 arbo-text-muted shrink-0" />
+                        <input
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Buscar por nombre o email…"
+                            className="flex-1 bg-transparent text-sm arbo-text placeholder:arbo-text-muted focus:outline-none min-w-0"
+                        />
+                    </div>
+
+                    <p className="text-xs arbo-text-muted -mt-1">
+                        Cada respuesta de este formulario con sus respuestas relacionadas anidadas debajo. Expandí para recorrer la cadena por usuario.
+                    </p>
+
+                    <div className="flex flex-col gap-3">
+                        {roots.length === 0 ? (
+                            <p className="text-sm arbo-text-muted py-6 text-center">Sin resultados para “{query}”.</p>
+                        ) : (
+                            roots.map((node) => (
+                                <ResponseNode key={node.id} node={node} data={data} t={t} depth={0} />
+                            ))
+                        )}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};

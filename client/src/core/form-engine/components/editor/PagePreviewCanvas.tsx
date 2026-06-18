@@ -6,7 +6,7 @@ import { CONTACT_SIZES, PRESET_COLORS } from "../../constants/editor-constants";
 import type { GlowOrb } from "../../types";
 import { useEditorContext } from "./EditorContext";
 import { PageGridEditor } from "./PageGridEditor";
-import { HeadingPreview, HeaderPreview, ContactPreview, FormPreview, FooterPreview } from "./PageElements";
+import { HeadingPreview, HeaderPreview, ContactPreview, FormPreview, FooterPreview, LogoPreview } from "./PageElements";
 
 export const PagePreviewCanvas = () => {
     const { t } = useTranslation();
@@ -204,6 +204,10 @@ const PreviewContent = ({ previewWidth, containerActualWidth }: {
     return (
         <div className={`flex-1 min-w-0 flex flex-col min-h-[500px] ${vAlignClass}`} style={{ background: previewPageBg, ...animVars }}>
             <div className="p-6">
+                {/* Logo — same element as in grid mode, fixed centered position here */}
+                {(styles.logoEnabled ?? true) && (
+                    <div className="max-w-5xl mx-auto mb-4" style={{ height: 44 }}><LogoPreview /></div>
+                )}
                 {(styles.pageHeadingEnabled ?? false) && (
                     <div className="max-w-5xl mx-auto mb-5"><HeadingPreview /></div>
                 )}
@@ -215,7 +219,7 @@ const PreviewContent = ({ previewWidth, containerActualWidth }: {
                             : (contactPosition === "left" ? "row" : "row-reverse"),
                         alignItems: isNarrow ? "stretch" : "flex-start",
                     }}>
-                    {(styles.contactEnabled ?? true) && (
+                    {(styles.contactEnabled ?? false) && (
                         <div style={{ width: "100%", maxWidth: isNarrow ? undefined : contactW, flexShrink: isNarrow ? undefined : 0 }}>
                             <ContactPreview />
                         </div>

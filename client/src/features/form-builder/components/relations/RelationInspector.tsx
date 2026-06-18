@@ -1,0 +1,180 @@
+import { useState } from "react";
+import { Plus, TrashBin, ArrowRight, TriangleExclamation } from "@gravity-ui/icons";
+import { REL_TYPE_META, REL_TYPE_ORDER, type FormLite, type RelationEdgeData } from "./relation-meta";
+import type { RelationType } from "@/services/api";
+
+const FieldChips = ({ form }: { form: FormLite }) => (
+    <div className="rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] p-2">
+        <p className="text-xs font-semibold arbo-text truncate mb-1.5">{form.title}</p>
+        {form.fields.length === 0 ? (
+            <p className="text-[10px] arbo-text-muted italic">Sin campos todavía</p>
+        ) : (
+            <div className="flex flex-wrap gap-1">
+                {form.fields.map((f) => (
+                    <span key={f.name} className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--arbo-surface-3)] arbo-text-secondary">
+                        {f.label || f.name}
+                    </span>
+                ))}
+            </div>
+        )}
+    </div>
+);
+
+interface Props {
+    source: FormLite;
+    target: FormLite;
+    data: RelationEdgeData;
+    forms: FormLite[];
+    creatingJoin: boolean;
+    hasData?: boolean;
+    onChange: (patch: Partial<RelationEdgeData>) => void;
+    onCreateJoinForm: () => void;
+    onDelete: () => void;
+}
+
+export const RelationInspector = ({ source, target, data, forms, creatingJoin, hasData, onChange, onCreateJoinForm, onDelete }: Props) => {
+    const [confirmDelete, setConfirmDelete] = useState(false);
+
+    const keyFieldOptions = Array.from(
+        new Map([...source.fields, ...target.fields].map((f) => [f.name, f])).values()
+    );
+
+    const handleDelete = () => {
+        if (hasData && !confirmDelete) {
+            setConfirmDelete(true);
+            return;
+        }
+        onDelete();
+    };
+
+    return (
+        <div className="p-3 flex flex-col gap-4 overflow-y-auto">
+            {/* The two connected forms with their fields */}
+            <div className="flex flex-col gap-2">
+                <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">Conexión</p>
+                <FieldChips form={source} />
+                <div className="flex items-center justify-center"><ArrowRight className="size-4 text-[var(--arbo-accent)]" /></div>
+                <FieldChips form={target} />
+            </div>
+
+            {/* Warning banner when child already has responses */}
+            {hasData && (
+                <div className="flex gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                    <TriangleExclamation className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-[11px] font-semibold text-amber-500">El formulario hijo tiene respuestas</p>
+                        <p className="text-[10px] text-amber-500/80 mt-0.5 leading-snug">
+                            No podés modificar el tipo ni el identificador mientras existan datos vinculados.
+                            Para cambiarlo, primero eliminá las respuestas del formulario hijo.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Cardinality type */}
+            <div className="flex flex-col gap-1.5">
+                <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">Tipo de relación</p>
+                {hasData && (
+                    <p className="text-[10px] arbo-text-muted -mt-0.5">Bloqueado — hay respuestas vinculadas.</p>
+                )}
+                <div className={hasData ? "opacity-40 pointer-events-none select-none" : ""}>
+                    {REL_TYPE_ORDER.map((tp) => {
+                        const meta = REL_TYPE_META[tp];
+                        const active = data.type === tp;
+                        return (
+                            <button
+                                key={tp}
+                                onClick={() => onChange({ type: tp as RelationType })}
+                                disabled={hasData}
+                                className={`w-full text-left p-2 rounded-lg border transition-colors mb-1.5 ${
+                                    active ? "border-[var(--arbo-accent)] bg-[var(--arbo-accent-subtle)]" : "border-[var(--arbo-border)] bg-[var(--arbo-surface-2)] hover:border-[var(--arbo-accent)]/40"
+                                }`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: `${meta.color}22`, color: meta.color }}>{meta.short}</span>
+                                    <span className="text-xs font-medium arbo-text">{meta.label}</span>
+                                </div>
+                                <p className="text-[10px] arbo-text-muted mt-1 leading-snug">{meta.desc}</p>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Bridge form for many-to-many */}
+            {data.type === "many_to_many" && (
+                <div className="flex flex-col gap-1.5">
+                    <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">Formulario puente</p>
+                    <p className="text-[10px] arbo-text-muted -mt-0.5">Acá se guarda cada vínculo entre las dos partes.</p>
+                    <select
+                        value={data.joinFormId ?? ""}
+                        onChange={(e) => onChange({ joinFormId: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-2 py-1.5 rounded-md bg-[var(--arbo-surface-2)] arbo-text text-xs border border-[var(--arbo-border)] focus:border-[var(--arbo-accent)] focus:outline-none"
+                    >
+                        <option value="">Elegí un formulario…</option>
+                        {forms
+                            .filter((f) => f.id !== source.id && f.id !== target.id)
+                            .map((f) => <option key={f.id} value={f.id}>{f.title}</option>)}
+                    </select>
+                    <button
+                        onClick={onCreateJoinForm}
+                        disabled={creatingJoin}
+                        className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs arbo-text-muted hover:text-[var(--arbo-accent)] border border-dashed border-[var(--arbo-border)] hover:border-[var(--arbo-accent)]/50 transition-colors disabled:opacity-50"
+                    >
+                        <Plus className="size-3.5" /> {creatingJoin ? "Creando…" : "Crear formulario puente"}
+                    </button>
+                </div>
+            )}
+
+            {/* Linking key field */}
+            <div className="flex flex-col gap-1.5">
+                <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">Identificador de vínculo</p>
+                <p className="text-[10px] arbo-text-muted -mt-0.5">
+                    Cómo se asocia cada respuesta hijo con su padre. Por defecto usa el ID interno (primary key).
+                </p>
+                <div className={hasData ? "opacity-40 pointer-events-none select-none" : ""}>
+                    <select
+                        value={data.keyField ?? ""}
+                        onChange={(e) => onChange({ keyField: e.target.value || null })}
+                        disabled={hasData}
+                        className="w-full px-2 py-1.5 rounded-md bg-[var(--arbo-surface-2)] arbo-text text-xs border border-[var(--arbo-border)] focus:border-[var(--arbo-accent)] focus:outline-none disabled:cursor-not-allowed"
+                    >
+                        <option value="">Primary key (automático)</option>
+                        {keyFieldOptions.map((f) => <option key={f.name} value={f.name}>{f.label || f.name}</option>)}
+                    </select>
+                </div>
+            </div>
+
+            {/* Delete */}
+            {confirmDelete ? (
+                <div className="flex flex-col gap-2 p-2.5 rounded-lg bg-[var(--arbo-danger-muted)] border border-[var(--arbo-danger)]/30">
+                    <p className="text-[11px] font-semibold text-[var(--arbo-danger)]">¿Eliminar la conexión?</p>
+                    <p className="text-[10px] text-[var(--arbo-danger)]/80 leading-snug">
+                        Los datos vinculados quedarán huérfanos. Esta acción no se puede deshacer.
+                    </p>
+                    <div className="flex gap-2 mt-1">
+                        <button
+                            onClick={() => setConfirmDelete(false)}
+                            className="flex-1 px-2 py-1.5 rounded-md text-xs arbo-text-muted border border-[var(--arbo-border)] hover:bg-[var(--arbo-surface-2)] transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={onDelete}
+                            className="flex-1 px-2 py-1.5 rounded-md text-xs text-white bg-[var(--arbo-danger)] hover:opacity-90 transition-opacity"
+                        >
+                            Sí, eliminar
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <button
+                    onClick={handleDelete}
+                    className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-[var(--arbo-danger)] hover:bg-[var(--arbo-danger-muted)] border border-[var(--arbo-danger)]/20 transition-colors mt-1"
+                >
+                    <TrashBin className="size-3.5" /> Eliminar conexión
+                </button>
+            )}
+        </div>
+    );
+};

@@ -2,11 +2,14 @@ import fs from "fs";
 import path from "path";
 
 const CONFIG_PATH = path.resolve(process.cwd(), "data/openrouter-config.json");
-const DEFAULT_MODEL = "deepseek/deepseek-r1:free";
+const DEFAULT_MODEL = "moonshotai/kimi-k2.6:free";
+export const DEFAULT_VISION_MODEL = "google/gemma-4-31b-it:free";
 
 export interface OpenRouterConfig {
     apiKey?: string;
     model: string;
+    /** Model used when the request contains images (photo scanning). */
+    visionModel: string;
 }
 
 function ensureDataDir(): void {
@@ -16,30 +19,32 @@ function ensureDataDir(): void {
     }
 }
 
-export function getOpenRouterConfig(): OpenRouterConfig {
+function readPrefs(): { model?: string; visionModel?: string } {
     try {
         if (fs.existsSync(CONFIG_PATH)) {
-            const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
-            const parsed = JSON.parse(raw);
-            return {
-                apiKey: parsed.apiKey || process.env.OPENROUTER_API_KEY || undefined,
-                model: parsed.model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL,
-            };
+            return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
         }
     } catch { /* ignore */ }
+    return {};
+}
 
+export function getOpenRouterConfig(): OpenRouterConfig {
+    const prefs = readPrefs();
     return {
+        // API key always comes from env — never stored in files
         apiKey: process.env.OPENROUTER_API_KEY || undefined,
-        model: process.env.OPENROUTER_MODEL || DEFAULT_MODEL,
+        model: prefs.model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL,
+        visionModel: prefs.visionModel || DEFAULT_VISION_MODEL,
     };
 }
 
 export function saveOpenRouterConfig(updates: Partial<OpenRouterConfig>): void {
     ensureDataDir();
-    const current = getOpenRouterConfig();
-    const updated: OpenRouterConfig = {
-        apiKey: updates.apiKey !== undefined ? (updates.apiKey || undefined) : current.apiKey,
-        model: updates.model || current.model,
+    const prefs = readPrefs();
+    // apiKey intentionally excluded — must be set via OPENROUTER_API_KEY in server/.env
+    const updated = {
+        model: updates.model || prefs.model || DEFAULT_MODEL,
+        visionModel: updates.visionModel || prefs.visionModel || DEFAULT_VISION_MODEL,
     };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(updated, null, 2), "utf-8");
 }

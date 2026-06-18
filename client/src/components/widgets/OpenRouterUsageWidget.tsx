@@ -132,7 +132,7 @@ export const OpenRouterUsageWidget = () => {
                             valueLabel={`${dailyUsed} / ${dailyLimit}`}
                         />
                         <p className="text-[9px]" style={{ color: dailyColor }}>
-                            {dailyRemaining} restantes · reinicia a las {fmtReset(data.daily.resetAt)} UTC
+                            {dailyRemaining} restantes · reinicia a las {fmtReset(data.daily.resetAt)}
                         </p>
                         <p className="text-[9px] arbo-text-muted italic leading-tight">
                             Solo cuenta requests del chat IA de Arbo, no de otras apps.

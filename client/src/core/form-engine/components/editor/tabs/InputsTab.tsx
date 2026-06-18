@@ -4,6 +4,7 @@ import { getInputPalette } from "../../../constants/editor-constants";
 import { ModalWrapper } from "../../forms";
 import { FieldSettingsForm } from "../../forms";
 import { useEditorContext } from "../EditorContext";
+import { BlockLibrary } from "../BlockLibrary";
 
 export const InputsTab = () => {
     const { t } = useTranslation();
@@ -35,6 +36,9 @@ export const InputsTab = () => {
                     <button className="arbo-btn arbo-btn-secondary w-full text-xs"><Gear className="size-3.5" /> {t("editor.inputs.advancedAdd")}</button>
                 </ModalWrapper>
             </div>
+
+            {/* Composite component library (per-user, shareable) */}
+            <BlockLibrary />
         </div>
     );
 };

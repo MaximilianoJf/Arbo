@@ -3,10 +3,12 @@ import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { FormBuilder } from "@/core/form-engine/FormBuilder";
 import { formApi } from "@/services/api";
-import type { FormSchema, FormField, ComponentType, ContactField } from "@/core/form-engine/types";
+import type { FormSchema, FormField, ComponentType } from "@/core/form-engine/types";
+import { getEnabledContactFields, firstMissingRequiredContact } from "@/core/form-engine/utils/contact-fields";
 import { Check } from "@gravity-ui/icons";
 import { TextField, Label, Input, FieldError } from "@heroui/react";
 import { getShadowCss } from "@/core/form-engine/constants/style-presets";
+import { parseSubmitActions } from "@/core/form-engine/services";
 import {
     applyAlpha, isColorLight, getGlassStyle, getPageBgCss, getCardMaxWidth, getContactWidth,
     getEntranceAnimClass, getEntranceAnimStyle,
@@ -86,17 +88,28 @@ export const EmbedFormView = () => {
     const handleFormSubmit = async (data: Record<string, any>) => {
         if (!schema?.id) return;
         setSubmitError(null);
-        try {
-            if (schema.onSubmit === "SendToEmail") {
-                const mailto = `mailto:?subject=${encodeURIComponent(schema.title + " - Response")}&body=${encodeURIComponent(JSON.stringify(data, null, 2))}`;
-                window.open(mailto, "_blank");
-                setSubmitted(true);
+
+        // Enforce required contact fields when the contact panel is shown.
+        if (showContact) {
+            const missing = firstMissingRequiredContact(getEnabledContactFields(schema.styles), respondent);
+            if (missing) {
+                setSubmitError(t("form.contactRequired", { field: missing }));
                 return;
             }
-            await formApi.submitResponse(schema.id, data, {
-                respondentName: respondent.respondentName || respondent.name || "",
-                respondentEmail: respondent.respondentEmail || respondent.email || "",
-            });
+        }
+
+        try {
+            const actions = parseSubmitActions(schema.onSubmit);
+            if (actions.includes("SendToEmail")) {
+                const mailto = `mailto:?subject=${encodeURIComponent(schema.title + " - Response")}&body=${encodeURIComponent(JSON.stringify(data, null, 2))}`;
+                window.open(mailto, "_blank");
+            }
+            if (actions.includes("SaveToDB")) {
+                await formApi.submitResponse(schema.id, data, {
+                    respondentName: respondent.respondentName || respondent.name || "",
+                    respondentEmail: respondent.respondentEmail || respondent.email || "",
+                });
+            }
             setSubmitted(true);
         } catch (err: any) {
             setSubmitError(err.message || t("form.submitError"));
@@ -156,11 +169,7 @@ export const EmbedFormView = () => {
     const cardTitleColor = cardIsLight ? "#1e293b" : undefined;
     const cardMutedColor = cardIsLight ? "#9ca3af" : undefined;
 
-    const defaultContactFields: ContactField[] = [
-        { id: "name", name: "respondentName", label: "Nombre", type: "text", placeholder: "Tu nombre", required: false, enabled: true },
-        { id: "email", name: "respondentEmail", label: "Email", type: "email", placeholder: "tu@email.com", required: false, enabled: true },
-    ];
-    const contactFields = (embedStyles.contactFields || defaultContactFields).filter((cf) => cf.enabled);
+    const contactFields = getEnabledContactFields(embedStyles);
 
     // Animation helpers
     const entranceClass = getEntranceAnimClass(embedStyles);
@@ -193,8 +202,11 @@ export const EmbedFormView = () => {
                             <TextField key={cf.id} name={cf.name}
                                 type={cf.type === "email" ? "email" : cf.type === "tel" ? "tel" : "text"}
                                 value={respondent[cf.name] || ""}
+                                isRequired={!!cf.required}
                                 onChange={(v) => setRespondent((prev) => ({ ...prev, [cf.name]: v }))}>
-                                <Label className="text-xs font-medium arbo-text-secondary">{cf.label}</Label>
+                                <Label className="text-xs font-medium arbo-text-secondary">
+                                    {cf.label}{cf.required && <span className="text-[var(--arbo-danger)]"> *</span>}
+                                </Label>
                                 <Input placeholder={cf.placeholder || ""} />
                                 <FieldError />
                             </TextField>

@@ -6,8 +6,9 @@ import { DynamicNumberField } from "./fields/DynamicNumberField";
 import { DynamicCheckbox } from "./fields/DynamicCheckbox";
 import { DynamicRadioGroup } from "./fields/DynamicRadioGroup";
 import { DynamicSelect } from "./fields/DynamicSelect";
+import { DynamicMultiSelect } from "./fields/DynamicMultiSelect";
 import { DynamicDateField } from "./fields/DynamicDateField";
-import { DynamicSignature } from "./fields/DynamicSignature";
+import { DynamicFileUpload } from "./fields/DynamicFileUpload";
 import {
     Text as TextIcon,
     Key as KeyIcon,
@@ -16,8 +17,10 @@ import {
     SquareCheck,
     CircleDashed,
     ChevronDown,
+    ListUl,
     Calendar,
     Pencil,
+    Paperclip,
 } from "@gravity-ui/icons";
 
 export const FieldRenderMap: FieldRenderMapType = {
@@ -27,8 +30,9 @@ export const FieldRenderMap: FieldRenderMapType = {
         component: DynamicTextField,
         icon: TextIcon,
         types: [
-            { type: "text", validations: ["required", "text", "alphanumeric", "noSpaces", "minLength3", "minLength", "maxLength50", "maxLength100", "maxLength255"] },
+            { type: "text", validations: ["required", "text", "alphanumeric", "noSpaces", "phone", "rut", "minLength3", "minLength", "maxLength50", "maxLength100", "maxLength255"] },
             { type: "email", validations: ["required", "email"] },
+            { type: "tel", validations: ["required", "phone"] },
             { type: "url", validations: ["required", "url"] },
         ],
     },
@@ -87,6 +91,15 @@ export const FieldRenderMap: FieldRenderMapType = {
             { type: "select", validations: ["required"] },
         ],
     },
+    DynamicMultiSelect: {
+        name: "MultiSelect",
+        description: "Dropdown multi-selection",
+        component: DynamicMultiSelect,
+        icon: ListUl,
+        types: [
+            { type: "multiselect", validations: ["required"] },
+        ],
+    },
     DynamicDateField: {
         name: "DateField",
         description: "Date picker",
@@ -94,15 +107,17 @@ export const FieldRenderMap: FieldRenderMapType = {
         icon: Calendar,
         types: [
             { type: "date", validations: ["required", "date", "futureDate", "pastDate"] },
+            { type: "datetime", validations: ["required", "futureDate", "pastDate"] },
         ],
     },
-    DynamicSignature: {
-        name: "Signature",
-        description: "Signature pad",
-        component: DynamicSignature,
-        icon: Pencil,
+    DynamicFileUpload: {
+        name: "FileUpload",
+        description: "File / image upload",
+        component: DynamicFileUpload,
+        icon: Paperclip,
         types: [
-            { type: "signature", validations: ["required"] },
+            { type: "file", validations: ["required"] },
+            { type: "image", validations: ["required"] },
         ],
     },
 };

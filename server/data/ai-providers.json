@@ -1,0 +1,14 @@
+{
+  "order": [
+    "openrouter",
+    "gemini",
+    "groq",
+    "mistral",
+    "cohere"
+  ],
+  "providers": {
+    "openrouter": {
+      "enabled": true
+    }
+  }
+}

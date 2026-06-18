@@ -2,8 +2,10 @@ import { useContext, useState, useMemo } from "react";
 import { FormContext } from "./FormContext";
 import type { FormField, FormState, ComponentType } from "../types";
 import { useSubmit } from "react-router-dom";
-import { FORM_ACTIONS_MAP } from "../services";
+import { FORM_ACTIONS_MAP, parseSubmitActions } from "../services";
 import { getValidationFn } from "../utils";
+import { isFieldVisible } from "../utils/field-logic";
+import { formApi } from "@/services/api";
 
 export const useFormStore = () => {
     const submit = useSubmit();
@@ -56,9 +58,10 @@ export const useFormStore = () => {
         }
 
         if (schema.onSubmit) {
-            const actionToExecute = FORM_ACTIONS_MAP[schema.onSubmit];
-            if (actionToExecute) {
-                actionToExecute(data as any);
+            // onSubmit may hold several comma-separated actions — run every known one
+            for (const action of parseSubmitActions(schema.onSubmit)) {
+                const actionToExecute = FORM_ACTIONS_MAP[action as keyof typeof FORM_ACTIONS_MAP];
+                if (actionToExecute) actionToExecute(data as any);
             }
             return;
         }
@@ -80,7 +83,13 @@ export const useFormStore = () => {
             const state = updatedState[field.name];
             if (!state) return;
 
-            const validate = getValidationFn(field.validate || [], field.name);
+            // Hidden fields (conditional logic) are not validated
+            if (!isFieldVisible(field, allValues)) {
+                updatedState[field.name] = { ...state, error: null };
+                return;
+            }
+
+            const validate = getValidationFn(field.validate || [], field.name, field);
             const error = validate(state.value, allValues);
 
             updatedState[field.name] = { ...state, error: error || null };
@@ -96,7 +105,7 @@ export const useFormStore = () => {
         if (!field) return false;
 
         const currentValues = { ...allValues, [inputName]: inputValue };
-        const validate = getValidationFn(field.validate || [], inputName);
+        const validate = getValidationFn(field.validate || [], inputName, field);
         const error = validate(inputValue, currentValues);
 
         setFormState((prev) => {
@@ -110,7 +119,7 @@ export const useFormStore = () => {
                 const depState = prev[depName];
 
                 if (depField && depState) {
-                    const depValidate = getValidationFn(depField.validate || [], depName);
+                    const depValidate = getValidationFn(depField.validate || [], depName, depField);
                     const depError = depValidate(depState.value, currentValues);
                     newState[depName] = { ...depState, error: depError || null };
                 }
@@ -174,17 +183,49 @@ export const useFormStore = () => {
         });
     };
 
-    const removeField = (fieldName: string) => {
+    const removeField = async (fieldName: string) => {
+        const target = schema.fields.find((f) => f.name === fieldName);
+        let toRemove = [fieldName];
+
+        // Composite component: removing one member would break its logic — delete the whole group.
+        // Warn about existing response data being nullified.
+        if (target?.groupId) {
+            const members = schema.fields.filter((f) => f.groupId === target.groupId);
+            if (members.length > 1) {
+                // Check if the form has existing responses that will be affected.
+                let responseCount = 0;
+                if (schema.id) {
+                    try { responseCount = (await formApi.getResponseCount(schema.id)).data.count; } catch { /* non-blocking */ }
+                }
+
+                const dataWarning = responseCount > 0
+                    ? `\n\n⚠️ Este formulario tiene ${responseCount} respuesta${responseCount !== 1 ? "s" : ""} guardada${responseCount !== 1 ? "s" : ""}. Los valores de estos campos quedarán en null en todas esas respuestas y podrían causar errores en reportes o exportaciones.`
+                    : "";
+
+                const ok = window.confirm(
+                    `"${target.groupLabel || target.label}" es un componente compuesto (${members.length} campos con lógica conectada).\n\nSe eliminará el componente completo para no romper su comportamiento.${dataWarning}\n\n¿Continuar?`
+                );
+                if (!ok) return;
+                toRemove = members.map((f) => f.name);
+            }
+        }
+
+        const removeSet = new Set(toRemove);
         setSchema((prev) => ({
             ...prev,
-            fields: prev.fields.filter((f) => f.name !== fieldName),
+            fields: prev.fields.filter((f) => !removeSet.has(f.name)),
         }));
 
         setFormState((prev) => {
             const next = { ...prev };
-            delete next[fieldName];
+            toRemove.forEach((n) => delete next[n]);
             return next;
         });
+
+        // Nullify the removed fields in all existing responses so they don't carry stale data.
+        if (schema.id && toRemove.length > 0) {
+            formApi.nullifyResponseFields(schema.id, toRemove).catch(() => { /* best-effort */ });
+        }
     };
 
     return {

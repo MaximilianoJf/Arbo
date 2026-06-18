@@ -6,6 +6,8 @@ import formRoutes from "./form.routes";
 import projectRoutes from "./project.routes";
 import apikeyRoutes from "./apikey.routes";
 import settingsRoutes from "./settings.routes";
+import blockRoutes from "./block.routes";
+import agentRoutes from "./agent.routes";
 
 const router = Router();
 
@@ -15,5 +17,7 @@ router.use("/forms", formRoutes);
 router.use("/projects", projectRoutes);
 router.use("/api-keys", apikeyRoutes);
 router.use("/settings", settingsRoutes);
+router.use("/blocks", blockRoutes);
+router.use("/agent", agentRoutes);
 
 export default router;

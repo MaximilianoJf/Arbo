@@ -26,13 +26,12 @@
  * ─── CHEAP PAID OPTIONS (if you want better quality) ────────────────
  *
  *   google/gemini-2.0-flash-001         | ~$0.10/1M tokens | Best value
- *   anthropic/claude-3.5-haiku          | ~$0.25/1M tokens | Very smart
- *   openai/gpt-4o-mini                  | ~$0.15/1M tokens | Good balance
+ * *   openai/gpt-4o-mini                  | ~$0.15/1M tokens | Good balance
  *
  * ────────────────────────────────────────────────────────────────────
  */
 
-import { callOpenRouter } from "../utils/openrouter-call.js";
+import { callAI } from "../utils/ai-call.js";
 
 interface AnalysisInput {
     formTitle: string;
@@ -97,15 +96,15 @@ Respond ONLY with valid JSON (no markdown, no code fences) matching this exact s
 Write insights and suggestions in neutral Spanish (no regional slang). Be specific to the actual data, not generic.`;
 };
 
-export const analyzeResponses = async (input: AnalysisInput, customPrompt?: string): Promise<AnalysisResult> => {
+export const analyzeResponses = async (input: AnalysisInput, customPrompt?: string, userId?: number): Promise<AnalysisResult> => {
     const basePrompt = buildPrompt(input);
     const finalPrompt = customPrompt
         ? `${basePrompt}\n\nADEMÁS, el usuario tiene una consulta específica:\n${customPrompt}`
         : basePrompt;
 
-    const { content } = await callOpenRouter(
+    const { content } = await callAI(
         [{ role: "user", content: finalPrompt }],
-        { temperature: 0.3, max_tokens: 3000 },
+        { temperature: 0.3, max_tokens: 3000, userId },
     );
 
     const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();

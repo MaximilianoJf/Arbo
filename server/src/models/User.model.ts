@@ -47,6 +47,13 @@ class User extends Model {
     })
     declare avatar: string | null;
 
+    @Column({
+        type: DataType.JSONB,
+        allowNull: true,
+        defaultValue: null,
+    })
+    declare aiProviders: any;
+
     @HasMany(() => UserForm)
     declare forms: UserForm[];
 

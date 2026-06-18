@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { loginFields } from "../constants";
 import { GoogleSignInButton } from "../components";
@@ -18,8 +18,11 @@ const loginSchema: FormSchema = {
 
 export const LoginView = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { t } = useTranslation();
     const [error, setError] = useState<string | null>(null);
+
+    const redirectTo = searchParams.get("redirect") || "/form-builder";
 
     const handleLogin = async (data: Record<string, any>) => {
         setError(null);
@@ -29,7 +32,7 @@ export const LoginView = () => {
                 password: String(data.password || ""),
             });
             localStorage.setItem("token", res.token);
-            navigate("/form-builder");
+            navigate(redirectTo);
         } catch (err: any) {
             setError(err.message || "Login failed");
         }
@@ -40,11 +43,11 @@ export const LoginView = () => {
         try {
             const res = await authApi.google(credential);
             localStorage.setItem("token", res.token);
-            navigate("/form-builder");
+            navigate(redirectTo);
         } catch (err: any) {
             setError(err.message || "Google login failed");
         }
-    }, [navigate]);
+    }, [navigate, redirectTo]);
 
     return (
         <div className="flex flex-col items-center w-full max-w-[420px] animate-[fadeInUp_0.4s_ease-out]">

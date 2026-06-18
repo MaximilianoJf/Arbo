@@ -12,6 +12,7 @@ import {
     assignFormToProject,
 } from "../repositories/project.repository";
 import { getUserByEmail } from "../repositories/user.repository";
+import * as formService from "./form.service";
 
 export const create = async (userId: number, input: { name: string; description?: string; color?: string }) => {
     return await createProject({ ...input, userId });
@@ -34,11 +35,11 @@ export const update = async (id: number, userId: number, input: { name?: string;
     return await updateProject(id, input);
 };
 
-export const remove = async (id: number, userId: number) => {
+export const remove = async (id: number, userId: number, deleteForms = false) => {
     const project = await getProjectById(id);
     if (!project) throw new Error("Project not found");
     if (project.userId !== userId) throw new Error("Only the owner can delete the project");
-    await deleteProject(id);
+    await deleteProject(id, deleteForms);
 };
 
 // --- Collaborators ---
@@ -73,4 +74,28 @@ export const updateCollabRole = async (projectId: number, userId: number, email:
 export const assignForm = async (formId: number, projectId: number | null, userId: number) => {
     // Verify user owns the form
     return await assignFormToProject(formId, projectId);
+};
+
+// --- Form relations (chain) ---
+export const getRelations = async (projectId: number, userId: number, email: string) => {
+    const { hasAccess } = await isProjectOwnerOrCollaborator(projectId, userId, email);
+    if (!hasAccess) throw new Error("Access denied");
+    return await formService.getFormRelations(projectId);
+};
+
+export const saveRelations = async (
+    projectId: number,
+    userId: number,
+    email: string,
+    relations: { parentFormId: number; childFormId: number; keyField?: string | null }[],
+) => {
+    const { hasAccess, role } = await isProjectOwnerOrCollaborator(projectId, userId, email);
+    if (!hasAccess) throw new Error("Access denied");
+    if (role === "viewer") throw new Error("No tenés permiso para editar las relaciones");
+
+    const project = await getProjectById(projectId);
+    if (!project) throw new Error("Project not found");
+    const validFormIds = new Set((project.forms || []).map((f: any) => f.id));
+
+    return await formService.saveFormRelations(projectId, validFormIds, relations);
 };

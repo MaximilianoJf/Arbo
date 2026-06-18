@@ -510,11 +510,21 @@ button[data-slot="button"][type="submit"] {
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 .arbo-field-styled select,
-.arbo-field-styled [data-slot="trigger"] {
+.arbo-field-styled [data-slot="trigger"],
+.arbo-field-styled [data-slot="select-trigger"] {
   background: var(--field-input-bg) !important;
   color: var(--field-input-text) !important;
   border-color: var(--field-input-border) !important;
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.arbo-field-styled [data-slot="select-value"] {
+  color: var(--field-input-text) !important;
+}
+/* Checkbox / radio controls follow the input colors */
+.arbo-field-styled [data-slot="checkbox-control"],
+.arbo-field-styled [data-slot="radio-control"] {
+  background: var(--field-input-bg) !important;
+  border-color: var(--field-input-border) !important;
 }
 /* Hover states */
 .arbo-field-styled:hover label,
@@ -530,10 +540,58 @@ button[data-slot="button"][type="submit"] {
   border-color: var(--field-input-border-hover, var(--field-input-border)) !important;
 }
 .arbo-field-styled:hover select,
-.arbo-field-styled:hover [data-slot="trigger"] {
+.arbo-field-styled:hover [data-slot="trigger"],
+.arbo-field-styled:hover [data-slot="select-trigger"] {
   background: var(--field-input-bg-hover, var(--field-input-bg)) !important;
   color: var(--field-input-text-hover, var(--field-input-text)) !important;
   border-color: var(--field-input-border-hover, var(--field-input-border)) !important;
+}
+.arbo-field-styled:hover [data-slot="select-value"] {
+  color: var(--field-input-text-hover, var(--field-input-text)) !important;
+}
+
+/* ─── Browser autofill: keep the dark input bg (Chrome paints it light,
+   which clashes with suffixes like the password eye toggle) ─── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--arbo-surface-2) inset;
+  -webkit-text-fill-color: var(--arbo-text);
+  caret-color: var(--arbo-text);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* ─── Custom field text hooks (radio/checkbox/multiselect/file labels) ───
+   These spans aren't native labels/slots, so they need explicit hooks to
+   respond to global and per-field style config. */
+.arbo-field-label,
+.arbo-option-text {
+  color: var(--arbo-text);
+}
+.arbo-field-styled .arbo-field-label,
+.arbo-field-styled .arbo-option-text {
+  color: var(--field-label-color) !important;
+  transition: color 0.2s ease;
+}
+.arbo-field-styled:hover .arbo-field-label,
+.arbo-field-styled:hover .arbo-option-text {
+  color: var(--field-label-color-hover, var(--field-label-color)) !important;
+}
+
+/* ─── Field grid: inputs must shrink with their cell ───
+   HeroUI inputs/groups carry intrinsic min-widths that overflow narrow grid cells. */
+.arbo-field-grid * {
+  min-width: 0;
+}
+.arbo-field-grid input,
+.arbo-field-grid textarea,
+.arbo-field-grid select,
+.arbo-field-grid [data-slot="input"],
+.arbo-field-grid [data-slot="input-wrapper"],
+.arbo-field-grid [data-slot="trigger"] {
+  width: 100%;
+  max-width: 100%;
 }
 
 /* ─── Utility ─── */
@@ -664,3 +722,36 @@ button[data-slot="button"][type="submit"] {
   box-shadow: 0 0 8px var(--arbo-focus-color, rgba(74,222,128,0.2));
   transition: border-color var(--arbo-transition-speed, 250ms) ease, box-shadow var(--arbo-transition-speed, 250ms) ease;
 }
+
+/* ─── ReactFlow / XYFlow dark-theme overrides ─────────────────────────────── */
+/* Override the XYFlow CSS variables so the controls match the dark theme.     */
+.react-flow__controls {
+  --xy-controls-button-background-color: var(--arbo-surface-2);
+  --xy-controls-button-background-color-hover: var(--arbo-surface-3);
+  --xy-controls-button-color: var(--arbo-text-secondary);
+  --xy-controls-button-color-hover: var(--arbo-text);
+  --xy-controls-button-border-color: var(--arbo-border);
+  --xy-controls-box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  border: 1px solid var(--arbo-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.react-flow__controls-button svg path {
+  fill: var(--arbo-text-secondary);
+}
+.react-flow__controls-button:hover svg path {
+  fill: var(--arbo-text);
+}
+.react-flow__minimap {
+  background: var(--arbo-surface-2);
+  border: 1px solid var(--arbo-border);
+  border-radius: 8px;
+}
+.react-flow__minimap-mask {
+  fill: var(--arbo-surface);
+  fill-opacity: 0.6;
+}
+.react-flow__attribution {
+  display: none;
+}
+

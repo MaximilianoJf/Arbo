@@ -2,6 +2,9 @@ import Project from "../models/Project.model";
 import ProjectCollaborator from "../models/ProjectCollaborator.model";
 import UserForm from "../models/UserForm.model";
 import FormField from "../models/FormField.model";
+import FormRelation from "../models/FormRelation.model";
+import FormResponse from "../models/FormResponse.model";
+import FormCollaborator from "../models/FormCollaborator.model";
 import User from "../models/User.model";
 
 export const createProject = async (data: { name: string; description?: string; color?: string; userId: number }) => {
@@ -54,9 +57,29 @@ export const updateProject = async (id: number, data: { name?: string; descripti
     return project;
 };
 
-export const deleteProject = async (id: number) => {
-    // Unlink forms (set projectId to null), don't delete them
-    await UserForm.update({ projectId: null }, { where: { projectId: id } });
+export const deleteProject = async (id: number, deleteForms = false) => {
+    if (deleteForms) {
+        // Gather form IDs before destroying them
+        const forms = await UserForm.findAll({ where: { projectId: id }, attributes: ["id"] });
+        const formIds = forms.map((f) => f.id);
+
+        if (formIds.length > 0) {
+            // Null self-references in FormResponse before destroying to avoid FK cycles
+            await FormResponse.update(
+                { parentResponseId: null, secondaryResponseId: null },
+                { where: { formId: formIds } },
+            );
+            await FormResponse.destroy({ where: { formId: formIds } });
+            await FormCollaborator.destroy({ where: { formId: formIds } });
+            await FormField.destroy({ where: { formId: formIds } });
+        }
+        await FormRelation.destroy({ where: { projectId: id } });
+        await UserForm.destroy({ where: { projectId: id } });
+    } else {
+        // FormRelation has FK to Project — must delete before Project.destroy
+        await FormRelation.destroy({ where: { projectId: id } });
+        await UserForm.update({ projectId: null }, { where: { projectId: id } });
+    }
     await ProjectCollaborator.destroy({ where: { projectId: id } });
     await Project.destroy({ where: { id } });
 };

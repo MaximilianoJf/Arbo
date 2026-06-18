@@ -14,15 +14,17 @@ export const getOpenRouterSettings = (_req: Request, res: Response) => {
                 ? `sk-or-v1-${"•".repeat(20)}${config.apiKey.slice(-6)}`
                 : null,
             model: config.model,
+            visionModel: config.visionModel,
         },
     });
 };
 
 export const updateOpenRouterSettings = (req: Request, res: Response) => {
-    const { apiKey, model } = req.body as { apiKey?: string; model?: string };
+    const { apiKey, model, visionModel } = req.body as { apiKey?: string; model?: string; visionModel?: string };
     saveOpenRouterConfig({
         ...(apiKey !== undefined && { apiKey }),
         ...(model !== undefined && { model }),
+        ...(visionModel !== undefined && { visionModel }),
     });
     res.json({ ok: true, msg: "Configuración actualizada" });
 };
@@ -41,12 +43,21 @@ export const getOpenRouterModels = async (_req: Request, res: Response) => {
         }
         const data = await response.json() as any;
         const freeModels = (data.data as any[])
-            .filter((m) => parseFloat(m.pricing?.prompt ?? "1") === 0 && parseFloat(m.pricing?.completion ?? "1") === 0)
+            .filter((m) => {
+                const free = parseFloat(m.pricing?.prompt ?? "1") === 0 && parseFloat(m.pricing?.completion ?? "1") === 0;
+                if (!free) return false;
+                // Only chat-usable models: text input AND text-only output.
+                // Excludes music (Lyria), audio, image-generation and embedding models.
+                const inMods: string[] = m.architecture?.input_modalities ?? [];
+                const outMods: string[] = m.architecture?.output_modalities ?? [];
+                return inMods.includes("text") && outMods.length === 1 && outMods[0] === "text";
+            })
             .map((m) => ({
                 id: m.id,
                 name: m.name,
                 contextLength: m.context_length ?? 0,
                 description: m.description ?? "",
+                vision: (m.architecture?.input_modalities ?? []).includes("image"),
             }))
             .sort((a, b) => b.contextLength - a.contextLength);
         return res.json({ ok: true, data: freeModels });

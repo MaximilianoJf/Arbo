@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CirclePlus, TrashBin, ChevronDown, ChevronUp } from "@gravity-ui/icons";
 import { CARD_SIZES, PRESET_COLORS, PAGE_HEADING_SIZES } from "../../../constants/editor-constants";
@@ -9,9 +9,12 @@ import { useEditorContext } from "../EditorContext";
 import { ContactPanelSettings } from "./FormStylesTab";
 import { PageDecorInspector } from "../PageDecorInspector";
 
-/** Reusable collapsible section */
-const Collapsible = ({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) => {
+/** Reusable collapsible section. `forceOpen` opens it when the matching element is selected on the canvas. */
+const Collapsible = ({ title, children, defaultOpen = true, forceOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean; forceOpen?: boolean }) => {
     const [open, setOpen] = useState(defaultOpen);
+    useEffect(() => {
+        if (forceOpen) setOpen(true);
+    }, [forceOpen]);
     return (
         <div className="rounded-xl overflow-hidden border border-[var(--arbo-border)]">
             <button
@@ -34,8 +37,9 @@ export const PageTab = () => {
     const orbs: GlowOrb[] = styles.pageGlowOrbs || [];
     const glowOn = styles.pageGlowEnabled ?? false;
     const gridOn = !!styles.pageLayout?.enabled;   // free grid governs size & position
-    // In grid mode, element-specific sections show only when that element is selected on the canvas.
-    const showFor = (key: PageElementKey) => !gridOn || selectedPageElement === key;
+    // Every section is always available in both modes; selecting an element on the
+    // grid canvas just auto-opens its section instead of hiding the others.
+    const isSelected = (key: PageElementKey) => gridOn && selectedPageElement === key;
     // Decoration selected on the grid canvas → contextual inspector
     const selectedDecor = (styles.pageLayout?.decors || []).find((d) => d.id === selectedPageElement);
 
@@ -92,7 +96,7 @@ export const PageTab = () => {
 
     return (
         <div className="flex flex-col gap-3">
-            {/* Free grid positioning — first thing in this tab */}
+            {/* Free grid positioning — first thing in this tab, always open */}
             <Collapsible title="Posición de elementos" defaultOpen={true}>
                 <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)]">
                     <div>
@@ -146,7 +150,7 @@ export const PageTab = () => {
                         >
                             ↺ Restablecer posiciones
                         </button>
-                        <p className="text-[9px] arbo-text-muted italic">Clic en un elemento del lienzo para editar solo ese elemento. Clic afuera para los ajustes generales.</p>
+                        <p className="text-[9px] arbo-text-muted italic">Clic en un elemento del lienzo para abrir su sección de ajustes abajo.</p>
                     </>
                 )}
             </Collapsible>
@@ -168,8 +172,8 @@ export const PageTab = () => {
                 </div>
             </div>
 
-            {/* Imagen (elemento posicionable en el grid) */}
-            <Collapsible title="Imagen" defaultOpen={false}>
+            {/* Imagen de fondo (elemento posicionable en el grid) */}
+            <Collapsible title="Imagen de fondo" defaultOpen={false}>
                 <div className="flex flex-col gap-1">
                     <label className="text-[10px] arbo-text-secondary">URL de la imagen</label>
                     <div className="flex items-center gap-1.5">
@@ -199,13 +203,102 @@ export const PageTab = () => {
                                 ))}
                             </div>
                         </div>
-                        <p className="text-[9px] arbo-text-muted italic">Activá el grid y arrastrá/redimensioná el bloque <b>Imagen</b> para posicionarla.</p>
+
+                        {/* Encuadre — qué parte de la imagen se ve (funciona en ambos modos) */}
+                        <div>
+                            <label className="text-[10px] arbo-text-secondary block mb-1">Encuadre horizontal</label>
+                            <div className="flex items-center gap-3">
+                                <input type="range" min="0" max="100" step="5" value={styles.pageImagePosX ?? 50}
+                                    onChange={(e) => updateStyles({ pageImagePosX: Number(e.target.value) })}
+                                    className="flex-1 accent-[var(--arbo-accent)]" />
+                                <span className="text-[10px] arbo-text-muted font-mono w-8 text-right">{styles.pageImagePosX ?? 50}%</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-[10px] arbo-text-secondary block mb-1">Encuadre vertical</label>
+                            <div className="flex items-center gap-3">
+                                <input type="range" min="0" max="100" step="5" value={styles.pageImagePosY ?? 50}
+                                    onChange={(e) => updateStyles({ pageImagePosY: Number(e.target.value) })}
+                                    className="flex-1 accent-[var(--arbo-accent)]" />
+                                <span className="text-[10px] arbo-text-muted font-mono w-8 text-right">{styles.pageImagePosY ?? 50}%</span>
+                            </div>
+                        </div>
+
+                        {/* Anclaje vertical — solo aplica cuando la imagen es un bloque full-bleed del grid */}
+                        {gridOn && (
+                            <div>
+                                <label className="text-[10px] arbo-text-secondary block mb-1">Posición vertical</label>
+                                <div className="grid grid-cols-3 gap-1">
+                                    {([
+                                        { v: "none", label: "Libre" },
+                                        { v: "top", label: "Tope superior" },
+                                        { v: "bottom", label: "Tope inferior" },
+                                    ] as const).map(({ v, label }) => (
+                                        <button key={v} onClick={() => updateStyles({ pageImageSnap: v })}
+                                            className={`px-1 py-1.5 rounded-md text-[9px] font-medium transition-colors ${(styles.pageImageSnap || "none") === v ? "bg-[var(--arbo-accent)] text-[var(--arbo-bg)]" : "bg-[var(--arbo-surface-2)] arbo-text-muted border border-[var(--arbo-border)]"}`}>
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-[9px] arbo-text-muted italic mt-1">Pegá la imagen al borde de la pantalla (cuando ocupa todo el ancho del grid).</p>
+                            </div>
+                        )}
+
+                        {/* Fades — difuminado hacia el fondo */}
+                        <div>
+                            <label className="text-[10px] arbo-text-secondary block mb-1">Difuminar arriba</label>
+                            <div className="flex items-center gap-3">
+                                <input type="range" min="0" max="80" step="5" value={styles.pageImageFadeTop ?? 0}
+                                    onChange={(e) => updateStyles({ pageImageFadeTop: Number(e.target.value) })}
+                                    className="flex-1 accent-[var(--arbo-accent)]" />
+                                <span className="text-[10px] arbo-text-muted font-mono w-8 text-right">{styles.pageImageFadeTop ?? 0}%</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-[10px] arbo-text-secondary block mb-1">Difuminar abajo</label>
+                            <div className="flex items-center gap-3">
+                                <input type="range" min="0" max="80" step="5" value={styles.pageImageFadeBottom ?? 0}
+                                    onChange={(e) => updateStyles({ pageImageFadeBottom: Number(e.target.value) })}
+                                    className="flex-1 accent-[var(--arbo-accent)]" />
+                                <span className="text-[10px] arbo-text-muted font-mono w-8 text-right">{styles.pageImageFadeBottom ?? 0}%</span>
+                            </div>
+                        </div>
+
+                        {/* Opacidad */}
+                        <div>
+                            <label className="text-[10px] arbo-text-secondary block mb-1">Opacidad</label>
+                            <div className="flex items-center gap-3">
+                                <input type="range" min="10" max="100" step="5" value={styles.pageImageOpacity ?? 100}
+                                    onChange={(e) => updateStyles({ pageImageOpacity: Number(e.target.value) })}
+                                    className="flex-1 accent-[var(--arbo-accent)]" />
+                                <span className="text-[10px] arbo-text-muted font-mono w-8 text-right">{styles.pageImageOpacity ?? 100}%</span>
+                            </div>
+                        </div>
+
+                        {/* Borde redondeado — solo cuando la imagen es un bloque del grid */}
+                        {gridOn && (
+                            <div>
+                                <label className="text-[10px] arbo-text-secondary block mb-1">Borde redondeado</label>
+                                <div className="flex items-center gap-3">
+                                    <input type="range" min="0" max="32" step="2" value={styles.pageImageRadius ?? 0}
+                                        onChange={(e) => updateStyles({ pageImageRadius: Number(e.target.value) })}
+                                        className="flex-1 accent-[var(--arbo-accent)]" />
+                                    <span className="text-[10px] arbo-text-muted font-mono w-8 text-right">{styles.pageImageRadius ?? 0}px</span>
+                                </div>
+                            </div>
+                        )}
+
+                        <p className="text-[9px] arbo-text-muted italic">
+                            {gridOn
+                                ? <>Arrastrá/redimensioná el bloque <b>Imagen</b> en el lienzo para posicionarla libremente.</>
+                                : <>La imagen cubre el fondo de la página; usá el encuadre para reposicionarla. En diseño libre podés además moverla como bloque.</>}
+                        </p>
                     </>
                 )}
             </Collapsible>
 
             {/* Layout */}
-            <Collapsible title={t("editor.pageTab.layoutAndSize")} defaultOpen={true}>
+            <Collapsible title={t("editor.pageTab.layoutAndSize")} defaultOpen={false}>
                 {/* Card Size — managed by the grid when free layout is on */}
                 {!gridOn && (
                     <div>
@@ -274,8 +367,8 @@ export const PageTab = () => {
             </Collapsible>
 
             {/* Encabezado (título + descripción) — header element */}
-            {showFor("header") && (
-                <Collapsible title={t("editor.pageTab.header")} defaultOpen={true}>
+            {(
+                <Collapsible title={t("editor.pageTab.header")} defaultOpen={false} forceOpen={isSelected("header")}>
                     <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)]">
                         <div>
                             <span className="text-xs arbo-text">{t("editor.pageTab.titleAndDesc")}</span>
@@ -290,26 +383,26 @@ export const PageTab = () => {
             )}
 
             {/* Título de página — heading element */}
-            {showFor("heading") && (
-                <Collapsible title="Título de página" defaultOpen={true}>
+            {(
+                <Collapsible title="Título de página" defaultOpen={false} forceOpen={isSelected("heading")}>
                     <PageHeadingSettings />
                 </Collapsible>
             )}
 
             {/* Contacto — contact element */}
-            {showFor("contact") && (
-                <Collapsible title={t("editor.formStyles.contact")} defaultOpen={true}>
+            {(
+                <Collapsible title={t("editor.formStyles.contact")} defaultOpen={false} forceOpen={isSelected("contact")}>
                     <ContactPanelSettings />
                 </Collapsible>
             )}
 
             {/* Logo — logo element */}
-            {showFor("logo") && (
-            <Collapsible title="Logo" defaultOpen={true}>
+            {(
+            <Collapsible title="Logo" defaultOpen={false} forceOpen={isSelected("logo")}>
                 <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)]">
                     <div>
                         <span className="text-xs arbo-text">Mostrar logo</span>
-                        <p className="text-[9px] arbo-text-muted mt-0.5">Posicionalo en el grid (Página → Diseño libre)</p>
+                        <p className="text-[9px] arbo-text-muted mt-0.5">Se muestra arriba de la página; en diseño libre podés posicionarlo donde quieras</p>
                     </div>
                     <button onClick={() => updateStyles({ logoEnabled: !(styles.logoEnabled ?? true) })}
                         className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 shrink-0 ${(styles.logoEnabled ?? true) ? "bg-[var(--arbo-accent)]" : "bg-[var(--arbo-border)]"}`}>
@@ -337,7 +430,19 @@ export const PageTab = () => {
                 <div className="flex items-center justify-between">
                     <p className="text-[9px] arbo-text-muted">{t("editor.pageTab.clickToAdd")}</p>
                     <button
-                        onClick={() => updateStyles({ pageGlowEnabled: !glowOn })}
+                        onClick={() => {
+                            // Turning lights on with no orbs seeds one light from the active theme's accent,
+                            // so the current theme stays visible with a glow on top.
+                            if (!glowOn && orbs.length === 0) {
+                                const accent = styles.accentColor || "#4ADE80";
+                                updateStyles({
+                                    pageGlowEnabled: true,
+                                    pageGlowOrbs: [{ id: crypto.randomUUID(), x: 30, y: 25, size: 70, opacity: 45, color: accent }],
+                                });
+                            } else {
+                                updateStyles({ pageGlowEnabled: !glowOn });
+                            }
+                        }}
                         className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 shrink-0 ${glowOn ? "bg-[var(--arbo-accent)]" : "bg-[var(--arbo-border)]"}`}
                     >
                         <div className={`size-4 rounded-full bg-white transition-transform ${glowOn ? "translate-x-4" : "translate-x-0"}`} />

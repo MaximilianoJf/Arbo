@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { getGlassStyle, getAccentStyle, getCardMaxWidth } from "../../utils/style-helpers";
+import { getGlassStyle, getAccentStyle, getCardMaxWidth, getEmbedBgCss } from "../../utils/style-helpers";
 import { getShadowCss } from "../../constants/style-presets";
 import { DEFAULT_CONTACT_FIELDS, CONTACT_SIZES } from "../../constants/editor-constants";
 import { useEditorContext } from "./EditorContext";
@@ -11,6 +11,7 @@ export const EmbedPreviewCanvas = () => {
         previewWidth, setPreviewWidth,
         embedContainerRef, embedContainerActualWidth,
         startResize, renderViewFields,
+        updateStyles,
     } = useEditorContext();
 
     return (
@@ -25,6 +26,45 @@ export const EmbedPreviewCanvas = () => {
                 <div className="flex-1 h-6 rounded-md flex items-center px-3 mx-4" style={{ background: "var(--arbo-surface-2)", border: "1px solid var(--arbo-border)" }}>
                     <span className="text-[10px] arbo-text-muted font-mono truncate">mi-sitio.com/landing</span>
                 </div>
+            </div>
+
+            {/* Quick color bar */}
+            <div className="flex items-center gap-2 px-3 py-1.5 shrink-0 border-b border-[var(--arbo-border)]" style={{ background: "var(--arbo-surface-3)" }}>
+                <span className="text-[9px] font-semibold arbo-text-muted uppercase tracking-wider shrink-0">Colores</span>
+                {([
+                    { label: "Fondo", value: styles.pageBgColor || "#0f0f14", key: "pageBgColor" },
+                    { label: "Tarjeta", value: styles.bgColor || "#1a1a24", key: "bgColor" },
+                ] as const).map(({ label, value, key }) => (
+                    <label key={key} className="relative flex items-center gap-1 cursor-pointer rounded px-1.5 py-0.5 hover:bg-[var(--arbo-surface-2)] transition-colors">
+                        <div className="size-3 rounded-full border border-[var(--arbo-border)]" style={{ background: value }} />
+                        <span className="text-[9px] arbo-text-muted">{label}</span>
+                        <input type="color" value={value} onChange={(e) => updateStyles({ [key]: e.target.value } as any)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                    </label>
+                ))}
+                <label className="relative flex items-center gap-1 cursor-pointer rounded px-1.5 py-0.5 hover:bg-[var(--arbo-surface-2)] transition-colors">
+                    <div className="size-3 rounded-full" style={getAccentStyle(styles)} />
+                    <span className="text-[9px] arbo-text-muted">Acento</span>
+                    <input type="color" value={styles.accentColor || "#4ADE80"} onChange={(e) => updateStyles({ accentColor: e.target.value, gradient: undefined })} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                </label>
+
+                {/* Quick embed glow orb dots */}
+                {(styles.embedGlowEnabled && styles.embedGlowOrbs?.length) ? (
+                    <div className="flex items-center gap-1 ml-1">
+                        {styles.embedGlowOrbs.map((orb) => (
+                            <label key={orb.id} className="relative cursor-pointer" title={`Luz ${orb.color}`}>
+                                <div className="size-3 rounded-full" style={{ background: orb.color, boxShadow: `0 0 4px ${orb.color}` }} />
+                                <input type="color" value={orb.color}
+                                    onChange={(e) => updateStyles({
+                                        embedGlowOrbs: (styles.embedGlowOrbs || []).map((o) => o.id === orb.id ? { ...o, color: e.target.value } : o),
+                                    })}
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                            </label>
+                        ))}
+                    </div>
+                ) : null}
+
+                <div className="flex-1" />
+                <span className="text-[9px] arbo-text-muted italic opacity-60">Vista previa del embed</span>
             </div>
 
             {/* Resize toolbar */}
@@ -114,8 +154,6 @@ const EmbedContent = ({ schema, styles, cardTitleColor, cardSubColor, previewWid
     const effectiveW = previewWidth ?? containerActualWidth;
     const isNarrow = effectiveW > 0 && effectiveW < 1024;
     const embedContactPosition = styles.embedContactPosition || "left";
-    const hasGlassEmbed = (styles.cardOpacity ?? 100) < 100 || (styles.cardBlur ?? 0) > 0;
-    const accentEmbed = styles.accentColor || "#4ADE80";
 
     const cardStyle = {
         ...getGlassStyle(styles.bgColor || "#1a1a24", styles),
@@ -126,22 +164,21 @@ const EmbedContent = ({ schema, styles, cardTitleColor, cardSubColor, previewWid
 
     const visibleFields = schema.fields.filter((f: any) => !f.name?.startsWith("__page_break_"));
 
+    const embedBg = (styles.embedBgTransparent ?? false)
+        ? "transparent"
+        : getEmbedBgCss(styles);
+
     return (
-        <div className="flex-1 min-w-0 p-6"
-            style={{ background: hasGlassEmbed
-                ? `radial-gradient(ellipse at 25% 35%, ${accentEmbed}33 0%, transparent 55%), radial-gradient(ellipse at 75% 70%, #8B5CF633 0%, transparent 55%), var(--arbo-surface-2)`
-                : "var(--arbo-surface-2)"
-            }}>
+        <div className="flex-1 min-w-0 p-6" style={{ background: embedBg }}>
             {/* Fake external page content above */}
             <div className="max-w-3xl mx-auto mb-6">
-                <div className="h-4 w-1/3 rounded bg-[var(--arbo-border)] mb-2" />
-                <div className="h-2 w-2/3 rounded bg-[var(--arbo-border)] opacity-40 mb-1" />
-                <div className="h-2 w-1/2 rounded bg-[var(--arbo-border)] opacity-30" />
+                <div className="h-4 w-1/3 rounded bg-[var(--arbo-border)] mb-2 opacity-40" />
+                <div className="h-2 w-2/3 rounded bg-[var(--arbo-border)] opacity-20 mb-1" />
+                <div className="h-2 w-1/2 rounded bg-[var(--arbo-border)] opacity-15" />
             </div>
 
             {/* iframe embed area */}
             <div className="max-w-5xl mx-auto px-4 py-6" style={{
-                background: (styles.embedBgTransparent ?? false) ? "transparent" : (styles.pageBgColor || "var(--arbo-bg)"),
                 borderRadius: `${styles.borderRadius ?? 14}px`,
                 borderColor: "color-mix(in srgb, var(--arbo-accent) 30%, transparent)",
                 borderWidth: 1,

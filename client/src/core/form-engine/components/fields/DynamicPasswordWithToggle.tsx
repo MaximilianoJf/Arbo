@@ -30,12 +30,13 @@ export const DynamicPasswordWithToggle = ({ name, label, formState, placeholder,
                     value={state.value}
                     onChange={handleInputChange}
                 />
-                <InputGroup.Suffix className="pr-0">
+                <InputGroup.Suffix className="pr-0 bg-transparent">
                     <Button
                         isIconOnly
                         aria-label={isVisible ? "Hide password" : "Show password"}
                         size="sm"
                         variant="ghost"
+                        className="bg-transparent"
                         onPress={() => setIsVisible(!isVisible)}
                     >
                         {isVisible ? <Eye className="size-4" /> : <EyeSlash className="size-4" />}

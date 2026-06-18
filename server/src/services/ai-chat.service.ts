@@ -6,7 +6,7 @@
  * or a text-only reply when no changes are needed.
  */
 
-import { callOpenRouter } from "../utils/openrouter-call.js";
+import { callAI } from "../utils/ai-call.js";
 
 export interface ChatMessage {
     role: "user" | "assistant" | "system";
@@ -44,7 +44,7 @@ const buildStylesSummary = (styles: any): string => {
 const buildSystemPrompt = (currentSchema: any): string => {
     const fieldsSummary = (currentSchema.fields || [])
         .filter((f: any) => !f.name?.startsWith("__page_break_"))
-        .map((f: any, i: number) => `  ${i + 1}. "${f.label}" (${f.componentType}, type="${f.type}"${f.options?.length ? `, options=[${f.options.join(",")}]` : ""}${f.required ? ", required" : ""})`)
+        .map((f: any, i: number) => `  ${i + 1}. "${f.label}" (name="${f.name}", ${f.componentType}, type="${f.type}"${f.options?.length ? `, options=[${f.options.join(",")}]` : ""}${f.required ? ", required" : ""}${f.fieldStyles && Object.keys(f.fieldStyles).length ? `, fieldStyles=${JSON.stringify(f.fieldStyles)}` : ""})`)
         .join("\n");
 
     const stylesSummary = buildStylesSummary(currentSchema.styles);
@@ -67,12 +67,53 @@ TIPOS DE COMPONENTE:
 - DynamicTextArea → texto largo
 - DynamicNumberField → numeros
 - DynamicSelect → dropdown (necesita options)
+- DynamicMultiSelect → dropdown de seleccion multiple (necesita options, type="multiselect")
 - DynamicCheckbox → checkboxes multiples (necesita options)
 - DynamicRadioGroup → radio buttons (necesita options)
-- DynamicDateField → selector de fecha
+- DynamicDateField → selector de fecha (type="date") o fecha y hora (type="datetime")
+- DynamicFileUpload → subida de archivo (type="file") o imagen (type="image")
 - DynamicPasswordWithToggle → password
 
-VALIDACIONES: required, email, text, positiveNumber, confirmPassword, url, minLength3, minLength8, maxLength50, maxLength100, maxLength255
+VALIDACIONES: required, email, text, positiveNumber, confirmPassword, url, phone, rut, alphanumeric, noSpaces, minLength3, minLength8, maxLength50, maxLength100, maxLength255
+═══════════════════════════════════════════
+CONTROL TOTAL DE CADA CAMPO — propiedades disponibles (todas opcionales salvo name/label/componentType/type):
+{
+  "name": "snake_case_estable",         ← NO cambiar el name de campos existentes
+  "label": "Etiqueta visible",
+  "placeholder": "Texto de ayuda dentro del input",
+  "value": "Texto por defecto precargado",
+  "componentType": "DynamicTextArea",   ← cambia el TIPO de componente
+  "type": "text",                        ← acorde al componente (text/email/tel/url/number/decimal/date/datetime/multiselect/file/image...)
+  "required": true,
+  "validations": ["required", "email"],  ← SOLO claves de la lista VALIDACIONES
+  "pattern": "^[A-Z]{3}-\\\\d{4}$",       ← regex sin barras. USAR cuando ninguna validación predefinida calza
+  "patternMessage": "Formato ABC-1234",
+  "options": ["A", "B"],                 ← select/multiselect/checkbox/radio
+  "rows": 6,                             ← alto del textarea
+  "accept": [".pdf", "image/*"],         ← tipos permitidos en file/image
+  "fieldStyles": {                       ← colores de ESTE campo (distinto de "styles" global del form)
+    "labelColor": "#FFFFFF", "inputBgColor": "#EC4899", "inputTextColor": "#FFFFFF", "inputBorderColor": "#BE185D",
+    "labelColorHover": "#hex", "inputBgColorHover": "#hex", "inputTextColorHover": "#hex", "inputBorderColorHover": "#hex"
+  },
+  "visibleWhen": [                       ← LÓGICA CONDICIONAL: el campo queda oculto hasta cumplirse TODAS
+    { "field": "name_del_campo_origen", "operator": "equals", "value": "Sí" }
+  ],                                      operadores: equals | notEquals | contains | notEmpty | empty
+  "hiddenWhen": [ ... ],                 ← inverso: el campo se OCULTA cuando se cumplen
+  "logicMode": "all",                    ← cómo combinar varias condiciones: "all" = Y (todas), "any" = O (cualquiera)
+  "page": 0
+}
+Ejemplo de lógica: "si responde Sí en alergias, mostrar 2 preguntas más" →
+  campo select "alergias" con options ["Sí","No"]; campos "cuales_alergias" y "gravedad" con
+  "visibleWhen": [{ "field": "alergias", "operator": "equals", "value": "Sí" }]
+Ejemplos:
+- "campo rosa con letras blancas" → en ESE campo: "fieldStyles": { "inputBgColor": "#EC4899", "inputTextColor": "#FFFFFF" }
+- "que valide patentes chilenas" → no hay validación predefinida → "pattern": "^[A-Z]{4}\\\\d{2}$|^[A-Z]{2}\\\\d{4}$", "patternMessage": "Patente inválida"
+- "convertilo a área de texto" → "componentType": "DynamicTextArea", "type": "text" (mantener label, fieldStyles y demás)
+REGLAS DE CAMPOS:
+1. Devolve SIEMPRE la lista completa de campos con TODAS sus propiedades actuales (fieldStyles, pattern, options, etc.), no solo el campo modificado.
+2. Cambiá únicamente lo que el usuario pidió; preservá el resto tal cual está en FORMULARIO ACTUAL.
+3. Si el pedido de validación no existe en VALIDACIONES, generá un "pattern" regex apropiado con su "patternMessage".
+4. OMITÍ las propiedades vacías o con valor por defecto (pattern:"", patternMessage:"", options:[], rows:1, accept:[], fieldStyles:{}, visibleWhen:[], hiddenWhen:[], logicMode:"all"). Incluí SOLO las propiedades con un valor real. Esto mantiene la respuesta corta y evita que se trunque.
 
 ═══════════════════════════════════════════
 PROPIEDADES DE ESTILO DISPONIBLES (objeto "styles"):
@@ -146,30 +187,102 @@ REGLAS DE RESPUESTA:
 7. Usa colores hex validos. Para tonos naturales: cafe=#2C1A0E, dorado=#D4AF37, violeta=#7c3aed, etc.`;
 };
 
+/** Extracts the first balanced top-level JSON object, tolerating prose/markdown around it. */
+const extractJsonObject = (text: string): string | null => {
+    const start = text.indexOf("{");
+    if (start === -1) return null;
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < text.length; i++) {
+        const ch = text[i];
+        if (esc) { esc = false; continue; }
+        if (ch === "\\") { esc = true; continue; }
+        if (ch === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (ch === "{") depth++;
+        else if (ch === "}" && --depth === 0) return text.slice(start, i + 1);
+    }
+    return null; // never closed → truncated
+};
+
+/**
+ * Best-effort recovery of a truncated update_schema payload: salvages every
+ * complete field object inside the (possibly unterminated) "fields" array.
+ */
+const salvageTruncatedSchema = (text: string): AIChatResult | null => {
+    const fieldsKey = text.indexOf('"fields"');
+    if (fieldsKey === -1) return null;
+    const arrStart = text.indexOf("[", fieldsKey);
+    if (arrStart === -1) return null;
+
+    const fields: any[] = [];
+    let depth = 0, inStr = false, esc = false, objStart = -1;
+    for (let i = arrStart + 1; i < text.length; i++) {
+        const ch = text[i];
+        if (esc) { esc = false; continue; }
+        if (ch === "\\") { esc = true; continue; }
+        if (ch === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (ch === "{") { if (depth === 0) objStart = i; depth++; }
+        else if (ch === "}") {
+            if (--depth === 0 && objStart !== -1) {
+                try { fields.push(JSON.parse(text.slice(objStart, i + 1))); } catch { /* skip partial */ }
+                objStart = -1;
+            }
+        } else if (ch === "]" && depth === 0) break;
+    }
+    if (!fields.length) return null;
+
+    const grab = (key: string): string | undefined => {
+        const m = text.match(new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`));
+        if (!m) return undefined;
+        try { return JSON.parse(`"${m[1]}"`); } catch { return m[1]; }
+    };
+
+    return {
+        reply: grab("reply") || "Formulario generado a partir de tu descripción.",
+        action: "update_schema",
+        fields,
+        ...(grab("title") ? { title: grab("title") } : {}),
+        ...(grab("description") ? { description: grab("description") } : {}),
+    };
+};
+
+const looksLikeSchemaJson = (text: string): boolean =>
+    /"action"\s*:\s*"update_schema"/.test(text) || /"fields"\s*:\s*\[/.test(text);
+
 export const chatWithAI = async (
     messages: ChatMessage[],
     currentSchema: any,
+    userId?: number,
 ): Promise<AIChatResult> => {
     const fullMessages = [
         { role: "system" as const, content: buildSystemPrompt(currentSchema) },
         ...messages,
     ];
 
-    const { content } = await callOpenRouter(fullMessages, { temperature: 0.4, max_tokens: 4000 });
+    const { content } = await callAI(fullMessages, { temperature: 0.4, max_tokens: 8000, userId });
 
     const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
-    try {
-        const parsed = JSON.parse(cleaned);
-        if (parsed.action === "update_schema" && parsed.fields) {
-            return parsed as AIChatResult;
-        }
-        if (parsed.reply) {
-            return { reply: parsed.reply };
-        }
-    } catch {
-        // Not JSON — plain text reply
+    // 1. Try to parse the first balanced JSON object (tolerates wrapping prose).
+    const jsonStr = extractJsonObject(cleaned);
+    if (jsonStr) {
+        try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.action === "update_schema" && parsed.fields) return parsed as AIChatResult;
+            if (parsed.reply) return { reply: parsed.reply };
+        } catch { /* fall through to salvage */ }
     }
 
+    // 2. Truncated/malformed JSON → salvage whatever complete fields we can.
+    const salvaged = salvageTruncatedSchema(cleaned);
+    if (salvaged) return salvaged;
+
+    // 3. Looked like a schema but unrecoverable → friendly message, never raw JSON.
+    if (looksLikeSchemaJson(cleaned)) {
+        return { reply: "No pude generar el formulario completo. Probá de nuevo o con una descripción más breve." };
+    }
+
+    // 4. Genuine plain-text reply.
     return { reply: content };
 };

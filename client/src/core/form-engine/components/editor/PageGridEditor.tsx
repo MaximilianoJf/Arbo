@@ -117,7 +117,7 @@ export const PageGridEditor = () => {
         image: !!styles.pageBgImage,
         heading: !!styles.pageHeadingEnabled,
         header: styles.cardHeaderEnabled !== false,
-        contact: styles.contactEnabled ?? true,
+        contact: styles.contactEnabled ?? false,
         form: true,
         footer: true,
     };
@@ -203,8 +203,15 @@ export const PageGridEditor = () => {
         return () => window.removeEventListener("keydown", onKey);
     }, [selected, decors, commitDecors, setSelected]);
 
+    // A snapped full-bleed image is pinned to the page edge and must not drive the grid height,
+    // otherwise anchoring it to the bottom grows the canvas in a feedback loop.
+    const imgItem = items.find((it) => it.key === "image");
+    const imageSnapped = !!imgItem && imgItem.x === 0 && imgItem.w === cols
+        && !!styles.pageImageSnap && styles.pageImageSnap !== "none";
+    const heightItems = imageSnapped ? items.filter((it) => it.key !== "image") : items;
+
     const decorBottom = decors.length ? Math.max(...decors.map((d) => d.y + d.h)) * rowH : 0;
-    const gridH = Math.max(pageLayoutHeight(items, rowH), measuredH, decorBottom) + rowH;
+    const gridH = Math.max(pageLayoutHeight(heightItems, rowH), measuredH, decorBottom) + rowH;
     const pageH = gridH + PAGE_PAD_Y * 2;
 
     const accent = styles.accentColor || "#4ADE80";
@@ -287,6 +294,16 @@ export const PageGridEditor = () => {
                     ))}
                 </div>
 
+                {/* Logo toggle — always reachable even when the logo is hidden on the canvas */}
+                <button
+                    onClick={() => { updateStyles({ logoEnabled: !(styles.logoEnabled ?? true) }); setSelected("logo"); }}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium transition-colors cursor-pointer border ${(styles.logoEnabled ?? true) ? "bg-[var(--arbo-accent-muted)] text-[var(--arbo-accent)] border-[var(--arbo-accent)]/40" : "bg-[var(--arbo-surface-2)] arbo-text-muted border-[var(--arbo-border)] hover:arbo-text"}`}
+                    title={(styles.logoEnabled ?? true) ? "Ocultar logo" : "Mostrar logo"}
+                >
+                    {(styles.logoEnabled ?? true) ? <Eye className="size-3" /> : <EyeSlash className="size-3" />}
+                    Logo
+                </button>
+
                 <span className="text-[9px] arbo-text-muted font-mono">{Math.round(scale * 100)}%</span>
                 {bp !== "desktop" && !(bp === "tablet" ? layout.tablet : layout.mobile) && (
                     <span className="text-[9px] arbo-text-muted italic">heredado de PC</span>
@@ -357,15 +374,21 @@ export const PageGridEditor = () => {
                                         const cellH = item.h * rowH;
                                         // A full-width image breaks out to cover the whole page width (full-bleed)
                                         const fullBleed = item.key === "image" && item.x === 0 && item.w === cols;
+                                        // Snap pulls the full-bleed image past the page padding to the screen edge
+                                        const snapTop = fullBleed && styles.pageImageSnap === "top" ? -PAGE_PAD_Y
+                                            : fullBleed && styles.pageImageSnap === "bottom" ? gridH + PAGE_PAD_Y - cellH
+                                            : item.y * rowH;
+                                        const isSnapped = item.key === "image" && imageSnapped;
                                         return (
                                             <div
                                                 key={item.key}
-                                                data-grid-block
+                                                // Snapped images are excluded from the height measurement (see gridH above)
+                                                {...(isSnapped ? {} : { "data-grid-block": true })}
                                                 onMouseDown={clean ? undefined : bodyMouseDown(item.key, (e) => startItemInteraction(e, item, "move"))}
                                                 className={`absolute group ${clean ? "" : "cursor-move"}`}
                                                 style={{
                                                     left: fullBleed ? -(refW - gridW) / 2 : item.x * cw,
-                                                    top: item.y * rowH,
+                                                    top: snapTop,
                                                     width: fullBleed ? refW : item.w * cw,
                                                     ...(isImage ? { height: cellH } : { minHeight: cellH }),
                                                     zIndex: isSel ? 30 : item.key === "image" ? 0 : 10,

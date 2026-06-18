@@ -5,17 +5,21 @@
  * Standalone MCP server that connects to the Arbo Forms backend.
  * Can read, analyze, create, update, publish and delete forms.
  *
- * Works with any MCP client: Claude Desktop, Claude Code, Cursor, etc.
+ * Works with any MCP-compatible client (Cursor, Windsurf, etc.).
  *
  * ─── ENV VARS ─────────────────────────────────────────────────────
  *   ARBO_API_KEY   — API key created in /form-builder/api-keys
  *   ARBO_API_URL   — backend URL (default: http://localhost:4000/api)
+ *   PORT           — if set, runs as HTTP/SSE server (for Render, Railway, etc.)
+ *                    if not set, runs as stdio process (for local MCP clients)
  * ──────────────────────────────────────────────────────────────────
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
+import express from "express";
 import * as arbo from "./arbo-client.js";
 
 const server = new McpServer({
@@ -307,7 +311,6 @@ The tool fetches live data from the database, compiles field-level stats and raw
     },
     async ({ prompt, formIds, includeRawResponses = false, model }) => {
         try {
-            // 1. Get OpenRouter config from backend
             let orConfig: arbo.OpenRouterConfig;
             try {
                 orConfig = await arbo.getOpenRouterConfig();
@@ -318,7 +321,6 @@ The tool fetches live data from the database, compiles field-level stats and raw
                 };
             }
 
-            // 2. Get forms list
             const allForms = await arbo.listForms();
             const targetForms = formIds?.length
                 ? allForms.filter((f) => formIds.includes(f.id))
@@ -328,7 +330,6 @@ The tool fetches live data from the database, compiles field-level stats and raw
                 return { content: [{ type: "text" as const, text: "No se encontraron formularios para analizar." }] };
             }
 
-            // 3. Fetch response data for each form
             const formsData: arbo.FormDataResponse[] = [];
             for (const form of targetForms) {
                 try {
@@ -341,7 +342,6 @@ The tool fetches live data from the database, compiles field-level stats and raw
                 return { content: [{ type: "text" as const, text: "Los formularios seleccionados no tienen respuestas todavía." }] };
             }
 
-            // 4. Compile data summary for each form
             const formSections = formsData.map((fd) => {
                 const fieldCols = fd.columns.filter(
                     (c) => !["response_id", "respondent_name", "respondent_email", "submitted_at"].includes(c.name),
@@ -382,17 +382,9 @@ The tool fetches live data from the database, compiles field-level stats and raw
             const dataSummary = formSections.join("\n\n");
             const totalResponses = formsData.reduce((sum, fd) => sum + fd.total, 0);
 
-            // 5. Build final prompt
             const systemPrompt = `Sos un analista de datos especializado en formularios web. Respondés en español neutro, con insights concretos basados únicamente en los datos proporcionados. Evitás generalidades y hacés referencia a valores y porcentajes reales.`;
+            const userPrompt = `Tenés acceso a los datos de ${formsData.length} formulario(s) con un total de ${totalResponses} respuestas.\n\n${dataSummary}\n\n---\nCONSULTA: ${prompt}`;
 
-            const userPrompt = `Tenés acceso a los datos de ${formsData.length} formulario(s) con un total de ${totalResponses} respuestas.
-
-${dataSummary}
-
----
-CONSULTA: ${prompt}`;
-
-            // 6. Call OpenRouter
             const response = await fetch(OPENROUTER_URL, {
                 method: "POST",
                 headers: {
@@ -460,15 +452,48 @@ server.tool(
     },
 );
 
-// ─── Start ───
+// ═══════════════════════════════════════════════════════════════════
+//  TRANSPORT — stdio (local) or SSE/HTTP (Render/cloud)
+// ═══════════════════════════════════════════════════════════════════
 
-async function main() {
+async function startSse(port: number) {
+    const app = express();
+    app.use(express.json());
+
+    const transports = new Map<string, SSEServerTransport>();
+
+    app.get("/sse", async (req, res) => {
+        const transport = new SSEServerTransport("/messages", res);
+        transports.set(transport.sessionId, transport);
+        res.on("close", () => transports.delete(transport.sessionId));
+        await server.connect(transport);
+    });
+
+    app.post("/messages", async (req, res) => {
+        const sessionId = req.query.sessionId as string;
+        const transport = transports.get(sessionId);
+        if (!transport) { res.status(404).send("Session not found"); return; }
+        await transport.handlePostMessage(req, res);
+    });
+
+    app.get("/health", (_req, res) => res.json({ status: "ok", server: "arbo-forms-mcp" }));
+
+    app.listen(port, () => {
+        console.log(`Arbo Forms MCP server (SSE) running on port ${port}`);
+        console.log(`  SSE endpoint: http://0.0.0.0:${port}/sse`);
+    });
+}
+
+async function startStdio() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error("Arbo Forms MCP server running on stdio");
 }
 
-main().catch((err) => {
-    console.error("Fatal:", err);
-    process.exit(1);
-});
+const PORT = process.env.PORT ? Number(process.env.PORT) : null;
+
+if (PORT) {
+    startSse(PORT).catch((err) => { console.error("Fatal:", err); process.exit(1); });
+} else {
+    startStdio().catch((err) => { console.error("Fatal:", err); process.exit(1); });
+}

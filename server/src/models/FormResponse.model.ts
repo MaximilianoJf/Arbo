@@ -45,11 +45,45 @@ class FormResponse extends Model {
     })
     declare respondentId: number;
 
+    // ─── Response chain (relational forms) ───
+    /** The parent form's response this submission descends from (null = chain root). */
+    @ForeignKey(() => FormResponse)
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: true,
+    })
+    declare parentResponseId: number | null;
+
+    /** Which form the parent response belongs to. */
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: true,
+    })
+    declare parentFormId: number | null;
+
+    /** Second link, for many-to-many bridge responses (the "other side" they connect). */
+    @ForeignKey(() => FormResponse)
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: true,
+    })
+    declare secondaryResponseId: number | null;
+
+    /** Root response of the whole chain (A in A→B→C). Lets a full chain be fetched at once. */
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: true,
+    })
+    declare rootResponseId: number | null;
+
     @BelongsTo(() => UserForm)
     declare form: UserForm;
 
     @BelongsTo(() => User)
     declare respondent: User;
+
+    @BelongsTo(() => FormResponse, "parentResponseId")
+    declare parent: FormResponse;
 }
 
 export default FormResponse;

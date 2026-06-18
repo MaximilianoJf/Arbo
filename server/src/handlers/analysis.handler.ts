@@ -44,7 +44,7 @@ export const analyzeFormResponses = async (req: Request, res: Response) => {
                 respondentEmail: r.respondentEmail,
                 createdAt: r.createdAt,
             })),
-        }, customPrompt);
+        }, customPrompt, user.id);
 
         return res.json({ ok: true, data: analysis });
     } catch (error: any) {

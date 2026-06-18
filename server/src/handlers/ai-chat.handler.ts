@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { chatWithAI, ChatMessage } from "../services/ai-chat.service";
+import { getUserByEmail } from "../repositories/user.repository";
 
 export const handleAIChat = async (req: Request, res: Response) => {
     try {
@@ -13,7 +14,8 @@ export const handleAIChat = async (req: Request, res: Response) => {
             return res.status(400).json({ error: "currentSchema is required" });
         }
 
-        const result = await chatWithAI(messages as ChatMessage[], currentSchema);
+        const user = await getUserByEmail(req.email!);
+        const result = await chatWithAI(messages as ChatMessage[], currentSchema, user?.id);
         return res.json({ ok: true, data: result });
     } catch (error: any) {
         return res.status(500).json({ error: error.message });

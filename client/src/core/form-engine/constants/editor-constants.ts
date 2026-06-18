@@ -34,6 +34,8 @@ export const getValidationLabels = (t: TFn): Record<string, string> => ({
     maxLength255: t("validations.max255"),
     email: t("validations.validEmail"),
     url: t("validations.validUrl"),
+    phone: "Teléfono válido",
+    rut: "RUT válido (Chile)",
     strongPassword: t("validations.strongPassword"),
     confirmPassword: t("validations.confirmPassword"),
     number: t("validations.numbersOnly"),
@@ -56,14 +58,19 @@ export const getInputPalette = (t: TFn): { componentType: ComponentType; type: s
     { componentType: "DynamicCheckbox", type: "checkbox", label: t("inputPalette.checkbox"), icon: "☑", description: t("inputPalette.checkboxDesc") },
     { componentType: "DynamicRadioGroup", type: "radio", label: t("inputPalette.radio"), icon: "◉", description: t("inputPalette.radioDesc") },
     { componentType: "DynamicSelect", type: "select", label: t("inputPalette.dropdown"), icon: "▾", description: t("inputPalette.dropdownDesc") },
+    { componentType: "DynamicMultiSelect", type: "multiselect", label: "Selección múltiple", icon: "≡", description: "Dropdown con varias opciones seleccionables" },
     { componentType: "DynamicDateField", type: "date", label: t("inputPalette.date"), icon: "📅", description: t("inputPalette.dateDesc") },
-    { componentType: "DynamicSignature", type: "signature", label: "Firma", icon: "✍", description: "Dibujar o escribir una firma" },
+    { componentType: "DynamicDateField", type: "datetime", label: "Fecha y hora", icon: "🕐", description: "Selector de fecha con hora" },
+    { componentType: "DynamicFileUpload", type: "image", label: "Imagen", icon: "🖼", description: "Subida de imagen con previsualización" },
+    { componentType: "DynamicFileUpload", type: "file", label: "Archivo", icon: "📎", description: "Subida de archivo (PDF, Word, etc.)" },
 ];
 
 // --- Default contact fields ---
+// Required by default: when someone opts into the contact panel, identifying
+// the respondent is the whole point — so it's mandatory unless turned off.
 export const DEFAULT_CONTACT_FIELDS: ContactField[] = [
-    { id: "name", name: "respondentName", label: "Nombre", type: "text", placeholder: "Tu nombre", required: false, enabled: true },
-    { id: "email", name: "respondentEmail", label: "Email", type: "email", placeholder: "tu@email.com", required: false, enabled: true },
+    { id: "name", name: "respondentName", label: "Nombre", type: "text", placeholder: "Tu nombre", required: true, enabled: true },
+    { id: "email", name: "respondentEmail", label: "Email", type: "email", placeholder: "tu@email.com", required: true, enabled: true },
 ];
 
 // --- Preset color palettes ---
@@ -96,7 +103,7 @@ export const CONTACT_SIZES: { value: string; label: string; width: string }[] = 
 ];
 
 // --- Tab definitions ---
-export type EditorTabKey = "inputs" | "field" | "form" | "page" | "embed" | "submit" | "ai";
+export type EditorTabKey = "inputs" | "field" | "form" | "page" | "embed" | "submit" | "ai" | "logic";
 
 export const EDITOR_TABS: { key: EditorTabKey; label: string; glow?: boolean }[] = [
     { key: "ai", label: "IA", glow: true },

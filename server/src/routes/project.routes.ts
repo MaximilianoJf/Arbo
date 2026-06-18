@@ -11,7 +11,10 @@ import {
     getCollaborators,
     updateCollaboratorRole,
     assignFormToProject,
+    getRelations,
+    saveRelations,
 } from "../handlers/project.handler";
+import { handleAIGenerateSchema } from "../handlers/ai-schema.handler";
 
 const router = Router();
 
@@ -33,5 +36,12 @@ router.patch("/:id/collaborators/:email", updateCollaboratorRole);
 
 // Form assignment
 router.post("/assign-form", assignFormToProject);
+
+// Form relations (chain)
+router.get("/:id/relations", getRelations);
+router.put("/:id/relations", saveRelations);
+
+// AI schema generation
+router.post("/:id/ai/generate-schema", handleAIGenerateSchema);
 
 export default router;

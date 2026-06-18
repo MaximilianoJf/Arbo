@@ -1,8 +1,5 @@
 import { Sequelize } from "sequelize-typescript";
-import dotenv from "dotenv";
 import path from 'path';
-
-dotenv.config();
 
 const connectionString = process.env.DATABASE_URL;
 

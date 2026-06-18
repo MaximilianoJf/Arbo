@@ -51,7 +51,8 @@ export const updateProject = async (req: Request, res: Response) => {
 export const deleteProject = async (req: Request, res: Response) => {
     try {
         const userId = await getUserId(req.email);
-        await projectService.remove(Number(req.params.id), userId);
+        const deleteForms = req.query.deleteForms === "true";
+        await projectService.remove(Number(req.params.id), userId, deleteForms);
         return res.json({ ok: true });
     } catch (err) {
         return res.status(400).json({ ok: false, errors: [{ msg: err.message }] });
@@ -107,6 +108,29 @@ export const assignFormToProject = async (req: Request, res: Response) => {
         const { formId, projectId } = req.body;
         await projectService.assignForm(formId, projectId, userId);
         return res.json({ ok: true });
+    } catch (err) {
+        return res.status(400).json({ ok: false, errors: [{ msg: err.message }] });
+    }
+};
+
+// --- Form relations (chain) ---
+export const getRelations = async (req: Request, res: Response) => {
+    try {
+        const userId = await getUserId(req.email);
+        const relations = await projectService.getRelations(Number(req.params.id), userId, req.email);
+        return res.json({ ok: true, data: relations });
+    } catch (err) {
+        return res.status(400).json({ ok: false, errors: [{ msg: err.message }] });
+    }
+};
+
+export const saveRelations = async (req: Request, res: Response) => {
+    try {
+        const userId = await getUserId(req.email);
+        const relations = await projectService.saveRelations(
+            Number(req.params.id), userId, req.email, req.body.relations,
+        );
+        return res.json({ ok: true, data: relations });
     } catch (err) {
         return res.status(400).json({ ok: false, errors: [{ msg: err.message }] });
     }

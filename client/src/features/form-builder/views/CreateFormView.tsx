@@ -5,7 +5,9 @@ import { FORM_MODES } from "@/core/form-engine/constants";
 import type { FormSchema, FormField, ComponentType } from "@/core/form-engine/types";
 import { FormFunctions } from "@/core/form-engine/services";
 import { formApi } from "@/services/api";
-import { Sparkles, ArrowRight } from "@gravity-ui/icons";
+import { Sparkles, ArrowRight, Camera } from "@gravity-ui/icons";
+import { compressImage } from "@/core/form-engine/utils/compress-image";
+import { mapAIFields } from "@/core/form-engine/utils/ai-field-mapper";
 
 // ─── Form templates ───
 interface FormTemplate {
@@ -177,9 +179,21 @@ export const CreateFormView = () => {
     const [aiPrompt, setAiPrompt] = useState("");
     const [generating, setGenerating] = useState(false);
     const [generateError, setGenerateError] = useState<string | null>(null);
+    const [scanning, setScanning] = useState(false);
+    const [scanError, setScanError] = useState<string | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const fileRef = useRef<HTMLInputElement>(null);
 
     const templates = getTemplates(t);
+
+    /** Builds a FormSchema from an AI update_schema payload (chat or photo scan). */
+    const buildSchemaFromAI = (data: any): FormSchema => ({
+        title: data.title || "Formulario generado",
+        description: data.description || "",
+        onSubmit: FormFunctions.SaveToDB,
+        styles: data.styles || {},
+        fields: mapAIFields(data.fields),
+    });
 
     const handleGenerate = async () => {
         if (!aiPrompt.trim() || generating) return;
@@ -193,30 +207,7 @@ export const CreateFormView = () => {
             );
             const data = res.data;
             if (data?.action === "update_schema" && data.fields?.length) {
-                const generated: FormSchema = {
-                    title: data.title || "Formulario generado",
-                    description: data.description || "",
-                    onSubmit: FormFunctions.SaveToDB,
-                    styles: data.styles || {},
-                    fields: data.fields.map((f: any, i: number) => {
-                        const name = f.name || `field_${Date.now()}_${i}`;
-                        return {
-                            id: crypto.randomUUID(),
-                            name,
-                            label: f.label ?? name,
-                            type: f.type ?? "text",
-                            componentType: f.componentType ?? "DynamicTextField",
-                            placeholder: f.placeholder ?? "",
-                            required: f.required ?? false,
-                            validate: f.validations ?? (f.required ? ["required"] : []),
-                            options: f.options ?? [],
-                            sortOrder: f.sortOrder ?? i,
-                            page: f.page ?? 0,
-                            value: "",
-                        };
-                    }),
-                };
-                setSelectedSchema(generated);
+                setSelectedSchema(buildSchemaFromAI(data));
             } else {
                 setGenerateError(data?.reply || "La IA no pudo generar el formulario. Intentá con una descripción más detallada.");
             }
@@ -224,6 +215,27 @@ export const CreateFormView = () => {
             setGenerateError(e.message || "Error al generar el formulario");
         } finally {
             setGenerating(false);
+        }
+    };
+
+    const handleScan = async (file: File) => {
+        if (scanning) return;
+        setScanning(true);
+        setScanError(null);
+        try {
+            const image = await compressImage(file);
+            const res = await formApi.aiScan(image);
+            const data = res.data;
+            if (data?.action === "update_schema" && data.fields?.length) {
+                setSelectedSchema(buildSchemaFromAI(data));
+            } else {
+                setScanError(data?.reply || "No se detectaron campos en la foto. Probá con una imagen más nítida.");
+            }
+        } catch (e: any) {
+            setScanError(e.message || "Error al escanear la imagen");
+        } finally {
+            setScanning(false);
+            if (fileRef.current) fileRef.current.value = "";
         }
     };
 
@@ -312,24 +324,67 @@ export const CreateFormView = () => {
                     </div>
                 </div>
             ) : (
-                /* AI card — shown in the grid */
-                <button
-                    onClick={() => setShowAI(true)}
-                    className="group w-full arbo-card p-5 flex items-center gap-4 border-[var(--arbo-accent)]/20 hover:border-[var(--arbo-accent)]/50 hover:bg-[var(--arbo-accent-muted)]/30 transition-all"
-                >
-                    <div className="size-12 rounded-xl bg-[var(--arbo-accent-muted)] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                        <Sparkles className="size-6 text-[var(--arbo-accent)]" />
-                    </div>
-                    <div className="flex-1 text-left">
-                        <p className="text-sm font-semibold arbo-text group-hover:text-[var(--arbo-accent)] transition-colors">
-                            Crear con IA
+                /* AI + photo scan cards */
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <button
+                        onClick={() => setShowAI(true)}
+                        className="group w-full arbo-card p-5 flex items-center gap-4 border-[var(--arbo-accent)]/20 hover:border-[var(--arbo-accent)]/50 hover:bg-[var(--arbo-accent-muted)]/30 transition-all"
+                    >
+                        <div className="size-12 rounded-xl bg-[var(--arbo-accent-muted)] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                            <Sparkles className="size-6 text-[var(--arbo-accent)]" />
+                        </div>
+                        <div className="flex-1 text-left">
+                            <p className="text-sm font-semibold arbo-text group-hover:text-[var(--arbo-accent)] transition-colors">
+                                Crear con IA
+                            </p>
+                            <p className="text-xs arbo-text-muted mt-0.5">
+                                Describí lo que necesitás y la IA arma el formulario por vos
+                            </p>
+                        </div>
+                        <ArrowRight className="size-4 arbo-text-muted group-hover:text-[var(--arbo-accent)] group-hover:translate-x-1 transition-all shrink-0" />
+                    </button>
+
+                    {/* Photo scan card — on mobile, capture opens the camera directly */}
+                    <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleScan(file);
+                        }}
+                    />
+                    <button
+                        onClick={() => fileRef.current?.click()}
+                        disabled={scanning}
+                        className="group w-full arbo-card p-5 flex items-center gap-4 border-sky-400/20 hover:border-sky-400/50 hover:bg-sky-400/5 transition-all disabled:opacity-60"
+                    >
+                        <div className="size-12 rounded-xl bg-sky-400/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                            {scanning ? (
+                                <div className="size-6 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <Camera className="size-6 text-sky-400" />
+                            )}
+                        </div>
+                        <div className="flex-1 text-left">
+                            <p className="text-sm font-semibold arbo-text group-hover:text-sky-400 transition-colors">
+                                {scanning ? "Escaneando formulario..." : "Escanear desde foto"}
+                            </p>
+                            <p className="text-xs arbo-text-muted mt-0.5">
+                                Subí o sacá una foto de un formulario y la IA lo recrea por vos
+                            </p>
+                        </div>
+                        <ArrowRight className="size-4 arbo-text-muted group-hover:text-sky-400 group-hover:translate-x-1 transition-all shrink-0" />
+                    </button>
+
+                    {scanError && (
+                        <p className="sm:col-span-2 text-sm text-[var(--arbo-danger)] bg-[var(--arbo-danger-muted)] px-3 py-2 rounded-lg">
+                            {scanError}
                         </p>
-                        <p className="text-xs arbo-text-muted mt-0.5">
-                            Describí lo que necesitás y la IA arma el formulario por vos
-                        </p>
-                    </div>
-                    <ArrowRight className="size-4 arbo-text-muted group-hover:text-[var(--arbo-accent)] group-hover:translate-x-1 transition-all shrink-0" />
-                </button>
+                    )}
+                </div>
             )}
 
             {/* Templates grid */}

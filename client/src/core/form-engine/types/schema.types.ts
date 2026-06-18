@@ -8,8 +8,9 @@ export type ComponentType =
   | "DynamicCheckbox"
   | "DynamicRadioGroup"
   | "DynamicSelect"
+  | "DynamicMultiSelect"
   | "DynamicDateField"
-  | "DynamicSignature";
+  | "DynamicFileUpload";
 
 export type FieldRender = {
   name: string;
@@ -120,6 +121,7 @@ export interface FormStyles {
   bgColor?: string;
   gradient?: string;
   cardSize?: "sm" | "md" | "lg" | "xl";
+  cardCustomWidth?: number;   // px — overrides cardSize when set (resize handle in editor)
   borderRadius?: number;
   borderColor?: string;
   shadowStyle?: "none" | "sm" | "md" | "lg" | "glow";
@@ -138,9 +140,20 @@ export interface FormStyles {
   // Positionable image element (placed/resized on the grid, not a CSS background)
   pageBgImage?: string;            // image URL
   pageImageFit?: "cover" | "contain";   // how the image fills its grid cell
+  pageImageSnap?: "none" | "top" | "bottom";  // full-bleed image sticks to the screen edge
+  pageImagePosX?: number;          // 0–100 (% horizontal crop position, default 50)
+  pageImagePosY?: number;          // 0–100 (% vertical crop position, default 50)
+  pageImageFadeTop?: number;       // 0–100 (% of height that fades in from transparent)
+  pageImageFadeBottom?: number;    // 0–100 (% of height that fades out to transparent)
+  pageImageOpacity?: number;       // 0–100
+  pageImageRadius?: number;        // px corner radius
 
   // Free grid positioning of page elements (overrides the flex layout when enabled)
   pageLayout?: PageLayout;
+
+  // Field grid: fields flow in a fluid 12-column grid instead of a vertical list
+  fieldGridEnabled?: boolean;
+  fieldGridGap?: number;   // px gap between fields (default 16)
 
   // Logo (positionable in grid mode). Empty url = Arbo logo.
   logoEnabled?: boolean;
@@ -149,6 +162,13 @@ export interface FormStyles {
   // Page background glow / light orbs
   pageGlowEnabled?: boolean;
   pageGlowOrbs?: GlowOrb[];
+
+  // Embed background glow / light orbs (independent from page)
+  embedGlowEnabled?: boolean;
+  embedGlowOrbs?: GlowOrb[];
+
+  // Access — require Google sign-in to submit (strict identity for relational forms)
+  requiresGoogleAuth?: boolean;
 
   // Contact
   contactEnabled?: boolean;
@@ -188,11 +208,14 @@ export type FormSchema = {
   title: string;
   description?: string;
   slug?: string;
-  onSubmit?: FormFunctionsType;
+  // One or more submit actions, comma-separated (e.g. "SaveToDB,SendToEmail")
+  onSubmit?: string;
   isPublished?: boolean;
   styles?: FormStyles;
   fields: FormField[];
   projectId?: number | null;
+  /** True when this form is the child side of a relation — always requires auth to respond. */
+  isRelational?: boolean;
 };
 
 export interface FormField {
@@ -213,6 +236,46 @@ export interface FormField {
   sortOrder?: number;
   page?: number;
   fieldStyles?: FieldStyles;
+  // Field grid layout: width in columns (1–12) per breakpoint.
+  // desktop base = span; tablet falls back to span; mobile defaults to full width (12).
+  span?: number;
+  spanTablet?: number;
+  spanMobile?: number;
+  // Textarea height in rows (resizable in the editor)
+  rows?: number;
+  // File upload: accepted extensions/MIME types (e.g. [".pdf", ".docx", "image/*"])
+  accept?: string[];
+  // Custom regex validation (applied after the preset validations)
+  pattern?: string;
+  patternMessage?: string;
+  // Conditional visibility: the field is shown only when ALL conditions match.
+  // Without conditions the field is always visible.
+  visibleWhen?: FieldCondition[];
+  // Inverse rule: the field is HIDDEN when ALL of these conditions match.
+  hiddenWhen?: FieldCondition[];
+  // How multiple conditions combine: "all" = Y (todas), "any" = O (cualquiera). Default "all".
+  logicMode?: "all" | "any";
+  // Composite component membership: fields inserted from a library block share
+  // a groupId and are deleted together (removing one would break the logic).
+  groupId?: string;
+  groupLabel?: string;
+  // Remote options: fetches choices from an API instead of using the static options array.
+  optionsSource?: FieldOptionsSource;
+}
+
+export interface FieldOptionsSource {
+  url: string;
+  valueKey: string;   // JSON key to use as the submitted value (e.g. "id")
+  labelKey: string;   // JSON key to display to the user (e.g. "name")
+  dataPath?: string;  // dot-path to the array inside the response (e.g. "data" or "results.items")
+}
+
+// --- Conditional logic (show/hide fields based on other answers) ---
+export type ConditionOperator = "equals" | "notEquals" | "contains" | "notEmpty" | "empty";
+export interface FieldCondition {
+  field: string;              // source field name
+  operator: ConditionOperator;
+  value?: string;             // compared value (not needed for empty/notEmpty)
 }
 
 export type FormState = Record<string, { value: string | number; error: string | null }>;

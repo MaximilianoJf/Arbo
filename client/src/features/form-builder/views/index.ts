@@ -11,3 +11,6 @@ export * from "./ProjectsView";
 export * from "./ProjectDetailView";
 export * from "./ApiKeysView";
 export * from "./OpenRouterSettingsView";
+export * from "./ComponentsLibraryView";
+export * from "./FormRelationsView";
+export * from "./ProjectPortalView";

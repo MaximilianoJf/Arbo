@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useEditorContext } from "../EditorContext";
 import { formApi } from "@/services/api";
-import type { ComponentType } from "../../../types";
+import { compressImage } from "../../../utils/compress-image";
+import { mapAIFields } from "../../../utils/ai-field-mapper";
 
 interface ChatMsg {
     role: "user" | "assistant";
@@ -11,7 +12,7 @@ interface ChatMsg {
 
 const INITIAL_MESSAGE: ChatMsg = {
     role: "assistant",
-    content: "Hola! Puedo crear campos y cambiar el diseño del formulario. Ejemplos:\n• \"Agregá un campo de teléfono\"\n• \"Fondo café con luces doradas\"\n• \"Efecto glass con sombra glow\"\n• \"Animación slideUp al entrar\"",
+    content: "Hola! Puedo crear campos y cambiar el diseño del formulario. Ejemplos:\n• \"Agregá un campo de teléfono\"\n• \"Fondo café con luces doradas\"\n• \"Efecto glass con sombra glow\"\n• También podés tocar la cámara y subir la foto de un formulario en papel: lo escaneo y lo recreo con los componentes de Arbo.",
 };
 
 export const AITab = () => {
@@ -33,6 +34,77 @@ export const AITab = () => {
     const [loading, setLoading] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const fileRef = useRef<HTMLInputElement>(null);
+
+    /** Applies an update_schema result (from chat or photo scan). Returns true if something was applied. */
+    const applyAIResult = useCallback((data: any): boolean => {
+        const hasFieldUpdate = data.action === "update_schema" && Array.isArray(data.fields);
+        const hasStyleUpdate = data.styles && Object.keys(data.styles).length > 0;
+        if (!hasFieldUpdate && !hasStyleUpdate) return false;
+
+        setSchema((prev) => {
+            let next = { ...prev };
+
+            if (data.title) next = { ...next, title: data.title };
+            if (data.description !== undefined) next = { ...next, description: data.description };
+
+            if (hasFieldUpdate) {
+                const newFields = mapAIFields(data.fields);
+                next = {
+                    ...next,
+                    fields: [
+                        ...prev.fields.filter((f) => f.name?.startsWith("__page_break_")),
+                        ...newFields,
+                    ],
+                };
+            }
+
+            if (hasStyleUpdate) {
+                next = { ...next, styles: { ...(prev.styles || {}), ...data.styles } };
+            }
+
+            return next;
+        });
+
+        const what: string[] = [];
+        if (hasFieldUpdate) what.push(`${data.fields.length} campo(s)`);
+        if (hasStyleUpdate) what.push("estilos");
+
+        setMessages((prev) => [
+            ...prev,
+            {
+                role: "assistant",
+                content: data.reply || `Listo! Actualice ${what.join(" y ")} del formulario.`,
+                isAction: true,
+            },
+        ]);
+        return true;
+    }, [setSchema]);
+
+    /** Photo scan: compress the image, send it to the vision AI and apply the resulting schema. */
+    const scanPhoto = useCallback(async (file: File) => {
+        if (loading) return;
+        setMessages((prev) => [...prev, { role: "user", content: `📷 Foto de formulario: ${file.name}` }]);
+        setLoading(true);
+        try {
+            const image = await compressImage(file);
+            const res = await formApi.aiScan(image);
+            if (!applyAIResult(res.data)) {
+                setMessages((prev) => [
+                    ...prev,
+                    { role: "assistant", content: res.data.reply || "No pude detectar campos en la foto. Probá con una imagen más nítida." },
+                ]);
+            }
+        } catch (err: any) {
+            setMessages((prev) => [
+                ...prev,
+                { role: "assistant", content: `Error al escanear: ${err.message || "No se pudo procesar la imagen"}` },
+            ]);
+        } finally {
+            setLoading(false);
+            if (fileRef.current) fileRef.current.value = "";
+        }
+    }, [loading, applyAIResult]);
 
     // Persist messages to sessionStorage on every change
     useEffect(() => {
@@ -79,72 +151,19 @@ export const AITab = () => {
                         options: f.options,
                         validations: f.validate,
                         page: f.page,
+                        fieldStyles: f.fieldStyles,
+                        pattern: f.pattern,
+                        rows: f.rows,
+                        accept: f.accept,
                     })),
             };
 
             const res = await formApi.aiChat(history, currentSchema);
-            const data = res.data;
 
-            const hasFieldUpdate = data.action === "update_schema" && Array.isArray(data.fields);
-            const hasStyleUpdate = data.styles && Object.keys(data.styles).length > 0;
-
-            if (hasFieldUpdate || hasStyleUpdate) {
-                setSchema((prev) => {
-                    let next = { ...prev };
-
-                    if (data.title) next = { ...next, title: data.title };
-                    if (data.description !== undefined) next = { ...next, description: data.description };
-
-                    if (hasFieldUpdate) {
-                        const newFields = data.fields.map((f: any, i: number) => ({
-                            id: crypto.randomUUID(),
-                            name: f.name || `field_${Date.now()}_${i}`,
-                            label: f.label || f.name,
-                            placeholder: f.placeholder || "",
-                            type: f.type || "text",
-                            componentType: (f.componentType || "DynamicTextField") as ComponentType,
-                            value: "",
-                            required: f.required || false,
-                            validate: f.validations || (f.required ? ["required"] : []),
-                            options: f.options || [],
-                            sortOrder: f.sortOrder ?? i,
-                            page: f.page ?? 0,
-                        }));
-                        next = {
-                            ...next,
-                            fields: [
-                                ...prev.fields.filter((f) => f.name?.startsWith("__page_break_")),
-                                ...newFields,
-                            ],
-                        };
-                    }
-
-                    if (hasStyleUpdate) {
-                        next = {
-                            ...next,
-                            styles: { ...(prev.styles || {}), ...data.styles },
-                        };
-                    }
-
-                    return next;
-                });
-
-                const what: string[] = [];
-                if (hasFieldUpdate) what.push(`${data.fields.length} campo(s)`);
-                if (hasStyleUpdate) what.push("estilos");
-
+            if (!applyAIResult(res.data)) {
                 setMessages((prev) => [
                     ...prev,
-                    {
-                        role: "assistant",
-                        content: data.reply || `Listo! Actualice ${what.join(" y ")} del formulario.`,
-                        isAction: true,
-                    },
-                ]);
-            } else {
-                setMessages((prev) => [
-                    ...prev,
-                    { role: "assistant", content: data.reply },
+                    { role: "assistant", content: res.data.reply },
                 ]);
             }
         } catch (err: any) {
@@ -158,7 +177,7 @@ export const AITab = () => {
         } finally {
             setLoading(false);
         }
-    }, [input, loading, messages, schema, setSchema]);
+    }, [input, loading, messages, schema, applyAIResult]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -214,6 +233,29 @@ export const AITab = () => {
             {/* Input area */}
             <div className="shrink-0 border-t border-[var(--arbo-border)] p-1.5">
                 <div className="flex items-end gap-1.5">
+                    {/* Photo scan — on mobile capture opens the camera directly */}
+                    <input
+                        ref={fileRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) scanPhoto(file);
+                        }}
+                    />
+                    <button
+                        onClick={() => fileRef.current?.click()}
+                        disabled={loading}
+                        className="shrink-0 size-7 rounded-md flex items-center justify-center transition-all disabled:opacity-30 bg-[var(--arbo-surface-2)] text-[var(--arbo-text-muted)] hover:text-[var(--arbo-accent)] border border-[var(--arbo-border)]"
+                        title="Escanear formulario desde una foto"
+                    >
+                        <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                            <circle cx="12" cy="13" r="4" />
+                        </svg>
+                    </button>
                     <textarea
                         ref={inputRef}
                         value={input}

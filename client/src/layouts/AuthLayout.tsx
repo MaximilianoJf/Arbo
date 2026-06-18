@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom"
 import { Logo } from "../components/ui"
+import { FloatingFormsBackground } from "../components/widgets/FloatingFormsBackground"
 
 export const AuthLayout = () => {
     return (
@@ -14,6 +15,9 @@ export const AuthLayout = () => {
                     style={{ background: "radial-gradient(circle, var(--arbo-accent) 0%, transparent 70%)" }}
                 />
             </div>
+
+            {/* Mini glass forms drifting toward the viewer, infinite loop */}
+            <FloatingFormsBackground />
 
             <div className="relative z-10 flex flex-col items-center w-full">
                 <div className="mb-10 flex flex-col items-center">

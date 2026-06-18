@@ -126,27 +126,33 @@ const CollabPanel = ({ projectId, isOwner }: { projectId: number; isOwner: boole
             </h3>
 
             {isOwner && (
-                <div className="flex gap-1.5">
+                <div className="flex flex-col gap-2">
                     <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="email@ejemplo.com"
-                        className="arbo-input flex-1 text-xs py-1.5"
+                        className="arbo-input text-xs w-full"
                         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                     />
-                    <select
-                        value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                        className="arbo-input w-20 text-xs py-1.5"
-                    >
-                        {ROLE_OPTIONS.map((r) => (
-                            <option key={r.value} value={r.value}>{r.label}</option>
-                        ))}
-                    </select>
-                    <button onClick={handleAdd} disabled={loading} className="arbo-btn arbo-btn-primary text-xs px-3 py-1.5">
-                        {loading ? "..." : "+"}
-                    </button>
+                    <div className="flex gap-2">
+                        <select
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
+                            className="arbo-input flex-1 text-xs"
+                        >
+                            {ROLE_OPTIONS.map((r) => (
+                                <option key={r.value} value={r.value}>{r.label}</option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={handleAdd}
+                            disabled={loading}
+                            className="arbo-btn arbo-btn-primary text-xs px-4"
+                        >
+                            {loading ? "..." : "Agregar"}
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -274,6 +280,67 @@ const AssignFormModal = ({ open, projectId, existingFormIds, onClose, onAssigned
     );
 };
 
+// ─── Delete confirmation modal ───
+const DeleteProjectModal = ({
+    open, projectName, formCount, onCancel, onConfirm,
+}: {
+    open: boolean;
+    projectName: string;
+    formCount: number;
+    onCancel: () => void;
+    onConfirm: (deleteForms: boolean) => void;
+}) => {
+    const [deleting, setDeleting] = useState(false);
+
+    const handle = async (deleteForms: boolean) => {
+        setDeleting(true);
+        await onConfirm(deleteForms);
+        setDeleting(false);
+    };
+
+    if (!open) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onCancel}>
+            <div
+                className="arbo-card-static w-full max-w-sm p-6 mx-4 flex flex-col gap-4"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex flex-col gap-1">
+                    <h3 className="text-base font-semibold arbo-text">Eliminar proyecto</h3>
+                    <p className="text-sm arbo-text-muted">
+                        ¿Qué querés hacer con los <span className="font-medium arbo-text">{formCount} formulario{formCount !== 1 ? "s" : ""}</span> vinculados a <span className="font-medium arbo-text">"{projectName}"</span>?
+                    </p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <button
+                        onClick={() => handle(false)}
+                        disabled={deleting}
+                        className="arbo-btn arbo-btn-secondary text-sm w-full flex flex-col items-start gap-0.5 py-3 px-4 disabled:opacity-50"
+                    >
+                        <span className="font-semibold">Solo eliminar el proyecto</span>
+                        <span className="text-xs arbo-text-muted font-normal">Los formularios quedan en tu cuenta, desvinculados.</span>
+                    </button>
+                    <button
+                        onClick={() => handle(true)}
+                        disabled={deleting}
+                        className="arbo-btn text-sm w-full flex flex-col items-start gap-0.5 py-3 px-4 disabled:opacity-50"
+                        style={{ background: "var(--arbo-danger-muted)", color: "var(--arbo-danger)", border: "1px solid color-mix(in srgb, var(--arbo-danger) 30%, transparent)" }}
+                    >
+                        <span className="font-semibold">Eliminar proyecto y formularios</span>
+                        <span className="text-xs font-normal opacity-70">Borra también los {formCount} formularios y todas sus respuestas. Irreversible.</span>
+                    </button>
+                </div>
+
+                <button onClick={onCancel} disabled={deleting} className="arbo-btn arbo-btn-ghost text-sm w-full">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    );
+};
+
 // ─── Main view ───
 export const ProjectDetailView = () => {
     const { id } = useParams<{ id: string }>();
@@ -284,6 +351,7 @@ export const ProjectDetailView = () => {
     const [editName, setEditName] = useState("");
     const [editDesc, setEditDesc] = useState("");
     const [showAssign, setShowAssign] = useState(false);
+    const [showDelete, setShowDelete] = useState(false);
 
     const projectId = Number(id);
 
@@ -312,12 +380,13 @@ export const ProjectDetailView = () => {
         } catch { /* silent */ }
     };
 
-    const handleDelete = async () => {
-        if (!confirm("¿Eliminar este proyecto? Los formularios NO se borrarán, solo se desvinculan.")) return;
+    const handleDelete = async (deleteForms: boolean) => {
         try {
-            await projectApi.delete(projectId);
-            navigate("/form-builder/projects");
-        } catch { /* silent */ }
+            await projectApi.delete(projectId, deleteForms);
+            navigate("/form-builder");
+        } catch (err: any) {
+            alert(err?.message || "Error al eliminar el proyecto");
+        }
     };
 
     const handleUnlinkForm = async (formId: number) => {
@@ -342,51 +411,99 @@ export const ProjectDetailView = () => {
     return (
         <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <button onClick={() => navigate("/form-builder/projects")} className="arbo-btn arbo-btn-ghost p-2 shrink-0">
-                    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                    </svg>
-                </button>
+            <div className="flex flex-col gap-3">
+                {/* Identity row — always visible */}
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => navigate("/form-builder/projects")}
+                        className="arbo-btn arbo-btn-ghost p-2 shrink-0"
+                    >
+                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                        </svg>
+                    </button>
 
-                <div
-                    className="size-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0"
-                    style={{ backgroundColor: project.color || "#4ADE80" }}
-                >
-                    {project.name?.[0]?.toUpperCase() || "P"}
-                </div>
+                    <div
+                        className="size-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0"
+                        style={{ backgroundColor: project.color || "#4ADE80" }}
+                    >
+                        {project.name?.[0]?.toUpperCase() || "P"}
+                    </div>
 
-                <div className="flex-1 min-w-0">
-                    {editing ? (
-                        <div className="flex flex-col gap-2">
-                            <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-                                className="arbo-input text-base font-bold" autoFocus />
-                            <input type="text" value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
-                                className="arbo-input text-sm" placeholder="Descripción..." />
-                            <div className="flex gap-2">
-                                <button onClick={handleSaveEdit} className="arbo-btn arbo-btn-primary text-xs">Guardar</button>
-                                <button onClick={() => setEditing(false)} className="arbo-btn arbo-btn-ghost text-xs">Cancelar</button>
-                            </div>
-                        </div>
-                    ) : (
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-base font-bold arbo-text truncate">{project.name}</h1>
+                        {project.description && (
+                            <p className="text-xs arbo-text-muted truncate">{project.description}</p>
+                        )}
+                    </div>
+
+                    {!editing && (
                         <>
-                            <h1 className="text-lg font-bold arbo-text truncate">{project.name}</h1>
-                            {project.description && (
-                                <p className="text-xs arbo-text-muted mt-0.5 truncate">{project.description}</p>
-                            )}
+                            <button
+                                onClick={() => navigate(`/p/${projectId}`)}
+                                className="arbo-btn arbo-btn-primary text-xs shrink-0"
+                                title="Abrir el portal SaaS de este proyecto"
+                            >
+                                Abrir portal
+                            </button>
+                            <button
+                                onClick={() => navigate(`/form-builder/projects/${projectId}/relations`)}
+                                className="arbo-btn arbo-btn-secondary text-xs shrink-0"
+                                title="Conectar los formularios de este proyecto (uno a muchos)"
+                            >
+                                Configurar BD
+                            </button>
                         </>
+                    )}
+
+                    {isOwner && !editing && (
+                        <div className="flex gap-1 shrink-0">
+                            <button onClick={() => setEditing(true)} className="arbo-btn arbo-btn-ghost p-2" title="Editar">
+                                <Pencil className="size-4" />
+                            </button>
+                            <button
+                                onClick={() => setShowDelete(true)}
+                                className="arbo-btn arbo-btn-ghost p-2 text-[var(--arbo-danger)]"
+                                title="Eliminar"
+                            >
+                                <TrashBin className="size-4" />
+                            </button>
+                        </div>
                     )}
                 </div>
 
-                {isOwner && !editing && (
-                    <div className="flex gap-1 shrink-0">
-                        <button onClick={() => setEditing(true)} className="arbo-btn arbo-btn-ghost p-2" title="Editar">
-                            <Pencil className="size-4" />
-                        </button>
-                        <button onClick={handleDelete}
-                            className="arbo-btn arbo-btn-ghost p-2 text-[var(--arbo-danger)]" title="Eliminar">
-                            <TrashBin className="size-4" />
-                        </button>
+                {/* Edit form — shown below the identity row */}
+                {editing && (
+                    <div className="arbo-card-static p-4 flex flex-col gap-3 ml-[52px]">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-semibold arbo-text-muted uppercase tracking-wider">Nombre</label>
+                            <input
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                className="arbo-input text-sm font-medium"
+                                autoFocus
+                                onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-semibold arbo-text-muted uppercase tracking-wider">Descripción</label>
+                            <input
+                                type="text"
+                                value={editDesc}
+                                onChange={(e) => setEditDesc(e.target.value)}
+                                className="arbo-input text-sm"
+                                placeholder="Descripción opcional..."
+                            />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                            <button onClick={handleSaveEdit} className="arbo-btn arbo-btn-primary text-xs px-4">
+                                Guardar
+                            </button>
+                            <button onClick={() => setEditing(false)} className="arbo-btn arbo-btn-ghost text-xs">
+                                Cancelar
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -460,6 +577,14 @@ export const ProjectDetailView = () => {
                 existingFormIds={forms.map((f: any) => f.id)}
                 onClose={() => setShowAssign(false)}
                 onAssigned={load}
+            />
+
+            <DeleteProjectModal
+                open={showDelete}
+                projectName={project.name}
+                formCount={forms.length}
+                onCancel={() => setShowDelete(false)}
+                onConfirm={handleDelete}
             />
         </div>
     );

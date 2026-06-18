@@ -3,6 +3,7 @@ import UserForm from "../models/UserForm.model";
 import FormField from "../models/FormField.model";
 import FormResponse from "../models/FormResponse.model";
 import FormCollaborator from "../models/FormCollaborator.model";
+import FormRelation from "../models/FormRelation.model";
 import User from "../models/User.model";
 import Project from "../models/Project.model";
 import type { CreateFormFieldInput } from "../types/form.types";
@@ -168,6 +169,10 @@ export const createFormResponse = async (data: {
     respondentEmail?: string;
     respondentData?: Record<string, any> | null;
     answers: Record<string, any>;
+    parentResponseId?: number | null;
+    parentFormId?: number | null;
+    rootResponseId?: number | null;
+    secondaryResponseId?: number | null;
 }) => {
     return await FormResponse.create(data);
 };
@@ -179,8 +184,32 @@ export const getFormResponses = async (formId: number) => {
     });
 };
 
+export const countFormResponses = async (formId: number): Promise<number> => {
+    return await FormResponse.count({ where: { formId } });
+};
+
 export const getFormResponseById = async (formId: number, responseId: number) => {
     return await FormResponse.findOne({ where: { id: responseId, formId } });
+};
+
+/** Fetch a response by id alone (used to resolve a parent in a relation chain). */
+export const getResponseById = async (id: number) => {
+    return await FormResponse.findByPk(id);
+};
+
+/** Direct child responses of the given parent responses (one level down the chain). */
+export const getResponsesByParentIds = async (parentIds: number[]) => {
+    if (!parentIds.length) return [];
+    return await FormResponse.findAll({
+        where: { parentResponseId: { [Op.in]: parentIds } },
+        order: [["createdAt", "ASC"]],
+    });
+};
+
+/** Minimal info for several responses by id (used for parent breadcrumbs). */
+export const getResponsesByIds = async (ids: number[]) => {
+    if (!ids.length) return [];
+    return await FormResponse.findAll({ where: { id: { [Op.in]: ids } } });
 };
 
 export const deleteFormResponse = async (formId: number, responseId: number) => {
@@ -193,4 +222,69 @@ export const updateFormStyles = async (formId: number, patch: Record<string, any
     if (!form) return null;
     const merged = { ...(form.styles || {}), ...patch };
     return await form.update({ styles: merged });
+};
+
+// ─── Form relations (chain) ───
+export const getProjectRelations = async (projectId: number) => {
+    return await FormRelation.findAll({
+        where: { projectId },
+        order: [["createdAt", "ASC"]],
+    });
+};
+
+/** Replaces the full set of relations for a project (drop-and-recreate). */
+export const replaceProjectRelations = async (
+    projectId: number,
+    relations: { parentFormId: number; childFormId: number; keyField?: string | null; type?: string; joinFormId?: number | null }[],
+) => {
+    await FormRelation.destroy({ where: { projectId } });
+    if (!relations.length) return [];
+    const rows = relations.map((r) => ({
+        projectId,
+        parentFormId: r.parentFormId,
+        childFormId: r.childFormId,
+        keyField: r.keyField ?? null,
+        type: r.type ?? "one_to_many",
+        joinFormId: r.joinFormId ?? null,
+    }));
+    return await FormRelation.bulkCreate(rows);
+};
+
+/** Whether a parent response already has a child response in the given form (for 1:1 enforcement). */
+export const hasChildInForm = async (parentResponseId: number, formId: number): Promise<boolean> => {
+    const existing = await FormResponse.findOne({ where: { parentResponseId, formId } });
+    return !!existing;
+};
+
+/** Whether an authenticated respondent already has a response for this form.
+ *  When parentResponseId is provided (relational ?ref= flow), the check is scoped
+ *  to that specific parent so the same user can fill the form for different parents. */
+export const hasResponseFromUser = async (
+    formId: number,
+    respondentId: number,
+    parentResponseId?: number,
+): Promise<boolean> => {
+    const where: Record<string, any> = { formId, respondentId };
+    if (parentResponseId !== undefined) where.parentResponseId = parentResponseId;
+    const existing = await FormResponse.findOne({ where });
+    return !!existing;
+};
+
+/** Child relations of a form, with the child form's slug/title for building links. */
+export const getChildRelations = async (parentFormId: number) => {
+    return await FormRelation.findAll({
+        where: { parentFormId },
+        include: [{ model: UserForm, as: "childForm", attributes: ["id", "title", "slug"] }],
+    });
+};
+
+/** The relation between two forms, if one exists. */
+export const getRelation = async (parentFormId: number, childFormId: number) => {
+    return await FormRelation.findOne({ where: { parentFormId, childFormId } });
+};
+
+/** Whether this form appears as the child side of any relation (requires auth to respond). */
+export const isFormChild = async (formId: number): Promise<boolean> => {
+    const rel = await FormRelation.findOne({ where: { childFormId: formId } });
+    return !!rel;
 };

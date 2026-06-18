@@ -1,3 +1,14 @@
 node_modules/
 dist/
-.envdata/openrouter-config.json
+data/openrouter-config.json
+data/ai-providers.json
+data/ai-usage-stats.json
+data/openrouter-stats.json
+
+# Env files con secretos reales — nunca commitear
+.env
+.env.development
+.env.production
+.env.local
+# El .env.example SÍ se commitea (es solo una plantilla)
+!.env.example

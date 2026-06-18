@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Xmark, ChevronDown, ChevronUp, ArrowRotateLeft } from "@gravity-ui/icons";
+import { Plus, Xmark, ChevronDown, ChevronUp, ArrowRotateLeft, Copy } from "@gravity-ui/icons";
+import { projectApi, formApi } from "@/services/api";
 import { STYLE_PRESETS, getShadowCss } from "../../../constants/style-presets";
 import {
     PRESET_COLORS, PRESET_GRADIENTS,
@@ -13,10 +14,79 @@ import type { FormStyles } from "../../../types";
 import { useEditorContext } from "../EditorContext";
 
 export const FormStylesTab = () => {
-    // Contact settings moved to the Page tab — this tab now focuses on form styling.
     return (
         <div className="flex flex-col gap-4">
+            <CopyStylesFromProject />
             <FormStylesContent />
+        </div>
+    );
+};
+
+// --- Copy styles from another form in the same project ---
+const CopyStylesFromProject = () => {
+    const { schema, projectId, setSchema } = useEditorContext();
+    const [siblings, setSiblings] = useState<{ id: number; title: string }[]>([]);
+    const [selectedId, setSelectedId] = useState<string>("");
+    const [copying, setCopying] = useState(false);
+    const [done, setDone] = useState(false);
+
+    useEffect(() => {
+        if (!projectId) return;
+        projectApi.getById(projectId).then((res) => {
+            const raw = res.data?.forms ?? res.data?.userForms ?? res.data?.UserForms ?? [];
+            setSiblings(
+                (raw as any[])
+                    .filter((f: any) => f.id !== schema.id)
+                    .map((f: any) => ({ id: f.id, title: f.title }))
+            );
+        }).catch(() => {});
+    }, [projectId, schema.id]);
+
+    if (!projectId || siblings.length === 0) return null;
+
+    const handleCopy = async () => {
+        if (!selectedId || copying) return;
+        setCopying(true);
+        try {
+            const res = await formApi.getById(Number(selectedId));
+            const sourceStyles = res.data?.styles ?? {};
+            setSchema((prev) => ({ ...prev, styles: { ...sourceStyles } }));
+            setDone(true);
+            setTimeout(() => setDone(false), 2000);
+        } catch { /* non-blocking */ } finally {
+            setCopying(false);
+        }
+    };
+
+    return (
+        <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">
+                Copiar estilos de
+            </label>
+            <div className="flex gap-1.5">
+                <select
+                    value={selectedId}
+                    onChange={(e) => { setSelectedId(e.target.value); setDone(false); }}
+                    className="flex-1 min-w-0 px-2 py-1.5 rounded-md bg-[var(--arbo-surface-2)] arbo-text text-xs border border-[var(--arbo-border)] focus:border-[var(--arbo-accent)] focus:outline-none"
+                >
+                    <option value="">— Elegí un formulario —</option>
+                    {siblings.map((f) => (
+                        <option key={f.id} value={String(f.id)}>{f.title}</option>
+                    ))}
+                </select>
+                <button
+                    onClick={handleCopy}
+                    disabled={!selectedId || copying}
+                    className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-40 ${
+                        done
+                            ? "bg-[var(--arbo-accent-muted)] text-[var(--arbo-accent)]"
+                            : "bg-[var(--arbo-surface-2)] arbo-text border border-[var(--arbo-border)] hover:border-[var(--arbo-accent)]/50"
+                    }`}
+                >
+                    <Copy className="size-3" />
+                    {done ? "Copiado" : copying ? "…" : "Aplicar"}
+                </button>
+            </div>
         </div>
     );
 };
@@ -37,7 +107,7 @@ const FormStylesContent = () => {
                         return (
                             <button
                                 key={preset.name}
-                                onClick={() => updateStyles({ pageGlowEnabled: false, pageGlowOrbs: [], ...preset.styles, preset: preset.name })}
+                                onClick={() => updateStyles({ ...preset.styles, preset: preset.name })}
                                 className="flex flex-col items-center gap-1 p-1.5 rounded-lg transition-all group"
                                 style={{
                                     border: `2px solid ${isActive ? preset.preview.accent : "transparent"}`,
@@ -134,6 +204,35 @@ const FormStylesContent = () => {
                     <input type="range" min="0" max="20" step="1" value={styles.cardBlur ?? 0} onChange={(e) => updateStyles({ cardBlur: Number(e.target.value) })} className="flex-1 accent-[var(--arbo-accent)]" />
                     <span className="text-[10px] arbo-text-muted font-mono w-8 text-right">{styles.cardBlur ?? 0}px</span>
                 </div>
+            </Collapsible>
+
+            {/* Cuadrícula de campos */}
+            <Collapsible title="Cuadrícula de campos" defaultOpen={false}>
+                <div className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-colors ${styles.fieldGridEnabled ? "bg-[var(--arbo-accent-muted)] border-[var(--arbo-accent)]/30" : "bg-[var(--arbo-surface-2)] border-[var(--arbo-border)]"}`}>
+                    <div>
+                        <span className="text-xs arbo-text font-medium">Diseño en grilla</span>
+                        <p className="text-[9px] mt-0.5 arbo-text-muted">Ancho y posición flexibles por campo, con breakpoints</p>
+                    </div>
+                    <button
+                        onClick={() => updateStyles({ fieldGridEnabled: !styles.fieldGridEnabled })}
+                        className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 shrink-0 ${styles.fieldGridEnabled ? "bg-[var(--arbo-accent)]" : "bg-[var(--arbo-border)]"}`}
+                    >
+                        <div className={`size-4 rounded-full bg-white transition-transform ${styles.fieldGridEnabled ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
+                </div>
+                {styles.fieldGridEnabled && (
+                    <div className="flex items-center gap-3">
+                        <span className="text-[10px] arbo-text-muted w-20 shrink-0">Separación</span>
+                        <input type="range" min="4" max="40" step="2" value={styles.fieldGridGap ?? 16} onChange={(e) => updateStyles({ fieldGridGap: Number(e.target.value) })} className="flex-1 accent-[var(--arbo-accent)]" />
+                        <span className="text-[10px] arbo-text-muted font-mono w-8 text-right">{styles.fieldGridGap ?? 16}px</span>
+                    </div>
+                )}
+                {styles.cardCustomWidth && (
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] arbo-text-muted">Ancho del formulario: <span className="font-mono">{styles.cardCustomWidth}px</span></span>
+                        <button onClick={() => updateStyles({ cardCustomWidth: undefined })} className="text-[9px] arbo-text-muted hover:text-[var(--arbo-accent)]">{t("common.reset")}</button>
+                    </div>
+                )}
             </Collapsible>
 
             {/* Estilos de inputs */}
@@ -339,7 +438,7 @@ export const ContactPanelSettings = () => {
     const { t } = useTranslation();
     const { styles, updateStyles } = useEditorContext();
     const gridOn = !!styles.pageLayout?.enabled;   // free grid governs position & size
-    const contactEnabled = styles.contactEnabled ?? true;
+    const contactEnabled = styles.contactEnabled ?? false;
     const contactFields = styles.contactFields || DEFAULT_CONTACT_FIELDS;
     const enabledFields = contactFields.filter((cf) => cf.enabled);
 
@@ -480,6 +579,18 @@ export const ContactPanelSettings = () => {
                                         <option value="url">url</option>
                                         <option value="number">number</option>
                                     </select>
+                                    {/* Required toggle (asterisk) — on by default */}
+                                    <button
+                                        title={t("editor.formStyles.required")}
+                                        onClick={() => {
+                                            const fields = [...contactFields];
+                                            fields[i] = { ...fields[i], required: !(fields[i].required ?? true) };
+                                            updateStyles({ contactFields: fields });
+                                        }}
+                                        className={`px-1 text-sm leading-none shrink-0 transition-colors ${(cf.required ?? true) ? "text-[var(--arbo-danger)]" : "arbo-text-muted opacity-40 hover:opacity-70"}`}
+                                    >
+                                        *
+                                    </button>
                                     {i >= 2 && (
                                         <button onClick={() => {
                                             updateStyles({ contactFields: contactFields.filter((_, j) => j !== i) });
@@ -491,7 +602,7 @@ export const ContactPanelSettings = () => {
                             ))}
                             <button onClick={() => {
                                 const fields = [...contactFields];
-                                fields.push({ id: crypto.randomUUID(), name: `custom_${Date.now()}`, label: "Nuevo campo", type: "text", placeholder: "", required: false, enabled: true });
+                                fields.push({ id: crypto.randomUUID(), name: `custom_${Date.now()}`, label: "Nuevo campo", type: "text", placeholder: "", required: true, enabled: true });
                                 updateStyles({ contactFields: fields });
                             }}
                                 className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs arbo-text-muted hover:text-[var(--arbo-accent)] hover:bg-[var(--arbo-accent-subtle)] transition-colors">
@@ -508,11 +619,23 @@ export const ContactPanelSettings = () => {
 // --- Global field style pickers ---
 const GlobalFieldStylePickers = () => {
     const { t } = useTranslation();
-    const { styles, updateStyles } = useEditorContext();
+    const { styles, updateStyles, setSchema } = useEditorContext();
     const gfs = styles.globalFieldStyles || {};
 
     const updateGlobal = (patch: Record<string, string | undefined>) => {
-        updateStyles({ globalFieldStyles: { ...gfs, ...patch } });
+        // Strip the edited keys from every field's individual styles —
+        // otherwise per-field values override the global and don't sync.
+        const patchKeys = Object.keys(patch);
+        setSchema((prev) => ({
+            ...prev,
+            styles: { ...prev.styles, globalFieldStyles: { ...(prev.styles?.globalFieldStyles || {}), ...patch } },
+            fields: prev.fields.map((f) => {
+                if (!f.fieldStyles) return f;
+                const fs: Record<string, any> = { ...f.fieldStyles };
+                patchKeys.forEach((k) => delete fs[k]);
+                return { ...f, fieldStyles: fs };
+            }),
+        }));
     };
 
     const row = (label: string, key: string, def: string) => (

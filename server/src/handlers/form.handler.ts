@@ -62,7 +62,13 @@ export const getFormById = async (req: Request, res: Response) => {
 export const getFormBySlug = async (req: Request, res: Response) => {
     try {
         const form = await formService.getFormBySlug(req.params.slug);
-        return res.json({ ok: true, data: form });
+        // Compute isOwner: only true when the requester is the form creator.
+        let isOwner = false;
+        if ((req as any).email) {
+            const user = await getUserByEmail((req as any).email);
+            isOwner = !!user && user.id === (form as any).userId;
+        }
+        return res.json({ ok: true, data: { ...form, isOwner } });
     } catch (error: any) {
         return res.status(404).json({ ok: false, errors: [{ msg: error.message }] });
     }
@@ -216,20 +222,65 @@ export const getSharedForms = async (req: Request, res: Response) => {
 };
 
 // ─── Responses ───
+export const checkMyResponse = async (req: Request, res: Response) => {
+    try {
+        const user = req.email ? await getUserByEmail(req.email) : null;
+        if (!user) return res.json({ ok: true, data: { hasResponded: false } });
+        const ref = req.query.ref as string | undefined;
+        const hasResponded = await formService.checkUserAlreadyResponded(Number(req.params.id), user.id, ref);
+        return res.json({ ok: true, data: { hasResponded } });
+    } catch (error: any) {
+        return res.status(500).json({ ok: false, errors: [{ msg: error.message }] });
+    }
+};
+
 export const submitResponse = async (req: Request, res: Response) => {
     try {
         const user = req.email ? await getUserByEmail(req.email) : null;
-        const response = await formService.submitFormResponse(
+        // Authenticated users always identify with their account data, not client-supplied values.
+        const respondentName = user?.name || req.body.respondentName || null;
+        const respondentEmail = user?.email || req.body.respondentEmail || null;
+        const { response, childForms } = await formService.submitFormResponse(
             Number(req.params.id),
             req.body.answers,
             user?.id,
-            req.body.respondentName,
-            req.body.respondentEmail,
-            req.body.respondentData
+            respondentName,
+            respondentEmail,
+            req.body.respondentData,
+            req.body.ref,
+            req.body.ref2
         );
-        return res.status(201).json({ ok: true, data: response });
+        return res.status(201).json({ ok: true, data: response, childForms });
     } catch (error: any) {
         return res.status(400).json({ ok: false, errors: [{ msg: error.message }] });
+    }
+};
+
+export const nullifyResponseFields = async (req: Request, res: Response) => {
+    try {
+        const user = await getUserByEmail(req.email!);
+        if (!user) return res.status(401).json({ ok: false, errors: [{ msg: "Unauthorized" }] });
+        const fieldNames: string[] = req.body.fieldNames || [];
+        if (!Array.isArray(fieldNames) || fieldNames.length === 0) {
+            return res.status(400).json({ ok: false, errors: [{ msg: "fieldNames must be a non-empty array." }] });
+        }
+        const updated = await formService.nullifyResponseFields(Number(req.params.id), user.id, fieldNames, user.email);
+        return res.json({ ok: true, data: { updated } });
+    } catch (error: any) {
+        const status = error.message === "Unauthorized" ? 403 : 500;
+        return res.status(status).json({ ok: false, errors: [{ msg: error.message }] });
+    }
+};
+
+export const getFormResponseCount = async (req: Request, res: Response) => {
+    try {
+        const user = await getUserByEmail(req.email!);
+        if (!user) return res.status(401).json({ ok: false, errors: [{ msg: "Unauthorized" }] });
+        const count = await formService.countFormResponses(Number(req.params.id), user.id, user.email);
+        return res.json({ ok: true, data: { count } });
+    } catch (error: any) {
+        const status = error.message === "Unauthorized" ? 403 : 500;
+        return res.status(status).json({ ok: false, errors: [{ msg: error.message }] });
     }
 };
 
@@ -240,6 +291,19 @@ export const getFormResponses = async (req: Request, res: Response) => {
 
         const responses = await formService.getFormResponses(Number(req.params.id), user.id, user.email);
         return res.json({ ok: true, data: responses });
+    } catch (error: any) {
+        const status = error.message === "Unauthorized" ? 403 : 500;
+        return res.status(status).json({ ok: false, errors: [{ msg: error.message }] });
+    }
+};
+
+export const getResponseChain = async (req: Request, res: Response) => {
+    try {
+        const user = await getUserByEmail(req.email!);
+        if (!user) return res.status(401).json({ ok: false, errors: [{ msg: "Unauthorized" }] });
+
+        const chain = await formService.getResponseChain(Number(req.params.id), user.id, user.email);
+        return res.json({ ok: true, data: chain });
     } catch (error: any) {
         const status = error.message === "Unauthorized" ? 403 : 500;
         return res.status(status).json({ ok: false, errors: [{ msg: error.message }] });
@@ -266,6 +330,20 @@ export const savePdfLayout = async (req: Request, res: Response) => {
         if (!user) return res.status(401).json({ ok: false, errors: [{ msg: "Unauthorized" }] });
 
         const updated = await formService.savePdfLayout(Number(req.params.id), user.id, req.body.layout, user.email);
+        return res.json({ ok: true, data: updated?.styles ?? null });
+    } catch (error: any) {
+        const status = error.message === "Unauthorized" ? 403 : 400;
+        return res.status(status).json({ ok: false, errors: [{ msg: error.message }] });
+    }
+};
+
+// ─── Dashboard layout ───
+export const saveDashboardLayout = async (req: Request, res: Response) => {
+    try {
+        const user = await getUserByEmail(req.email!);
+        if (!user) return res.status(401).json({ ok: false, errors: [{ msg: "Unauthorized" }] });
+
+        const updated = await formService.saveDashboardLayout(Number(req.params.id), user.id, req.body.layout, user.email);
         return res.json({ ok: true, data: updated?.styles ?? null });
     } catch (error: any) {
         const status = error.message === "Unauthorized" ? 403 : 400;

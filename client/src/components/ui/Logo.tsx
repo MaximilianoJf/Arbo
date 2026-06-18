@@ -22,8 +22,10 @@ export const Logo = ({ width = 40, showText = true, className }: LogoProps) => {
                 className="block dark:hidden object-contain"
             />
 
+            {/* arbo-text (palette var) instead of text-foreground: the auth pages are
+                always dark, and text-foreground turns black without the .dark class */}
             {showText && (
-                <span className="text-4xl font-bold text-foreground">
+                <span className="text-4xl font-bold arbo-text">
                     rbo
                 </span>
             )}

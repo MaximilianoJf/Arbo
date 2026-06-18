@@ -2,8 +2,16 @@ import { useEffect, useState } from "react";
 import { settingsApi } from "@/services/api";
 import type { OpenRouterSettings, OpenRouterUsage } from "@/services/api";
 import { Eye, EyeSlash, CircleCheck, TriangleExclamation, ArrowRotateRight } from "@gravity-ui/icons";
+import { AIProvidersPanel } from "../components/AIProvidersPanel";
 
-type FreeModel = { id: string; name: string; contextLength: number; description: string };
+type FreeModel = { id: string; name: string; contextLength: number; description: string; vision: boolean };
+
+// Verified free vision models, shown even before loading the live list
+const DEFAULT_VISION_OPTIONS: { id: string; name: string }[] = [
+    { id: "google/gemma-4-31b-it:free", name: "Google: Gemma 4 31B" },
+    { id: "google/gemma-4-26b-a4b-it:free", name: "Google: Gemma 4 26B A4B" },
+    { id: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", name: "NVIDIA: Nemotron 3 Nano Omni" },
+];
 
 function fmtCtx(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M ctx`;
@@ -62,6 +70,7 @@ export const OpenRouterSettingsView = () => {
     const [newApiKey, setNewApiKey] = useState("");
     const [showKey, setShowKey] = useState(false);
     const [selectedModel, setSelectedModel] = useState("");
+    const [selectedVisionModel, setSelectedVisionModel] = useState("");
     const [saving, setSaving] = useState(false);
     const [saveMsg, setSaveMsg] = useState<string | null>(null);
     const [freeModels, setFreeModels] = useState<FreeModel[]>([]);
@@ -73,6 +82,7 @@ export const OpenRouterSettingsView = () => {
             const res = await settingsApi.getOpenRouter();
             setSettings(res.data);
             setSelectedModel(res.data.model);
+            setSelectedVisionModel(res.data.visionModel || DEFAULT_VISION_OPTIONS[0].id);
         } catch { /* ignore */ }
         finally { setLoadingSettings(false); }
     };
@@ -113,6 +123,7 @@ export const OpenRouterSettingsView = () => {
             await settingsApi.updateOpenRouter({
                 ...(newApiKey.trim() && { apiKey: newApiKey.trim() }),
                 model: selectedModel,
+                visionModel: selectedVisionModel,
             });
             setSaveMsg("Configuración guardada");
             setNewApiKey("");
@@ -132,15 +143,30 @@ export const OpenRouterSettingsView = () => {
     }
 
     const modelChanged = selectedModel !== settings?.model;
-    const canSave = newApiKey.trim() || modelChanged;
+    const visionModelChanged = !!selectedVisionModel && selectedVisionModel !== settings?.visionModel;
+    const canSave = newApiKey.trim() || modelChanged || visionModelChanged;
+
+    // Vision options: live list if loaded, otherwise the verified defaults
+    const liveVisionModels = freeModels.filter((m) => m.vision);
+    const visionOptions = liveVisionModels.length > 0
+        ? liveVisionModels.map((m) => ({ id: m.id, name: m.name }))
+        : DEFAULT_VISION_OPTIONS;
+    const visionOptionsFull = visionOptions.some((o) => o.id === selectedVisionModel)
+        ? visionOptions
+        : [...(selectedVisionModel ? [{ id: selectedVisionModel, name: selectedVisionModel }] : []), ...visionOptions];
 
     return (
         <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
             <div>
                 <h1 className="text-xl font-bold arbo-text">Configuración de IA</h1>
                 <p className="text-sm arbo-text-muted mt-0.5">
-                    Gestiona tu API key de OpenRouter y el modelo gratuito para el asistente de formularios.
+                    Configurá las API keys gratuitas de los servicios de IA. Si uno agota su cuota, el siguiente toma el relevo automáticamente.
                 </p>
+            </div>
+
+            {/* Multi-provider failover + consumption panel */}
+            <div className="arbo-panel p-5">
+                <AIProvidersPanel />
             </div>
 
             {/* API Key section */}
@@ -234,6 +260,9 @@ export const OpenRouterSettingsView = () => {
                                     <span className="text-[10px] font-semibold text-[var(--arbo-accent)] bg-[var(--arbo-accent-muted)] px-1.5 py-0.5 rounded shrink-0">
                                         {fmtCtx(m.contextLength)}
                                     </span>
+                                    {m.vision && (
+                                        <span className="text-[10px] font-bold text-sky-400 bg-sky-400/10 px-1.5 py-0.5 rounded shrink-0" title="Acepta imágenes — disponible para el escaneo de formularios">VISIÓN</span>
+                                    )}
                                     <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded shrink-0">FREE</span>
                                 </label>
                             ))}
@@ -248,6 +277,31 @@ export const OpenRouterSettingsView = () => {
                             Hacé click en <strong className="arbo-text">Cargar modelos reales</strong> para ver todos los modelos gratuitos disponibles en OpenRouter en tiempo real.
                         </p>
                     </div>
+                )}
+            </div>
+
+            {/* Vision model selector (photo scanning) */}
+            <div className="arbo-panel p-5 flex flex-col gap-3">
+                <div>
+                    <h2 className="text-sm font-semibold arbo-text">Modelo de visión</h2>
+                    <p className="text-[11px] arbo-text-muted mt-0.5">
+                        Se usa automáticamente cuando la petición incluye una imagen (ej: escanear un formulario desde una foto).
+                        Las peticiones de solo texto siguen usando el modelo de arriba.
+                    </p>
+                </div>
+                <select
+                    value={selectedVisionModel}
+                    onChange={(e) => setSelectedVisionModel(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-sm focus:outline-none focus:border-[var(--arbo-accent)]"
+                >
+                    {visionOptionsFull.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name} — {m.id}</option>
+                    ))}
+                </select>
+                {liveVisionModels.length === 0 && (
+                    <p className="text-[11px] arbo-text-muted">
+                        Mostrando modelos de visión verificados. Con <strong className="arbo-text">Cargar modelos reales</strong> (arriba) la lista se completa con todos los gratuitos que aceptan imágenes.
+                    </p>
                 )}
             </div>
 

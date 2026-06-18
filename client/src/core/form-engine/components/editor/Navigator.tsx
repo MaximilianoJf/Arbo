@@ -1,11 +1,11 @@
-import { CirclePlus, TrashBin } from "@gravity-ui/icons";
+import { CirclePlus, TrashBin, BranchesRight } from "@gravity-ui/icons";
 import { FIELD_TYPE_ICONS } from "../../constants/editor-constants";
 import { useEditorContext } from "./EditorContext";
 
 export const Navigator = () => {
     const {
         schema, pages, totalPages, currentPage, setCurrentPage,
-        selectedField, setSelectedField, setRightTab,
+        selectedField, setSelectedField, setRightTab, rightTab,
         contextMenu, setContextMenu, contextMenuRef, removePage, addPage,
     } = useEditorContext();
 
@@ -69,6 +69,17 @@ export const Navigator = () => {
                     <button onClick={addPage} className="arbo-tree-item w-full text-left text-xs arbo-text-muted mt-1">
                         <CirclePlus className="size-3.5" />
                         Add Page
+                    </button>
+                </div>
+                {/* Logic canvas toggle */}
+                <div className="border-t border-[var(--arbo-border)] p-2 shrink-0">
+                    <button
+                        onClick={() => setRightTab(rightTab === "logic" ? "field" : "logic")}
+                        className={`arbo-tree-item w-full text-left text-xs font-semibold ${rightTab === "logic" ? "active" : "arbo-text-muted"}`}
+                        title="Editor de lógica condicional"
+                    >
+                        <BranchesRight className="size-3.5" />
+                        Lógica
                     </button>
                 </div>
             </div>

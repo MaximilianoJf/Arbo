@@ -22,9 +22,6 @@ export const TopBar = ({ showTabs = true, showPublish = false, formSlug }: TopBa
 
     const tabs = [
         { label: t("nav.dashboard"), path: "/form-builder" },
-        { label: t("nav.templates"), path: "#", disabled: true },
-        { label: t("nav.analytics"), path: "#", disabled: true },
-        { label: t("nav.settings"), path: "#", disabled: true },
     ];
 
     const isTabActive = (path: string) => {

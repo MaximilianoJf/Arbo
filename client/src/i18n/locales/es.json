@@ -328,7 +328,8 @@
       "moreFields": "+{{count}} campos mas...",
       "createdWith": "Creado con",
       "contactTitle": "Tu Informacion",
-      "contactSubtitle": "Contanos sobre vos."
+      "contactSubtitle": "Contanos sobre vos.",
+      "contactRequired": "Completá el campo \"{{field}}\"."
     },
     "inputs": {
       "clickToAdd": "Click para agregar",
@@ -398,6 +399,7 @@
       "subtitleLabel": "Subtitulo",
       "subtitlePlaceholder": "Datos de contacto.",
       "contactFields": "Campos",
+      "required": "Obligatorio",
       "addContactField": "Agregar campo",
       "fieldColors": {
         "normal": "Normal",

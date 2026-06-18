@@ -167,7 +167,7 @@ export const FormCard = ({ form, onAction, variant = "active" }: FormCardProps) 
             <div
                 className="w-full aspect-[16/9] p-2.5 flex flex-col items-center justify-center gap-1 relative overflow-hidden cursor-pointer group"
                 style={{ background: styles.pageBgColor || "var(--arbo-bg)" }}
-                onClick={() => navigate(`/forms/${form.slug}`)}
+                onClick={() => navigate(`/forms/${form.slug}?preview=1`)}
             >
                 {/* Tiny card representation */}
                 <div className="w-[75%] rounded overflow-hidden shadow-sm"
@@ -240,7 +240,7 @@ export const FormCard = ({ form, onAction, variant = "active" }: FormCardProps) 
                         <button onClick={() => navigate(`/form-builder/edit/${form.id}`)} className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
                             <Pencil className="size-3.5" /> {t("common.edit")}
                         </button>
-                        <button onClick={() => navigate(`/forms/${form.slug}`)} className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
+                        <button onClick={() => navigate(`/forms/${form.slug}?preview=1`)} className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
                             <Eye className="size-3.5" /> {t("common.preview")}
                         </button>
                         <button onClick={() => navigate(`/form-builder/responses/${form.id}`)} className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
@@ -275,7 +275,7 @@ export const FormCard = ({ form, onAction, variant = "active" }: FormCardProps) 
                         <button onClick={() => navigate(`/form-builder/edit/${form.id}`)} className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
                             <Pencil className="size-3.5" /> {t("common.edit")}
                         </button>
-                        <button onClick={() => navigate(`/forms/${form.slug}`)} className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
+                        <button onClick={() => navigate(`/forms/${form.slug}?preview=1`)} className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
                             <Eye className="size-3.5" /> {t("common.preview")}
                         </button>
                         <button onClick={() => navigate(`/form-builder/responses/${form.id}`)} className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
@@ -290,7 +290,7 @@ export const FormCard = ({ form, onAction, variant = "active" }: FormCardProps) 
                             className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
                             <ArrowUturnCcwLeft className="size-3.5" /> {t("common.restore")}
                         </button>
-                        <button onClick={() => navigate(`/forms/${form.slug}`)} className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
+                        <button onClick={() => navigate(`/forms/${form.slug}?preview=1`)} className="arbo-btn arbo-btn-ghost text-xs px-2.5 py-1.5">
                             <Eye className="size-3.5" /> {t("common.preview")}
                         </button>
                         <div className="flex-1" />

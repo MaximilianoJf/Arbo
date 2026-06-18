@@ -10,6 +10,7 @@ import {
     Navigator,
     EditorTabBar,
     EditorCanvas,
+    LogicCanvas,
     PagePreviewCanvas,
     EmbedPreviewCanvas,
     InputsTab,
@@ -19,8 +20,12 @@ import {
     SubmitTab,
     EmbedTab,
     AITab,
+    LogicTab,
 } from "./editor";
 import { FormViewMode } from "./FormViewMode";
+import { FieldGridLayout } from "./ui/FieldGridLayout";
+import { isFieldGridEnabled } from "../utils/field-grid";
+import { isFieldVisible } from "../utils/field-logic";
 
 interface DynamicFormProps {
     className?: string;
@@ -77,6 +82,7 @@ export const DynamicForm = ({ className }: DynamicFormProps) => {
                 type={field.type} validate={field.validate} minLength={field.minLength}
                 maxLength={field.maxLength} handleInputChange={handleInputChange}
                 placeholder={field.placeholder} label={field.label} options={field.options}
+                optionsSource={field.optionsSource} rows={field.rows} accept={field.accept}
             >
                 <Label>{field.label}</Label>
                 <Input placeholder={field.placeholder} />
@@ -91,9 +97,13 @@ export const DynamicForm = ({ className }: DynamicFormProps) => {
     };
 
     const renderViewFields = (fields: FormField[]) => {
-        return fields.filter((f) => !f.name?.startsWith("__page_break_")).map((field) => (
-            <div key={field.name}>{renderField(field)}</div>
-        ));
+        // Conditional logic: hide fields whose visibleWhen doesn't match the current answers
+        const values = Object.fromEntries(Object.entries(formState).map(([k, s]) => [k, s.value]));
+        const visible = fields.filter((f) => !f.name?.startsWith("__page_break_") && isFieldVisible(f, values));
+        if (isFieldGridEnabled(styles)) {
+            return <FieldGridLayout fields={visible} styles={styles} renderItem={renderField} />;
+        }
+        return visible.map((field) => <div key={field.name}>{renderField(field)}</div>);
     };
 
     // =====================
@@ -179,7 +189,7 @@ const ProjectSelector = () => {
 
 // --- Editor layout: uses EditorContext ---
 const EditorLayout = ({ className = "" }: { className?: string }) => {
-    const { rightTab, handleSaveForm, saveError, navigate } = useEditorContextSafe();
+    const { rightTab, handleSaveForm, saveError, isSaving, savedOk, navigate } = useEditorContextSafe();
 
     return (
         <div className="flex gap-3 w-full" style={{ minHeight: "calc(100vh - 80px)" }}>
@@ -191,14 +201,20 @@ const EditorLayout = ({ className = "" }: { className?: string }) => {
                 {(rightTab === "inputs" || rightTab === "field" || rightTab === "form" || rightTab === "ai") && (
                     <EditorCanvas className={className} />
                 )}
+                {rightTab === "logic" && <LogicCanvas />}
                 {(rightTab === "page" || rightTab === "submit") && <PagePreviewCanvas />}
                 {rightTab === "embed" && <EmbedPreviewCanvas />}
 
                 {/* Save bar */}
                 <div className="flex flex-col gap-1 pb-2 shrink-0">
                     <div className="flex items-center gap-3">
-                        <button onClick={handleSaveForm} className="arbo-btn arbo-btn-primary">Guardar formulario</button>
+                        <button onClick={handleSaveForm} disabled={isSaving} className="arbo-btn arbo-btn-primary">
+                            {isSaving ? "Guardando..." : "Guardar formulario"}
+                        </button>
                         <button onClick={() => navigate("/form-builder")} className="arbo-btn arbo-btn-secondary">Cancelar</button>
+                        {savedOk && (
+                            <span className="text-xs text-green-400 px-1">Guardado</span>
+                        )}
                         <div className="flex-1" />
                         <ProjectSelector />
                     </div>
@@ -222,6 +238,7 @@ const EditorLayout = ({ className = "" }: { className?: string }) => {
                     {rightTab === "submit" && <SubmitTab />}
                     {rightTab === "embed" && <EmbedTab />}
                     {rightTab === "ai" && <AITab />}
+                    {rightTab === "logic" && <LogicTab />}
                 </div>
             </div>
         </div>

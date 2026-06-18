@@ -1,6 +1,38 @@
 import * as formRepo from "../repositories/form.repository";
 import { getUserByEmail } from "../repositories/user.repository";
+import { signRefToken, verifyRefToken } from "../utils/ref-token.util";
 import type { CreateFormInput, UpdateFormInput } from "../types/form.types";
+
+export interface ChildFormLink {
+    formId: number;
+    title: string;
+    slug: string;
+    url: string;
+}
+
+/**
+ * Builds `?ref=`-carrying links to every child form, continuing the chain.
+ * For many-to-many relations the link points at the bridge form instead, so the
+ * bridge response can later reference both sides.
+ */
+const buildChildLinks = async (
+    parentFormId: number,
+    parentResponseId: number,
+    rootResponseId: number,
+): Promise<ChildFormLink[]> => {
+    const relations = await formRepo.getChildRelations(parentFormId);
+    const links: ChildFormLink[] = [];
+    for (const r of relations) {
+        const token = signRefToken({ parentResponseId, rootResponseId });
+        if (r.type === "many_to_many" && r.joinFormId) {
+            const join = await formRepo.getFormById(r.joinFormId);
+            if (join) links.push({ formId: join.id, title: join.title, slug: join.slug, url: `/forms/${join.slug}?ref=${token}` });
+        } else if (r.childForm) {
+            links.push({ formId: r.childForm.id, title: r.childForm.title, slug: r.childForm.slug, url: `/forms/${r.childForm.slug}?ref=${token}` });
+        }
+    }
+    return links;
+};
 
 const generateSlug = (title: string): string => {
     const base = title
@@ -54,7 +86,8 @@ export const getFormById = async (id: number) => {
 export const getFormBySlug = async (slug: string) => {
     const form = await formRepo.getFormBySlug(slug);
     if (!form) throw new Error("Form not found");
-    return form;
+    const isRelational = await formRepo.isFormChild(form.id);
+    return { ...form.toJSON(), isRelational };
 };
 
 export const updateForm = async (id: number, userId: number, input: UpdateFormInput, userEmail?: string) => {
@@ -179,25 +212,186 @@ export const getSharedForms = async (email: string) => {
 };
 
 // ─── Responses ───
+export const checkUserAlreadyResponded = async (
+    formId: number,
+    respondentId: number,
+    ref?: string,
+): Promise<boolean> => {
+    const parentRef = verifyRefToken(ref);
+    if (!parentRef) {
+        // Standalone form: one response per user.
+        return await formRepo.hasResponseFromUser(formId, respondentId);
+    }
+    // Child form opened via ?ref=. Only block on one_to_one relations.
+    const parent = await formRepo.getResponseById(parentRef.parentResponseId);
+    if (!parent) return false;
+    const relation = await formRepo.getRelation(parent.formId, formId);
+    const isUniqueChild = relation?.type === "one_to_one" || relation?.type === "one_to_zero";
+    if (!relation || !isUniqueChild) return false;
+    return await formRepo.hasResponseFromUser(formId, respondentId, parent.id);
+};
+
 export const submitFormResponse = async (
     formId: number,
     answers: Record<string, any>,
     respondentId?: number,
     respondentName?: string,
     respondentEmail?: string,
-    respondentData?: Record<string, any>
+    respondentData?: Record<string, any>,
+    ref?: string,
+    ref2?: string,
 ) => {
     const form = await formRepo.getFormById(formId);
     if (!form) throw new Error("Form not found");
 
-    return await formRepo.createFormResponse({
+    // Decode the ?ref= token early — needed for both the duplicate gate and the chain resolution.
+    const parentRef = verifyRefToken(ref);
+
+    // Gate: relational child forms must be accessed via a parent ?ref= link.
+    if (!parentRef) {
+        const isChild = await formRepo.isFormChild(formId);
+        if (isChild) {
+            const err: any = new Error("Este formulario debe responderse desde el formulario padre.");
+            err.code = "REQUIRES_PARENT";
+            throw err;
+        }
+    }
+
+    // Gate: forms flagged as requiring identity can only be submitted by an authenticated user.
+    if ((form.styles as any)?.requiresGoogleAuth && !respondentId) {
+        throw new Error("Necesitás iniciar sesión para responder este formulario.");
+    }
+
+    // Duplicate gate: one response per authenticated user for standalone forms only.
+    // Child forms opened via ?ref= skip this check — the relation block below handles
+    // one_to_one uniqueness, and one_to_many / many_to_many allow unlimited entries.
+    if (respondentId && !parentRef) {
+        const alreadyResponded = await formRepo.hasResponseFromUser(formId, respondentId);
+        if (alreadyResponded) {
+            const err: any = new Error("Ya enviaste una respuesta para este formulario.");
+            err.code = "ALREADY_RESPONDED";
+            throw err;
+        }
+    }
+
+    // Resolve the chain when this form was opened from a parent's `?ref=` link.
+    let parentResponseId: number | null = null;
+    let parentFormId: number | null = null;
+    let rootResponseId: number | null = null;
+    if (parentRef) {
+        const parent = await formRepo.getResponseById(parentRef.parentResponseId);
+        // Only honour the link if the parent exists AND the two forms are actually related.
+        const relation = parent ? await formRepo.getRelation(parent.formId, formId) : null;
+        if (parent && relation) {
+            // one_to_one / one_to_zero: a parent response may have at most one child response here.
+            const isUniqueChild = relation.type === "one_to_one" || relation.type === "one_to_zero";
+            if (isUniqueChild && (await formRepo.hasChildInForm(parent.id, formId))) {
+                throw new Error("Este formulario ya fue respondido para este registro.");
+            }
+            parentResponseId = parent.id;
+            parentFormId = parent.formId;
+            rootResponseId = parentRef.rootResponseId || parent.id;
+        }
+    }
+
+    // Second link for many-to-many bridge responses (the "other side").
+    let secondaryResponseId: number | null = null;
+    const secondRef = verifyRefToken(ref2);
+    if (secondRef) {
+        const secondary = await formRepo.getResponseById(secondRef.parentResponseId);
+        if (secondary) secondaryResponseId = secondary.id;
+    }
+
+    const response = await formRepo.createFormResponse({
         formId,
         respondentId,
         respondentName,
         respondentEmail,
         respondentData: respondentData || null,
         answers,
+        parentResponseId,
+        parentFormId,
+        rootResponseId,
+        secondaryResponseId,
     });
+
+    // Offer links to continue into related forms (root = this response when it starts a chain).
+    const childForms = await buildChildLinks(formId, response.id, rootResponseId ?? response.id);
+
+    return { response, childForms };
+};
+
+// ─── Form relations (chain) ───
+export const getFormRelations = async (projectId: number) => {
+    return await formRepo.getProjectRelations(projectId);
+};
+
+const RELATION_TYPES = ["one_to_one", "one_to_many", "many_to_many"];
+
+export const saveFormRelations = async (
+    projectId: number,
+    validFormIds: Set<number>,
+    relations: { parentFormId: number; childFormId: number; keyField?: string | null; type?: string; joinFormId?: number | null }[],
+) => {
+    const clean = (Array.isArray(relations) ? relations : [])
+        .map((r) => {
+            const type = RELATION_TYPES.includes(r.type as string) ? (r.type as string) : "one_to_many";
+            // The bridge form is only meaningful for many-to-many, and must belong to the project.
+            const joinFormId =
+                type === "many_to_many" && r.joinFormId != null && validFormIds.has(Number(r.joinFormId))
+                    ? Number(r.joinFormId)
+                    : null;
+            return {
+                parentFormId: Number(r.parentFormId),
+                childFormId: Number(r.childFormId),
+                keyField: r.keyField ?? null,
+                type,
+                joinFormId,
+            };
+        })
+        .filter((r) =>
+            validFormIds.has(r.parentFormId) &&
+            validFormIds.has(r.childFormId) &&
+            r.parentFormId !== r.childFormId,
+        );
+    return await formRepo.replaceProjectRelations(projectId, clean);
+};
+
+export const nullifyResponseFields = async (
+    formId: number,
+    userId: number,
+    fieldNames: string[],
+    userEmail?: string,
+): Promise<number> => {
+    const form = await formRepo.getFormById(formId);
+    if (!form) throw new Error("Form not found");
+    if (form.userId !== userId) {
+        if (!userEmail) throw new Error("Unauthorized");
+        const collab = await formRepo.isCollaborator(formId, userEmail);
+        if (!collab) throw new Error("Unauthorized");
+    }
+    const responses = await formRepo.getFormResponses(formId);
+    let updated = 0;
+    for (const resp of responses) {
+        const answers = { ...(resp.answers || {}) };
+        let changed = false;
+        for (const key of fieldNames) {
+            if (key in answers) { answers[key] = null; changed = true; }
+        }
+        if (changed) { await resp.update({ answers }); updated++; }
+    }
+    return updated;
+};
+
+export const countFormResponses = async (formId: number, userId: number, userEmail?: string): Promise<number> => {
+    const form = await formRepo.getFormById(formId);
+    if (!form) throw new Error("Form not found");
+    if (form.userId !== userId) {
+        if (!userEmail) throw new Error("Unauthorized");
+        const collab = await formRepo.isCollaborator(formId, userEmail);
+        if (!collab) throw new Error("Unauthorized");
+    }
+    return await formRepo.countFormResponses(formId);
 };
 
 export const getFormResponses = async (formId: number, userId: number, userEmail?: string) => {
@@ -212,6 +406,80 @@ export const getFormResponses = async (formId: number, userId: number, userEmail
     }
 
     return await formRepo.getFormResponses(formId);
+};
+
+/**
+ * Builds the response chain tree for a form: each of this form's responses as a
+ * top node, with descendant responses (from related child forms) nested under
+ * it via parentResponseId. Returns the involved forms' fields/titles so the UI
+ * can render any node's answers, plus parent breadcrumbs when this form is a child.
+ */
+export const getResponseChain = async (formId: number, userId: number, userEmail?: string) => {
+    const form = await formRepo.getFormById(formId);
+    if (!form) throw new Error("Form not found");
+
+    // Owner or collaborator can view (same rule as plain responses)
+    if (form.userId !== userId) {
+        if (!userEmail) throw new Error("Unauthorized");
+        const collab = await formRepo.isCollaborator(formId, userEmail);
+        if (!collab) throw new Error("Unauthorized");
+    }
+
+    const roots = await formRepo.getFormResponses(formId);
+    const rootIds = new Set(roots.map((r) => r.id));
+
+    // Walk down the chain level by level, collecting every descendant response.
+    const all: any[] = roots.map((r) => r.get({ plain: true }));
+    const seen = new Set(all.map((r) => r.id));
+    let frontier = roots.map((r) => r.id);
+    while (frontier.length) {
+        const children = await formRepo.getResponsesByParentIds(frontier);
+        const fresh = children.map((c) => c.get({ plain: true })).filter((c) => !seen.has(c.id));
+        if (!fresh.length) break;
+        fresh.forEach((c) => { seen.add(c.id); all.push(c); });
+        frontier = fresh.map((c) => c.id);
+    }
+
+    // Parent breadcrumbs (when this form's responses descend from another form)
+    const parentIds = [...new Set(all.map((r) => r.parentResponseId).filter((pid): pid is number => !!pid && !seen.has(pid)))];
+    const parentRows = await formRepo.getResponsesByIds(parentIds);
+    const parents: Record<number, any> = {};
+    parentRows.forEach((p) => {
+        const r = p.get({ plain: true });
+        parents[r.id] = { id: r.id, formId: r.formId, respondentName: r.respondentName, respondentEmail: r.respondentEmail, createdAt: r.createdAt };
+    });
+
+    // Involved forms (descendants + this form + parent forms) → fields/titles for rendering
+    const formIds = [...new Set([
+        ...all.map((r) => r.formId),
+        ...parentRows.map((p) => p.get({ plain: true }).formId),
+    ])];
+    const formRows = await Promise.all(formIds.map((fid) => formRepo.getFormById(fid)));
+    const forms: Record<number, any> = {};
+    formRows.forEach((f) => {
+        if (!f) return;
+        forms[f.id] = {
+            id: f.id,
+            title: f.title,
+            fields: (f.fields || [])
+                .filter((ff: any) => !ff.name?.startsWith("__page_break_"))
+                .map((ff: any) => ({ name: ff.name, label: ff.label, type: ff.type, componentType: ff.componentType, options: ff.options })),
+        };
+    });
+
+    // Assemble the tree
+    const childrenByParent = new Map<number, any[]>();
+    all.forEach((r) => {
+        if (r.parentResponseId) {
+            const arr = childrenByParent.get(r.parentResponseId) || [];
+            arr.push(r);
+            childrenByParent.set(r.parentResponseId, arr);
+        }
+    });
+    const toNode = (r: any): any => ({ ...r, children: (childrenByParent.get(r.id) || []).map(toNode) });
+    const tree = all.filter((r) => rootIds.has(r.id)).map(toNode);
+
+    return { forms, parents, tree };
 };
 
 export const deleteFormResponse = async (formId: number, responseId: number, userId: number, userEmail?: string) => {
@@ -243,4 +511,18 @@ export const savePdfLayout = async (formId: number, userId: number, layout: Reco
     }
 
     return await formRepo.updateFormStyles(formId, { pdfLayout: layout });
+};
+
+export const saveDashboardLayout = async (formId: number, userId: number, layout: Record<string, any>, userEmail?: string) => {
+    const form = await formRepo.getFormById(formId);
+    if (!form) throw new Error("Form not found");
+
+    // Owner or editor collaborator can change the dashboard layout
+    if (form.userId !== userId) {
+        if (!userEmail) throw new Error("Unauthorized");
+        const collab = await formRepo.isCollaborator(formId, userEmail);
+        if (!collab || collab.role !== "editor") throw new Error("Unauthorized");
+    }
+
+    return await formRepo.updateFormStyles(formId, { dashboardLayout: layout });
 };
