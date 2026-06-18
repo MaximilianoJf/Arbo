@@ -598,10 +598,11 @@ export const PublicFormView = () => {
                     {decors.filter((d) => d.layer === "front").map((d) => (
                         <div key={d.id} data-grid-item className="pointer-events-none" style={decorPos(d)}><PageDecorView decor={d} /></div>
                     ))}
-                    {/* Footer: use the grid Y as the minimum position, but push it below the
-                        actual content when the form card is taller than its allocated rows. */}
+                    {/* Footer: placed at its exact grid row.
+                        containerMinH (via pageLayoutHeight) already ensures the container
+                        is tall enough, so no contentBottom heuristic needed here. */}
                     {footerItem && (
-                        <div style={{ position: "absolute", top: Math.max(footerItem.y * rowH, contentBottom + 16), left: 0, width: "100%" }}><Footer /></div>
+                        <div style={{ position: "absolute", top: footerItem.y * rowH, left: 0, width: "100%" }}><Footer /></div>
                     )}
                 </div>
                 {!footerItem && <Footer />}
