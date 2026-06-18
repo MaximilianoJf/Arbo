@@ -7,7 +7,7 @@ const db = connectionString
     ? new Sequelize(connectionString, {
         dialect: "postgres",
         logging: false,
-        models: [path.join(__dirname, '/../models/**/*.model.ts')],
+        models: [path.join(__dirname, '/../models/**/*.model.{js,ts}')],
         dialectOptions: {
             ssl: { require: true, rejectUnauthorized: false }
         }
@@ -20,7 +20,7 @@ const db = connectionString
         port: Number(process.env.DB_PORT) || 5432,
         dialect: "postgres",
         logging: false,
-        models: [path.join(__dirname, '/../models/**/*.model.ts')],
+        models: [path.join(__dirname, '/../models/**/*.model.{js,ts}')],
     });
 
 export default db;
