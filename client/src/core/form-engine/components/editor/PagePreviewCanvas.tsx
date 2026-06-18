@@ -224,7 +224,17 @@ const PreviewContent = ({ previewWidth, containerActualWidth }: {
                             <ContactPreview />
                         </div>
                     )}
-                    <div style={{ width: "100%", maxWidth: isNarrow ? undefined : getCardMaxWidth(styles), flex: isNarrow ? undefined : 1 }}>
+                    <div style={{
+                        width: "100%",
+                        maxWidth: isNarrow ? undefined : getCardMaxWidth(styles),
+                        // When a contact panel is present, grow to fill the remaining row space.
+                        // Without contact, center the card in the container via auto margins.
+                        ...(isNarrow
+                            ? {}
+                            : (styles.contactEnabled ?? false)
+                                ? { flex: 1 }
+                                : { margin: "0 auto" }),
+                    }}>
                         <div className="flex flex-col gap-4 w-full">
                             {(styles.cardHeaderEnabled !== false) && <HeaderPreview />}
                             <FormPreview />
