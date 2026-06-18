@@ -100,7 +100,7 @@ export const OpenRouterUsageWidget = () => {
         : `${dailyUsed}/${dailyLimit}`;
 
     return (
-        <div className="fixed bottom-4 left-4 z-50 select-none">
+        <div className="fixed bottom-4 right-4 z-50 select-none flex flex-col items-end">
 
             {/* ── Expanded tooltip ── */}
             {open && data && (
