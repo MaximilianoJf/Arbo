@@ -100,11 +100,18 @@ export interface AIGeneratedField {
     type: string;
     componentType: string;
     required: boolean;
+    unique?: boolean;
+    defaultValue?: string;
+    validations?: string[];
+    pattern?: string;
+    patternMessage?: string;
     options: string[];
 }
+export type FormAccessMode = "owner" | "authed" | "public";
 export interface AIGeneratedForm {
     title: string;
     description: string;
+    accessMode?: FormAccessMode;
     allowMultiple?: boolean;
     fields: AIGeneratedField[];
 }
@@ -112,6 +119,7 @@ export interface AIGeneratedRelation {
     parentForm: string;
     childForm: string;
     type: RelationType;
+    fkLabelField?: string;
 }
 export interface AIGeneratedSchema {
     forms: AIGeneratedForm[];

@@ -453,24 +453,40 @@ export const FormRelationsView = () => {
 
             for (const genForm of schema.forms) {
                 setAiProgress((p) => [...p, `Creando "${genForm.title}"…`]);
-                const fieldPayload = genForm.fields.map((f, i) => ({
-                    name: f.name,
-                    label: f.label,
-                    type: f.type,
-                    componentType: f.componentType,
-                    required: f.required,
-                    options: f.options,
-                    sortOrder: i,
-                    page: 0,
-                    value: "",
-                }));
+                const fieldPayload = genForm.fields.map((f, i) => {
+                    // pattern / patternMessage / unique round-trip through the JSONB meta column.
+                    const meta: Record<string, any> = {};
+                    if (f.pattern) meta.pattern = f.pattern;
+                    if (f.patternMessage) meta.patternMessage = f.patternMessage;
+                    if (f.unique) meta.unique = true;
+                    return {
+                        name: f.name,
+                        label: f.label,
+                        type: f.type,
+                        componentType: f.componentType,
+                        required: f.required,
+                        defaultValue: f.defaultValue || "",
+                        validations: f.validations || [],
+                        options: f.options,
+                        sortOrder: i,
+                        page: 0,
+                        meta: Object.keys(meta).length ? meta : null,
+                    };
+                });
+                // Map the AI's accessMode to the styles flags. accessMode is stored verbatim
+                // for the upcoming access-control phase; today "owner"/"authed" already
+                // translate to requiresGoogleAuth (login) which IS enforced server-side.
+                const accessMode = genForm.accessMode || "public";
+                const genStyles: Record<string, any> = { accessMode };
+                if (accessMode === "authed" || accessMode === "owner") genStyles.requiresGoogleAuth = true;
+                if (genForm.allowMultiple) genStyles.allowMultiple = true;
                 const created = await formApi.create({
                     title: genForm.title,
                     description: genForm.description,
                     fields: fieldPayload,
                     projectId,
                     onSubmit: "SaveToDB",
-                    styles: genForm.allowMultiple ? { allowMultiple: true } : undefined,
+                    styles: genStyles,
                 });
                 const newForm: FormLite = {
                     id: created.data.id,
@@ -508,7 +524,24 @@ export const FormRelationsView = () => {
             setEdges((eds) => [...eds, ...newEdges]);
             setSaved(false);
 
-            setAiProgress((p) => [...p, `✓ Listo — ${schema.forms.length} formularios y ${newEdges.length} relaciones creadas.`]);
+            // Materialize each relation as an FK combo box in the child form (the FOREIGN KEY).
+            // Runs after every form exists so titleToId resolves; reuses the tested createFkField
+            // (dedups + updates node chips). Non-fatal per relation — the combo can be added later.
+            let fkCount = 0;
+            if (newEdges.length) {
+                setAiProgress((p) => [...p, "Creando claves foráneas (combos)…"]);
+                for (const rel of schema.relations) {
+                    const srcId = titleToId.get(rel.parentForm);
+                    const tgtId = titleToId.get(rel.childForm);
+                    if (!srcId || !tgtId) continue;
+                    try {
+                        await createFkField(srcId, tgtId, rel.parentForm, rel.fkLabelField || undefined);
+                        fkCount++;
+                    } catch { /* leave the FK for the user to add manually from the inspector */ }
+                }
+            }
+
+            setAiProgress((p) => [...p, `✓ Listo — ${schema.forms.length} formularios, ${newEdges.length} relaciones y ${fkCount} combos FK creados.`]);
             setAiPrompt("");
         } catch (e: any) {
             const raw: string = e.message || "";

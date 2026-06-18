@@ -212,6 +212,15 @@ export const getResponsesByIds = async (ids: number[]) => {
     return await FormResponse.findAll({ where: { id: { [Op.in]: ids } } });
 };
 
+/** Several forms (with their fields) in a single query — avoids N+1 in the chain view. */
+export const getFormsByIds = async (ids: number[]) => {
+    if (!ids.length) return [];
+    return await UserForm.findAll({
+        where: { id: { [Op.in]: ids } },
+        include: [{ model: FormField, as: "fields", order: [["sortOrder", "ASC"]] }],
+    });
+};
+
 export const deleteFormResponse = async (formId: number, responseId: number) => {
     return await FormResponse.destroy({ where: { id: responseId, formId } });
 };

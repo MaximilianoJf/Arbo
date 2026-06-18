@@ -167,6 +167,13 @@ export interface FormStyles {
   embedGlowEnabled?: boolean;
   embedGlowOrbs?: GlowOrb[];
 
+  // Access — who may fill this form. Falls back to the project default when unset.
+  //   "owner"  → only the project owner / collaborators (internal catalogs, normalizations)
+  //   "authed" → requires login (identifies the respondent by account/email)
+  //   "public" → anyone, anonymous OK
+  // Enforcement lands in the access-control phase; today "owner"/"authed" imply requiresGoogleAuth.
+  accessMode?: "owner" | "authed" | "public";
+
   // Access — require Google sign-in to submit (strict identity for relational forms)
   requiresGoogleAuth?: boolean;
 
@@ -259,6 +266,9 @@ export interface FormField {
   // Custom regex validation (applied after the preset validations)
   pattern?: string;
   patternMessage?: string;
+  // UNIQUE constraint: no two responses of this form may share the same value
+  // for this field. Enforced server-side on submit. Stored in meta.
+  unique?: boolean;
   // Conditional visibility: the field is shown only when ALL conditions match.
   // Without conditions the field is always visible.
   visibleWhen?: FieldCondition[];

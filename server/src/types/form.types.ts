@@ -37,6 +37,11 @@ export interface FormStyles {
     embedContactEnabled?: boolean;
     embedContactPosition?: "left" | "right";
     embedBgTransparent?: boolean;
+    // Access control — who may fill this form ("owner" | "authed" | "public").
+    accessMode?: "owner" | "authed" | "public";
+    requiresGoogleAuth?: boolean;
+    allowMultiple?: boolean;
+    requiresParentChain?: boolean;
 }
 
 export interface CreateFormInput {

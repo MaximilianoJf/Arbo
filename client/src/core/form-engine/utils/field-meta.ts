@@ -6,6 +6,7 @@ const META_KEYS = [
     "span", "spanTablet", "spanMobile",
     "rows", "accept",
     "pattern", "patternMessage",
+    "unique",
     "visibleWhen", "hiddenWhen", "logicMode",
     "groupId", "groupLabel",
     "optionsSource",

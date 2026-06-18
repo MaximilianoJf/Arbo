@@ -38,6 +38,7 @@ const buildStylesSummary = (styles: any): string => {
     if (styles.pageGlowOrbs?.length) lines.push(`  pageGlowOrbs: ${styles.pageGlowOrbs.length} orb(s)`);
     if (styles.animEntrance) lines.push(`  animEntrance: "${styles.animEntrance}"`);
     if (styles.animHover) lines.push(`  animHover: "${styles.animHover}"`);
+    if (styles.accessMode) lines.push(`  accessMode: "${styles.accessMode}"`);
     if (styles.requiresGoogleAuth !== undefined) lines.push(`  requiresGoogleAuth: ${styles.requiresGoogleAuth}`);
     if (styles.allowMultiple !== undefined) lines.push(`  allowMultiple: ${styles.allowMultiple}`);
     return lines.join("\n") || "  (sin estilos personalizados)";
@@ -87,6 +88,7 @@ CONTROL TOTAL DE CADA CAMPO — propiedades disponibles (todas opcionales salvo 
   "componentType": "DynamicTextArea",   ← cambia el TIPO de componente
   "type": "text",                        ← acorde al componente (text/email/tel/url/number/decimal/date/datetime/multiselect/file/image...)
   "required": true,
+  "unique": true,                        ← restricción UNIQUE: no se permiten dos respuestas con el mismo valor (email, DNI, RUT, código, SKU…). Se valida al enviar.
   "validations": ["required", "email"],  ← SOLO claves de la lista VALIDACIONES
   "pattern": "^[A-Z]{3}-\\\\d{4}$",       ← regex sin barras. USAR cuando ninguna validación predefinida calza
   "patternMessage": "Formato ABC-1234",
@@ -150,11 +152,19 @@ ANIMACIONES:
   animTransitionSpeed: "fast"|"normal"|"slow"
 
 ACCESO Y REGISTROS (control de quién y cuántas veces responde):
-  requiresGoogleAuth: true|false — si es true, SOLO usuarios con sesión de Google pueden responder (identidad estricta). Útil para formularios internos o relacionados.
-  allowMultiple: true|false — si es true, una MISMA cuenta puede enviar varias respuestas (creación de múltiples registros). Si es false (por defecto), cada usuario responde una sola vez.
-    Ejemplo de uso: una veterinaria donde un administrador registra muchos clientes/dueños y sus mascotas desde su propia cuenta → allowMultiple: true.
-    "formulario interno / privado / solo para mí" → requiresGoogleAuth: true. "que pueda cargar varios registros / muchos clientes / múltiples entradas" → allowMultiple: true.
-    "formulario público / que cualquiera responda una vez" → requiresGoogleAuth: false, allowMultiple: false.
+  accessMode: "owner"|"authed"|"public" — QUIÉN puede llenar el formulario:
+    - "owner"  → solo el dueño del proyecto / colaboradores. Tablas maestras y catálogos internos que el dueño cura (categorías, materias, tipos, sucursales). Frases: "yo gestiono…", "tabla interna", "esto lo manejo yo".
+    - "authed" → requiere INICIAR SESIÓN; identifica a la persona por su cuenta/email. Frases: "el cliente entra con su email", "que sepa quién respondió", "cada cliente lo suyo".
+    - "public" → cualquiera responde sin login (anónimo). Encuestas abiertas, contacto, quejas públicas.
+  allowMultiple: true|false — CUÁNTAS veces puede responder la MISMA persona:
+    - true  → la misma cuenta carga MUCHOS registros (va con accessMode "owner": catálogos que el dueño llena fila por fila). El dueño SIEMPRE puede cargar varias.
+    - false → cada persona responde UNA sola vez (el dueño queda EXENTO por ser propietario). "cada cliente responde una vez", inscripción única.
+  requiresGoogleAuth: true|false — espejo de bajo nivel de accessMode: "authed"/"owner" implican requiresGoogleAuth: true; "public" implica false. Si cambiás accessMode, ajustá también este flag.
+  Mapeo de frases:
+    "una base donde yo gestiono las categorías" → form Categorías: accessMode "owner", allowMultiple true.
+    "que solo el cliente con su email lo conteste UNA vez, pero yo (dueño) varias" → accessMode "authed", allowMultiple false (el dueño exento responde varias).
+    "que cualquiera lo responda una sola vez" → accessMode "public", allowMultiple false.
+    En relaciones 1:1 el hijo se responde una vez → allowMultiple false; en 1:N el hijo no tiene límite → allowMultiple true.
 
 POSICION Y ENCABEZADO:
   formVerticalAlign: "start"|"center"|"end"
@@ -172,6 +182,9 @@ EJEMPLOS DE INTERPRETACION:
 - "efecto glass" → cardOpacity: 20, cardBlur: 12, preset: "glass"
 - "animaciones suaves" → animEntrance: "fadeIn", animHover: "lift"
 - "fondo cafe con luces doradas" → pageBgColor: "#2C1A0E", pageGlowEnabled: true, orbs color #D4AF37
+- "que solo lo conteste el cliente con su email, una vez" → accessMode: "authed", requiresGoogleAuth: true, allowMultiple: false
+- "esta tabla la gestiono yo / es interna" → accessMode: "owner", requiresGoogleAuth: true, allowMultiple: true
+- "que cualquiera lo responda" → accessMode: "public", requiresGoogleAuth: false
 
 ═══════════════════════════════════════════
 REGLAS DE RESPUESTA:

@@ -312,6 +312,27 @@ export const submitFormResponse = async (
         if (secondary) secondaryResponseId = secondary.id;
     }
 
+    // UNIQUE constraint: reject if any field flagged `meta.unique` already holds this
+    // value in another response of the same form (case-insensitive, trimmed).
+    const uniqueFields = ((form as any).fields || []).filter((f: any) => f?.meta?.unique === true);
+    if (uniqueFields.length) {
+        const existing = await formRepo.getFormResponses(formId);
+        for (const uf of uniqueFields) {
+            const val = (answers as Record<string, any>)?.[uf.name];
+            if (val === undefined || val === null || String(val).trim() === "") continue;
+            const norm = String(val).trim().toLowerCase();
+            const clash = existing.some((r) => {
+                const ev = (r.answers || {})[uf.name];
+                return ev != null && String(ev).trim().toLowerCase() === norm;
+            });
+            if (clash) {
+                const err: any = new Error(`Ya existe un registro con ${uf.label || uf.name} "${val}". Ese campo debe ser único.`);
+                err.code = "UNIQUE_VIOLATION";
+                throw err;
+            }
+        }
+    }
+
     const response = await formRepo.createFormResponse({
         formId,
         respondentId,
@@ -489,7 +510,7 @@ export const getResponseChain = async (formId: number, userId: number, userEmail
         ...all.map((r) => r.formId),
         ...parentRows.map((p) => p.get({ plain: true }).formId),
     ])];
-    const formRows = await Promise.all(formIds.map((fid) => formRepo.getFormById(fid)));
+    const formRows = await formRepo.getFormsByIds(formIds);
     const forms: Record<number, any> = {};
     formRows.forEach((f) => {
         if (!f) return;
