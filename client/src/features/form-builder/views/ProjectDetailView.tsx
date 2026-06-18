@@ -19,7 +19,7 @@ const FormMiniPreview = ({ form, onAnswer, onEdit }: {
     const cardBg = styles.bgColor || "#1a1a24";
     const fieldCount = form.fields?.length || form.FormFields?.length || 0;
     return (
-        <div className="group relative w-full rounded-xl overflow-hidden border border-[var(--arbo-border)] hover:border-[var(--arbo-accent)]/40 transition-all hover:shadow-lg hover:shadow-black/20 bg-[var(--arbo-surface)]">
+        <div className="arbo-glass arbo-glass-hover group relative w-full rounded-2xl overflow-hidden">
             {/* Mini preview area — click to open the form */}
             <button onClick={onAnswer} className="block w-full text-left">
                 <div
@@ -74,7 +74,7 @@ const FormMiniPreview = ({ form, onAnswer, onEdit }: {
             </button>
 
             {/* Info strip */}
-            <div className="px-3 py-2.5 border-t border-[var(--arbo-border)]">
+            <div className="px-3 py-2.5 border-t border-white/10">
                 <p className="text-xs font-semibold arbo-text truncate">{form.title}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-[10px] arbo-text-muted">{fieldCount} campos</span>

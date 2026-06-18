@@ -37,7 +37,7 @@ const ResponseRow = ({ resp, fields, formId, onDeleted }: {
     };
 
     return (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--arbo-border)", background: "var(--arbo-surface)" }}>
+        <div className="arbo-glass rounded-2xl overflow-hidden">
             {/* Header row */}
             <div className="flex items-center gap-3 px-4 py-3">
                 <div className="size-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
@@ -70,7 +70,7 @@ const ResponseRow = ({ resp, fields, formId, onDeleted }: {
             </div>
             {/* Expanded answers */}
             {open && (
-                <div className="px-4 pb-3 border-t" style={{ borderColor: "var(--arbo-border)" }}>
+                <div className="px-4 pb-3 border-t" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
                     <div className="grid gap-2 pt-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
                         {fields.filter((f) => resp.answers[f.name] != null).map((f) => (
                             <div key={f.name} className="rounded-lg px-3 py-2" style={{ background: "var(--arbo-surface-2)" }}>
