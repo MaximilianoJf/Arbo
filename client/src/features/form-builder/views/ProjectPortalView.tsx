@@ -120,7 +120,10 @@ export const ProjectPortalView = () => {
                     ...themeVars,
                     background: theme === "glass"
                         ? "radial-gradient(ellipse at 20% 50%, rgba(10,10,25,0.95), #060610)"
-                        : "var(--arbo-bg)",
+                        : theme === "light"
+                        ? "var(--arbo-bg)"
+                        // Dark: atmospheric glows so the glass panels read as floating.
+                        : "radial-gradient(ellipse 700px 500px at 12% -5%, rgba(74,222,128,0.10), transparent 60%), radial-gradient(ellipse 700px 500px at 105% 110%, rgba(139,92,246,0.10), transparent 60%), var(--arbo-bg)",
                 }}
             >
                 {theme === "glass" && <GlassOrbs />}
@@ -129,9 +132,10 @@ export const ProjectPortalView = () => {
                 <aside
                     className="w-60 shrink-0 flex flex-col min-h-screen sticky top-0"
                     style={{
-                        background: theme === "glass" ? "rgba(255,255,255,0.03)" : "var(--arbo-surface)",
-                        borderRight: "1px solid var(--arbo-border)",
-                        backdropFilter: theme === "glass" ? "blur(20px)" : undefined,
+                        background: theme === "light" ? "var(--arbo-surface)" : "rgba(255,255,255,0.04)",
+                        borderRight: `1px solid ${theme === "light" ? "var(--arbo-border)" : "rgba(255,255,255,0.10)"}`,
+                        backdropFilter: theme === "light" ? undefined : "blur(40px)",
+                        WebkitBackdropFilter: theme === "light" ? undefined : "blur(40px)",
                     }}
                 >
                     {/* Project identity */}
@@ -237,9 +241,10 @@ export const ProjectPortalView = () => {
                     <header
                         className="h-14 flex items-center px-6 gap-4 shrink-0 sticky top-0 z-10"
                         style={{
-                            background: theme === "glass" ? "rgba(255,255,255,0.03)" : "var(--arbo-surface)",
-                            borderBottom: "1px solid var(--arbo-border)",
-                            backdropFilter: theme === "glass" ? "blur(20px)" : undefined,
+                            background: theme === "light" ? "var(--arbo-surface)" : "rgba(255,255,255,0.03)",
+                            borderBottom: `1px solid ${theme === "light" ? "var(--arbo-border)" : "rgba(255,255,255,0.10)"}`,
+                            backdropFilter: theme === "light" ? undefined : "blur(40px)",
+                            WebkitBackdropFilter: theme === "light" ? undefined : "blur(40px)",
                         }}
                     >
                         <h1 className="text-sm font-semibold" style={{ color: "var(--arbo-text)" }}>
