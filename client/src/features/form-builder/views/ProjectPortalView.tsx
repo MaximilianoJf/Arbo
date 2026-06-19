@@ -30,18 +30,6 @@ const NAV = [
 
 const THEME_ICONS: Record<PortalTheme, React.ElementType> = { dark: Moon, light: Sun, glass: Droplet };
 
-// Glass-specific animated background orbs
-const GlassOrbs = () => (
-    <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -left-40 size-[600px] rounded-full opacity-20 blur-[120px]"
-            style={{ background: "radial-gradient(circle, #4ADE80 0%, transparent 70%)" }} />
-        <div className="absolute top-1/2 -right-60 size-[500px] rounded-full opacity-15 blur-[100px]"
-            style={{ background: "radial-gradient(circle, #3B82F6 0%, transparent 70%)" }} />
-        <div className="absolute -bottom-40 left-1/3 size-[400px] rounded-full opacity-10 blur-[80px]"
-            style={{ background: "radial-gradient(circle, #A855F7 0%, transparent 70%)" }} />
-    </div>
-);
-
 export const ProjectPortalView = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -115,22 +103,30 @@ export const ProjectPortalView = () => {
                 `}</style>
             )}
             <div
-                className={`min-h-screen flex${theme === "glass" ? " portal-glass" : ""}`}
+                className={`min-h-screen flex relative overflow-hidden${theme === "glass" ? " portal-glass" : ""}`}
                 style={{
                     ...themeVars,
-                    background: theme === "glass"
-                        ? "radial-gradient(ellipse at 20% 50%, rgba(10,10,25,0.95), #060610)"
-                        : theme === "light"
-                        ? "var(--arbo-bg)"
-                        // Dark: atmospheric glows so the glass panels read as floating.
-                        : "radial-gradient(ellipse 700px 500px at 12% -5%, rgba(74,222,128,0.10), transparent 60%), radial-gradient(ellipse 700px 500px at 105% 110%, rgba(139,92,246,0.10), transparent 60%), var(--arbo-bg)",
+                    background: theme === "light" ? "var(--arbo-bg)" : "#0b0b11",
                 }}
             >
-                {theme === "glass" && <GlassOrbs />}
+                {/* Atmospheric glows — clearly visible behind the glass panels so they float. */}
+                {theme !== "light" && (
+                    <>
+                        <div className="absolute pointer-events-none rounded-full" aria-hidden
+                            style={{ width: 780, height: 780, top: -260, left: -180, filter: "blur(120px)", zIndex: 0,
+                                background: "radial-gradient(circle, rgba(74,222,128,0.28), transparent 70%)" }} />
+                        <div className="absolute pointer-events-none rounded-full" aria-hidden
+                            style={{ width: 780, height: 780, bottom: -320, right: -180, filter: "blur(130px)", zIndex: 0,
+                                background: "radial-gradient(circle, rgba(139,92,246,0.24), transparent 70%)" }} />
+                        <div className="absolute pointer-events-none rounded-full" aria-hidden
+                            style={{ width: 520, height: 520, top: "35%", left: "50%", filter: "blur(120px)", zIndex: 0,
+                                background: "radial-gradient(circle, rgba(59,130,246,0.14), transparent 70%)" }} />
+                    </>
+                )}
 
                 {/* ── Sidebar ── */}
                 <aside
-                    className="w-60 shrink-0 flex flex-col min-h-screen sticky top-0"
+                    className="w-60 shrink-0 flex flex-col min-h-screen sticky top-0 relative z-10"
                     style={{
                         background: theme === "light" ? "var(--arbo-surface)" : "rgba(255,255,255,0.04)",
                         borderRight: `1px solid ${theme === "light" ? "var(--arbo-border)" : "rgba(255,255,255,0.10)"}`,
@@ -236,7 +232,7 @@ export const ProjectPortalView = () => {
                 </aside>
 
                 {/* ── Main ── */}
-                <div className="flex-1 flex flex-col min-h-screen min-w-0">
+                <div className="flex-1 flex flex-col min-h-screen min-w-0 relative z-10">
                     {/* Header */}
                     <header
                         className="h-14 flex items-center px-6 gap-4 shrink-0 sticky top-0 z-10"
