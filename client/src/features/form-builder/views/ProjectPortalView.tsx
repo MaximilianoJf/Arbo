@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { projectApi } from "@/services/api";
 import { PortalContext, THEME_VARS, type PortalTheme } from "./portal/PortalContext";
+import { OpenRouterUsageWidget } from "@/components/widgets/OpenRouterUsageWidget";
 import {
     House, LayoutList, Persons, Gear, ArrowLeft, ArrowRightFromSquare, Moon, Sun, Droplet,
     FileText, Sparkles, GraphNode, Printer, PersonMagnifier,
@@ -267,6 +268,7 @@ export const ProjectPortalView = () => {
                     </main>
                 </div>
             </div>
+            <OpenRouterUsageWidget />
         </PortalContext.Provider>
     );
 };

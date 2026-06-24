@@ -363,7 +363,7 @@ export const PortalAnalysis = () => {
             <div className="rounded-xl p-4 flex flex-col gap-3"
                  style={{ background: "var(--arbo-surface)", border: "1px solid var(--arbo-border)" }}>
                 <p className="text-xs" style={{ color: "var(--arbo-text-muted)" }}>
-                    Análisis directo con IA sobre las respuestas del formulario seleccionado (sin búsqueda vectorial).
+                    Análisis directo con IA sobre las respuestas del formulario seleccionado únicamente — no incluye datos de los demás formularios del proyecto.
                 </p>
                 <textarea
                     value={prompt}
