@@ -336,6 +336,45 @@ h1, h2, h3, .arbo-heading {
   color: white !important;
 }
 
+/* ─── Native inputs / selects / textareas ─── */
+.arbo-input {
+  background: var(--arbo-surface-2);
+  color: var(--arbo-text);
+  border: 1px solid var(--arbo-border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s ease;
+  width: 100%;
+  /* prevent browser dark-mode from inverting colors */
+  color-scheme: dark;
+}
+.arbo-input:hover {
+  border-color: var(--arbo-border-light);
+}
+.arbo-input:focus {
+  border-color: var(--arbo-accent);
+}
+.arbo-input::placeholder {
+  color: var(--arbo-text-muted);
+}
+/* Fix native <select> option colors — browser uses system highlight otherwise */
+.arbo-input option,
+select.arbo-input option {
+  background: var(--arbo-surface-2);
+  color: var(--arbo-text);
+}
+/* Also fix any bare native <select> used without the class */
+select:not([class]),
+select[class=""] {
+  color-scheme: dark;
+}
+select option {
+  background: #22222e;
+  color: #F1F1F4;
+}
+
 /* ─── Badge ─── */
 .arbo-badge {
   display: inline-flex;
