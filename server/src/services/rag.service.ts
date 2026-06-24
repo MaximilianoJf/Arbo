@@ -117,15 +117,18 @@ export async function buildFormRAG(formId: number, userConfig: any): Promise<{ i
     return { indexed: points.length };
 }
 
-// ─── Build: relational database project ─────────────────────────────────────
+// ─── Build: project (standalone group OR relational database) ───────────────
+//
+// isDatabase=false → cada respuesta es un punto plano taggeado con su formulario
+// isDatabase=true  → cada cadena raíz se indexa como JSON anidado
 
 export async function buildProjectRAG(projectId: number, userConfig: any): Promise<{ indexed: number }> {
     const project = await Project.findByPk(projectId, {
         include: [{ model: UserForm, include: [{ model: FormField }] }],
     });
     if (!project) throw new Error("Proyecto no encontrado");
-    if (!(project as any).isDatabase) throw new Error("Este proyecto no es una base de datos relacional");
 
+    const isDatabase: boolean = (project as any).isDatabase;
     const projectForms: any[] = (project as any).forms || [];
     if (!projectForms.length) throw new Error("El proyecto no tiene formularios");
 
@@ -146,28 +149,6 @@ export async function buildProjectRAG(projectId: number, userConfig: any): Promi
     });
     if (!allResponses.length) throw new Error("No hay respuestas para indexar");
 
-    const allPlain = allResponses.map((r) => r.get({ plain: true }));
-
-    // Build parent→children map
-    const childrenByParent = new Map<number, any[]>();
-    for (const r of allPlain) {
-        if (r.parentResponseId && projectFormIdSet.has(r.formId)) {
-            const arr = childrenByParent.get(r.parentResponseId) || [];
-            arr.push(r);
-            childrenByParent.set(r.parentResponseId, arr);
-        }
-    }
-
-    const addChildren = (node: any): any => ({
-        ...node,
-        children: (childrenByParent.get(node.id) || []).map(addChildren),
-    });
-
-    // Root responses: belong to project forms and have no parent within the project
-    const rootResponses = allPlain
-        .filter((r) => !r.parentResponseId || !projectFormIdSet.has(r.parentFormId))
-        .map(addChildren);
-
     const embConfig = getEmbeddingConfig(userConfig?.embeddings);
     if (!embConfig.apiKey) throw new Error("No hay API key de embeddings configurada. Configurala en Ajustes → Embeddings o en la variable de entorno GEMINI_EMBEDDING_API_KEY.");
 
@@ -175,30 +156,78 @@ export async function buildProjectRAG(projectId: number, userConfig: any): Promi
     const collectionName = `arbo_project_${projectId}`;
     await ensureCollection(qdrant, collectionName);
 
-    const buildPayloadChain = (node: any): any => ({
-        formTitle: formsMap.get(node.formId)?.title,
-        responseId: node.id,
-        answers: node.answers,
-        children: (node.children || []).map(buildPayloadChain),
-    });
-
     const points: any[] = [];
     let pointId = 1;
 
-    for (const root of rootResponses) {
-        const text = chainToText(root, formsMap);
-        if (text.trim().length < 5) continue;
-        const vector = await generateEmbedding(text, embConfig);
-        points.push({
-            id: pointId++,
-            vector,
-            payload: {
-                rootResponseId: root.id,
-                projectId,
-                textSnippet: text.slice(0, 800),
-                chain: buildPayloadChain(root),
-            },
+    if (!isDatabase) {
+        // ── Grupo de formularios sueltos: un punto plano por respuesta ──
+        const allPlain = allResponses.map((r) => r.get({ plain: true }));
+        for (const r of allPlain) {
+            const meta = formsMap.get(r.formId);
+            if (!meta) continue;
+            const text = `Formulario: ${meta.title}\n${responseToText(r.answers || {}, meta.fields)}`;
+            if (text.trim().length < 5) continue;
+            const vector = await generateEmbedding(text, embConfig);
+            points.push({
+                id: pointId++,
+                vector,
+                payload: {
+                    responseId: r.id,
+                    formId: r.formId,
+                    formTitle: meta.title,
+                    projectId,
+                    respondentName: r.respondentName || null,
+                    respondentEmail: r.respondentEmail || null,
+                    createdAt: r.createdAt,
+                    textSnippet: text.slice(0, 500),
+                    answers: r.answers,
+                },
+            });
+        }
+    } else {
+        // ── BD relacional: un punto por cadena raíz (JSON anidado) ──
+        const allPlain = allResponses.map((r) => r.get({ plain: true }));
+
+        const childrenByParent = new Map<number, any[]>();
+        for (const r of allPlain) {
+            if (r.parentResponseId && projectFormIdSet.has(r.formId)) {
+                const arr = childrenByParent.get(r.parentResponseId) || [];
+                arr.push(r);
+                childrenByParent.set(r.parentResponseId, arr);
+            }
+        }
+
+        const addChildren = (node: any): any => ({
+            ...node,
+            children: (childrenByParent.get(node.id) || []).map(addChildren),
         });
+
+        const rootResponses = allPlain
+            .filter((r) => !r.parentResponseId || !projectFormIdSet.has(r.parentFormId))
+            .map(addChildren);
+
+        const buildPayloadChain = (node: any): any => ({
+            formTitle: formsMap.get(node.formId)?.title,
+            responseId: node.id,
+            answers: node.answers,
+            children: (node.children || []).map(buildPayloadChain),
+        });
+
+        for (const root of rootResponses) {
+            const text = chainToText(root, formsMap);
+            if (text.trim().length < 5) continue;
+            const vector = await generateEmbedding(text, embConfig);
+            points.push({
+                id: pointId++,
+                vector,
+                payload: {
+                    rootResponseId: root.id,
+                    projectId,
+                    textSnippet: text.slice(0, 800),
+                    chain: buildPayloadChain(root),
+                },
+            });
+        }
     }
 
     if (!points.length) throw new Error("No se generaron puntos para indexar");

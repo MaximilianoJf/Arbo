@@ -71,10 +71,10 @@ export const PortalAnalysis = () => {
     const isDatabase: boolean = project?.isDatabase || false;
     const forms: any[] = project?.forms || project?.userForms || project?.UserForms || [];
 
-    // Form selector (used for classic analysis and form-level RAG)
+    // Form selector — solo para análisis clásico; el RAG siempre es a nivel proyecto
     const [selectedFormId, setSelectedFormId] = useState<number | null>(forms[0]?.id ?? null);
 
-    // RAG state
+    // RAG state — siempre opera a nivel proyecto (flat para sueltos, nested para BD relacional)
     const [ragBuilding, setRagBuilding] = useState(false);
     const [ragBuildError, setRagBuildError] = useState<string | null>(null);
     const [ragBuildMsg, setRagBuildMsg] = useState<string | null>(null);
@@ -89,14 +89,10 @@ export const PortalAnalysis = () => {
     const [classicLoading, setClassicLoading] = useState(false);
     const [classicError, setClassicError] = useState<string | null>(null);
 
-    // Derive current RAG status from project/form data
-    const ragStatus: string = useMemo(() => {
-        if (isDatabase) return project?.ragStatus || "none";
-        const form = forms.find((f) => f.id === selectedFormId);
-        return form?.ragStatus || "none";
-    }, [isDatabase, project, forms, selectedFormId]);
+    // RAG status viene siempre del proyecto
+    const ragStatus: string = useMemo(() => project?.ragStatus || "none", [project]);
 
-    // ── RAG: build ──────────────────────────────────────────────────────────
+    // ── RAG: build (siempre a nivel proyecto) ───────────────────────────────
 
     const handleBuildRag = useCallback(async () => {
         if (ragBuilding) return;
@@ -104,13 +100,7 @@ export const PortalAnalysis = () => {
         setRagBuildError(null);
         setRagBuildMsg(null);
         try {
-            let res;
-            if (isDatabase) {
-                res = await ragApi.buildProject(projectId);
-            } else {
-                if (!selectedFormId) throw new Error("Seleccioná un formulario primero");
-                res = await ragApi.buildForm(selectedFormId);
-            }
+            const res = await ragApi.buildProject(projectId);
             setRagBuildMsg(`✓ ${res.data.indexed} respuestas indexadas correctamente`);
             await reload();
         } catch (e: any) {
@@ -118,7 +108,7 @@ export const PortalAnalysis = () => {
         } finally {
             setRagBuilding(false);
         }
-    }, [ragBuilding, isDatabase, projectId, selectedFormId, reload]);
+    }, [ragBuilding, projectId, reload]);
 
     // ── RAG: query ──────────────────────────────────────────────────────────
 
@@ -128,20 +118,14 @@ export const PortalAnalysis = () => {
         setRagQueryError(null);
         setRagResult(null);
         try {
-            let res;
-            if (isDatabase) {
-                res = await ragApi.queryProject(projectId, ragQuery.trim());
-            } else {
-                if (!selectedFormId) throw new Error("Seleccioná un formulario primero");
-                res = await ragApi.queryForm(selectedFormId, ragQuery.trim());
-            }
+            const res = await ragApi.queryProject(projectId, ragQuery.trim());
             setRagResult(res.data);
         } catch (e: any) {
             setRagQueryError(e.message || "Error al consultar el RAG");
         } finally {
             setRagQuerying(false);
         }
-    }, [ragQuerying, ragQuery, isDatabase, projectId, selectedFormId]);
+    }, [ragQuerying, ragQuery, projectId]);
 
     // ── Classic analysis ─────────────────────────────────────────────────────
 
@@ -194,7 +178,7 @@ export const PortalAnalysis = () => {
                 <p className="text-xs" style={{ color: "var(--arbo-text-muted)" }}>
                     {isDatabase
                         ? "Analizá toda la base de datos relacional mediante RAG semántico o análisis clásico por IA."
-                        : "Analizá las respuestas del formulario seleccionado mediante RAG semántico o análisis clásico por IA."}
+                        : "Analizá todos los formularios del proyecto con RAG semántico (índice del proyecto completo) o consultá uno a uno con el análisis clásico."}
                 </p>
             </div>
 
@@ -226,12 +210,10 @@ export const PortalAnalysis = () => {
                         <span className="text-sm font-semibold" style={{ color: "var(--arbo-text)" }}>
                             RAG de análisis
                         </span>
-                        {isDatabase && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded font-mono uppercase"
-                                  style={{ background: "var(--arbo-surface-3)", color: "var(--arbo-text-muted)" }}>
-                                Proyecto completo
-                            </span>
-                        )}
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-mono uppercase"
+                              style={{ background: "var(--arbo-surface-3)", color: "var(--arbo-text-muted)" }}>
+                            {isDatabase ? "BD relacional" : "Grupo de formularios"}
+                        </span>
                     </div>
                     <RagBadge status={ragStatus} />
                 </div>
@@ -240,8 +222,8 @@ export const PortalAnalysis = () => {
                 <div className="p-4 flex flex-col gap-3" style={{ background: "var(--arbo-surface)" }}>
                     <p className="text-xs" style={{ color: "var(--arbo-text-muted)" }}>
                         {isDatabase
-                            ? "Genera embeddings de todas las cadenas de respuestas anidadas del proyecto y las indexa en Qdrant para consultas semánticas."
-                            : "Genera embeddings de las respuestas del formulario y las indexa en Qdrant para consultas semánticas precisas."}
+                        ? "Genera embeddings de todas las cadenas de respuestas anidadas del proyecto y las indexa en Qdrant."
+                        : "Genera embeddings de las respuestas de todos los formularios del proyecto y las indexa juntas en Qdrant."}
                     </p>
 
                     {ragStatus === "stale" && (
