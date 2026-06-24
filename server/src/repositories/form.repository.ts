@@ -297,3 +297,12 @@ export const isFormChild = async (formId: number): Promise<boolean> => {
     const rel = await FormRelation.findOne({ where: { childFormId: formId } });
     return !!rel;
 };
+
+/** Self-referential relation for a form (parentFormId === childFormId), if it exists. */
+export const getSelfRelation = async (formId: number) => {
+    return await FormRelation.findOne({ where: { parentFormId: formId, childFormId: formId } });
+};
+
+export const markFormRagStale = async (formId: number) => {
+    await UserForm.update({ ragStatus: "stale" }, { where: { id: formId, ragStatus: "ready" } });
+};

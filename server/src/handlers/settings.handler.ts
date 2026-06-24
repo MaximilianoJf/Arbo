@@ -82,6 +82,67 @@ export const getOpenRouterKeyForMcp = async (req: Request, res: Response) => {
     return res.json({ ok: true, data: { apiKey, model: resolved.model } });
 };
 
+// ─── Embedding settings (stored in User.aiProviders.embeddings) ─────────────
+
+export const getEmbeddingSettings = async (req: Request, res: Response) => {
+    const user = req.email ? await getUserByEmail(req.email).catch(() => null) : null;
+    if (!user) return res.status(401).json({ ok: false, msg: "Unauthorized" });
+    const cfg = user.aiProviders?.embeddings || {};
+    const envKey = process.env.GEMINI_EMBEDDING_API_KEY;
+    return res.json({
+        ok: true,
+        data: {
+            hasApiKey: !!(cfg.apiKey || envKey),
+            apiKeyMasked: cfg.apiKey ? `AIza${"•".repeat(16)}${cfg.apiKey.slice(-4)}` : (envKey ? "(desde .env)" : null),
+            model: cfg.model || process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004",
+            usingEnvKey: !cfg.apiKey && !!envKey,
+        },
+    });
+};
+
+export const updateEmbeddingSettings = async (req: Request, res: Response) => {
+    const user = req.email ? await getUserByEmail(req.email).catch(() => null) : null;
+    if (!user) return res.status(401).json({ ok: false, msg: "Unauthorized" });
+    const { apiKey, model } = req.body as { apiKey?: string; model?: string };
+    const current = user.aiProviders || {};
+    const embeddings = { ...(current.embeddings || {}) };
+    if (apiKey !== undefined) embeddings.apiKey = apiKey || undefined;
+    if (model !== undefined) embeddings.model = model || undefined;
+    await user.update({ aiProviders: { ...current, embeddings } });
+    return res.json({ ok: true, msg: "Configuración de embeddings actualizada" });
+};
+
+// ─── Qdrant settings (stored in User.aiProviders.qdrant) ────────────────────
+
+export const getQdrantSettings = async (req: Request, res: Response) => {
+    const user = req.email ? await getUserByEmail(req.email).catch(() => null) : null;
+    if (!user) return res.status(401).json({ ok: false, msg: "Unauthorized" });
+    const cfg = user.aiProviders?.qdrant || {};
+    const envUrl = process.env.QDRANT_URL;
+    const envKey = process.env.QDRANT_API_KEY;
+    return res.json({
+        ok: true,
+        data: {
+            url: cfg.url || envUrl || "",
+            hasApiKey: !!(cfg.apiKey || envKey),
+            apiKeyMasked: cfg.apiKey ? `${"•".repeat(20)}${cfg.apiKey.slice(-4)}` : (envKey ? "(desde .env)" : null),
+            usingEnvConfig: !cfg.url && !!envUrl,
+        },
+    });
+};
+
+export const updateQdrantSettings = async (req: Request, res: Response) => {
+    const user = req.email ? await getUserByEmail(req.email).catch(() => null) : null;
+    if (!user) return res.status(401).json({ ok: false, msg: "Unauthorized" });
+    const { url, apiKey } = req.body as { url?: string; apiKey?: string };
+    const current = user.aiProviders || {};
+    const qdrant = { ...(current.qdrant || {}) };
+    if (url !== undefined) qdrant.url = url || undefined;
+    if (apiKey !== undefined) qdrant.apiKey = apiKey || undefined;
+    await user.update({ aiProviders: { ...current, qdrant } });
+    return res.json({ ok: true, msg: "Configuración de Qdrant actualizada" });
+};
+
 export const getOpenRouterUsage = async (req: Request, res: Response) => {
     // Prefer the user's DB-stored key over the global env key
     const user = req.email ? await getUserByEmail(req.email).catch(() => null) : null;

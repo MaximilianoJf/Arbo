@@ -26,6 +26,14 @@ class Project extends Model {
     })
     declare color: string;
 
+    /** true = relational database (nested/related forms); false = plain project (just groups forms). */
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    })
+    declare isDatabase: boolean;
+
     @ForeignKey(() => User)
     @Column({
         type: DataType.INTEGER,
@@ -38,6 +46,20 @@ class Project extends Model {
 
     @HasMany(() => UserForm)
     declare forms: UserForm[];
+
+    @Column({
+        type: DataType.ENUM("none", "ready", "stale"),
+        allowNull: false,
+        defaultValue: "none",
+    })
+    declare ragStatus: "none" | "ready" | "stale";
+
+    @Column({
+        type: DataType.STRING,
+        allowNull: true,
+        defaultValue: null,
+    })
+    declare ragCollectionId: string | null;
 }
 
 export default Project;

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenRouterSettings, updateOpenRouterSettings, getOpenRouterUsage, getOpenRouterKeyForMcp, getOpenRouterModels } from "../handlers/settings.handler";
+import { getOpenRouterSettings, updateOpenRouterSettings, getOpenRouterUsage, getOpenRouterKeyForMcp, getOpenRouterModels, getEmbeddingSettings, updateEmbeddingSettings, getQdrantSettings, updateQdrantSettings } from "../handlers/settings.handler";
 import { getAIProviders, updateAIProvider, updateAIProviderOrder } from "../handlers/ai-providers.handler";
 import { verifyToken } from "../middleware/jwt.middleware";
 import { verifyApiKey } from "../middleware/apikey.middleware";
@@ -17,5 +17,13 @@ router.get("/openrouter/key", verifyApiKey, getOpenRouterKeyForMcp);
 router.get("/ai-providers", verifyToken, getAIProviders);
 router.put("/ai-providers/order", verifyToken, updateAIProviderOrder);
 router.put("/ai-providers/:id", verifyToken, updateAIProvider);
+
+// Embeddings config (Gemini embedding API)
+router.get("/embedding", verifyToken, getEmbeddingSettings);
+router.put("/embedding", verifyToken, updateEmbeddingSettings);
+
+// Qdrant vector DB config
+router.get("/qdrant", verifyToken, getQdrantSettings);
+router.put("/qdrant", verifyToken, updateQdrantSettings);
 
 export default router;

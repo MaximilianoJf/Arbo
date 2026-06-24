@@ -25,6 +25,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@qdrant/js-client-rest": "^1.18.0",
     "bcryptjs": "^3.0.3",
     "colors": "^1.4.0",
     "dotenv": "^17.2.3",

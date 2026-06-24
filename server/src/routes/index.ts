@@ -8,6 +8,7 @@ import apikeyRoutes from "./apikey.routes";
 import settingsRoutes from "./settings.routes";
 import blockRoutes from "./block.routes";
 import agentRoutes from "./agent.routes";
+import ragRoutes from "./rag.routes";
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use("/api-keys", apikeyRoutes);
 router.use("/settings", settingsRoutes);
 router.use("/blocks", blockRoutes);
 router.use("/agent", agentRoutes);
+router.use("/rag", ragRoutes);
 
 export default router;

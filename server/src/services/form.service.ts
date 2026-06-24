@@ -1,4 +1,5 @@
 import * as formRepo from "../repositories/form.repository";
+import { markProjectRagStale } from "../repositories/project.repository";
 import { getUserByEmail } from "../repositories/user.repository";
 import { signRefToken, verifyRefToken } from "../utils/ref-token.util";
 import type { CreateFormInput, UpdateFormInput } from "../types/form.types";
@@ -27,7 +28,8 @@ const buildChildLinks = async (
         if (r.type === "many_to_many" && r.joinFormId) {
             const join = await formRepo.getFormById(r.joinFormId);
             if (join) links.push({ formId: join.id, title: join.title, slug: join.slug, url: `/forms/${join.slug}?ref=${token}` });
-        } else if (r.childForm) {
+        } else if (r.childForm && r.childForm.id !== parentFormId) {
+            // Skip self-referential relations — the parent is chosen via FK field, not a chain link.
             links.push({ formId: r.childForm.id, title: r.childForm.title, slug: r.childForm.slug, url: `/forms/${r.childForm.slug}?ref=${token}` });
         }
     }
@@ -304,6 +306,27 @@ export const submitFormResponse = async (
         }
     }
 
+    // Self-referential relation: if this form has a self-ref and no parent was set via ?ref=,
+    // check if any FK field in the answers points to a response of the same form.
+    if (!parentResponseId) {
+        const selfRel = await formRepo.getSelfRelation(formId);
+        if (selfRel) {
+            const fields: any[] = (form as any).fields || [];
+            const fkField = fields.find((f: any) => f?.meta?.optionsSource?.formId === formId);
+            if (fkField) {
+                const fkValue = (answers as Record<string, any>)?.[fkField.name];
+                if (fkValue) {
+                    const parentResp = await formRepo.getResponseById(Number(fkValue));
+                    if (parentResp && parentResp.formId === formId) {
+                        parentResponseId = parentResp.id;
+                        parentFormId = formId;
+                        rootResponseId = parentResp.rootResponseId || parentResp.id;
+                    }
+                }
+            }
+        }
+    }
+
     // Second link for many-to-many bridge responses (the "other side").
     let secondaryResponseId: number | null = null;
     const secondRef = verifyRefToken(ref2);
@@ -348,6 +371,12 @@ export const submitFormResponse = async (
 
     // Offer links to continue into related forms (root = this response when it starts a chain).
     const childForms = await buildChildLinks(formId, response.id, rootResponseId ?? response.id);
+
+    // Mark any built RAG as stale — new responses invalidate the index.
+    try {
+        await formRepo.markFormRagStale(formId);
+        if (form.projectId) await markProjectRagStale(form.projectId);
+    } catch { /* non-critical — don't fail the response submission */ }
 
     return { response, childForms };
 };
@@ -436,8 +465,7 @@ export const saveFormRelations = async (
         })
         .filter((r) =>
             validFormIds.has(r.parentFormId) &&
-            validFormIds.has(r.childFormId) &&
-            r.parentFormId !== r.childFormId,
+            validFormIds.has(r.childFormId),
         );
     return await formRepo.replaceProjectRelations(projectId, clean);
 };
@@ -562,7 +590,14 @@ export const getResponseChain = async (formId: number, userId: number, userEmail
         }
     });
     const toNode = (r: any): any => ({ ...r, children: (childrenByParent.get(r.id) || []).map(toNode) });
-    const tree = all.filter((r) => rootIds.has(r.id)).map(toNode);
+    // For self-referential forms: responses with a parent in the same form are NOT tree roots
+    // (they appear nested under their parent). Without this they'd show twice.
+    const selfRefChildIds = new Set(
+        all
+            .filter((r) => r.parentResponseId != null && rootIds.has(r.parentResponseId))
+            .map((r) => r.id),
+    );
+    const tree = all.filter((r) => rootIds.has(r.id) && !selfRefChildIds.has(r.id)).map(toNode);
 
     return { forms, parents, tree };
 };

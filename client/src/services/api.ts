@@ -417,7 +417,7 @@ export const blockApi = {
 };
 
 export const projectApi = {
-    create: (body: { name: string; description?: string; color?: string }) =>
+    create: (body: { name: string; description?: string; color?: string; isDatabase?: boolean }) =>
         request<{ ok: boolean; data: any }>("/projects", {
             method: "POST",
             headers: headers(),
@@ -591,6 +591,70 @@ export const settingsApi = {
             headers: headers(),
             body: JSON.stringify({ order }),
         }),
+
+    getEmbedding: () =>
+        request<{ ok: boolean; data: { hasApiKey: boolean; apiKeyMasked: string | null; model: string; usingEnvKey: boolean } }>(
+            "/settings/embedding",
+            { headers: headers() },
+        ),
+
+    updateEmbedding: (body: { apiKey?: string; model?: string }) =>
+        request<{ ok: boolean; msg: string }>("/settings/embedding", {
+            method: "PUT",
+            headers: headers(),
+            body: JSON.stringify(body),
+        }),
+
+    getQdrant: () =>
+        request<{ ok: boolean; data: { url: string; hasApiKey: boolean; apiKeyMasked: string | null; usingEnvConfig: boolean } }>(
+            "/settings/qdrant",
+            { headers: headers() },
+        ),
+
+    updateQdrant: (body: { url?: string; apiKey?: string }) =>
+        request<{ ok: boolean; msg: string }>("/settings/qdrant", {
+            method: "PUT",
+            headers: headers(),
+            body: JSON.stringify(body),
+        }),
+};
+
+export const ragApi = {
+    buildForm: (formId: number) =>
+        request<{ ok: boolean; data: { indexed: number } }>(`/rag/forms/${formId}/build`, {
+            method: "POST",
+            headers: headers(),
+        }),
+
+    buildProject: (projectId: number) =>
+        request<{ ok: boolean; data: { indexed: number } }>(`/rag/projects/${projectId}/build`, {
+            method: "POST",
+            headers: headers(),
+        }),
+
+    queryForm: (formId: number, query: string) =>
+        request<{ ok: boolean; data: { answer: string; sources: { textSnippet: string; score: number }[] } }>(
+            `/rag/forms/${formId}/query`,
+            { method: "POST", headers: headers(), body: JSON.stringify({ query }) },
+        ),
+
+    queryProject: (projectId: number, query: string) =>
+        request<{ ok: boolean; data: { answer: string; sources: { textSnippet: string; score: number }[] } }>(
+            `/rag/projects/${projectId}/query`,
+            { method: "POST", headers: headers(), body: JSON.stringify({ query }) },
+        ),
+
+    getFormStatus: (formId: number) =>
+        request<{ ok: boolean; data: { ragStatus: string; ragCollectionId: string | null } }>(
+            `/rag/forms/${formId}/status`,
+            { headers: headers() },
+        ),
+
+    getProjectStatus: (projectId: number) =>
+        request<{ ok: boolean; data: { ragStatus: string; ragCollectionId: string | null } }>(
+            `/rag/projects/${projectId}/status`,
+            { headers: headers() },
+        ),
 };
 
 export const agentApi = {

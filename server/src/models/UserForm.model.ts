@@ -91,6 +91,20 @@ class UserForm extends Model {
 
     @HasMany(() => FormCollaborator)
     declare collaborators: FormCollaborator[];
+
+    @Column({
+        type: DataType.ENUM("none", "ready", "stale"),
+        allowNull: false,
+        defaultValue: "none",
+    })
+    declare ragStatus: "none" | "ready" | "stale";
+
+    @Column({
+        type: DataType.STRING,
+        allowNull: true,
+        defaultValue: null,
+    })
+    declare ragCollectionId: string | null;
 }
 
 export default UserForm;

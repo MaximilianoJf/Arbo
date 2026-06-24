@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { settingsApi } from "@/services/api";
 import type { OpenRouterSettings, OpenRouterUsage } from "@/services/api";
-import { Eye, EyeSlash, CircleCheck, TriangleExclamation, ArrowRotateRight } from "@gravity-ui/icons";
+import { Eye, EyeSlash, CircleCheck, TriangleExclamation, ArrowRotateRight, Database } from "@gravity-ui/icons";
 import { AIProvidersPanel } from "../components/AIProvidersPanel";
 
 type FreeModel = { id: string; name: string; contextLength: number; description: string; vision: boolean };
@@ -72,6 +72,20 @@ export const OpenRouterSettingsView = () => {
     const [selectedModel, setSelectedModel] = useState("");
     const [selectedVisionModel, setSelectedVisionModel] = useState("");
     const [saving, setSaving] = useState(false);
+
+    // Embedding settings
+    const [embApiKey, setEmbApiKey] = useState("");
+    const [embModel, setEmbModel] = useState("text-embedding-004");
+    const [embInfo, setEmbInfo] = useState<{ hasApiKey: boolean; apiKeyMasked: string | null; model: string; usingEnvKey: boolean } | null>(null);
+    const [embSaving, setEmbSaving] = useState(false);
+    const [embMsg, setEmbMsg] = useState<string | null>(null);
+
+    // Qdrant settings
+    const [qdrantUrl, setQdrantUrl] = useState("");
+    const [qdrantApiKey, setQdrantApiKey] = useState("");
+    const [qdrantInfo, setQdrantInfo] = useState<{ url: string; hasApiKey: boolean; apiKeyMasked: string | null; usingEnvConfig: boolean } | null>(null);
+    const [qdrantSaving, setQdrantSaving] = useState(false);
+    const [qdrantMsg, setQdrantMsg] = useState<string | null>(null);
     const [saveMsg, setSaveMsg] = useState<string | null>(null);
     const [freeModels, setFreeModels] = useState<FreeModel[]>([]);
     const [loadingModels, setLoadingModels] = useState(false);
@@ -113,7 +127,61 @@ export const OpenRouterSettingsView = () => {
         }
     };
 
-    useEffect(() => { load(); }, []);
+    const loadEmbedding = async () => {
+        try {
+            const res = await settingsApi.getEmbedding();
+            setEmbInfo(res.data);
+            setEmbModel(res.data.model || "text-embedding-004");
+        } catch { /* ignore */ }
+    };
+
+    const loadQdrant = async () => {
+        try {
+            const res = await settingsApi.getQdrant();
+            setQdrantInfo(res.data);
+            setQdrantUrl(res.data.url || "");
+        } catch { /* ignore */ }
+    };
+
+    const handleSaveEmbedding = async () => {
+        if (embSaving) return;
+        setEmbSaving(true);
+        setEmbMsg(null);
+        try {
+            await settingsApi.updateEmbedding({
+                ...(embApiKey.trim() && { apiKey: embApiKey.trim() }),
+                model: embModel,
+            });
+            setEmbMsg("Configuración de embeddings guardada");
+            setEmbApiKey("");
+            await loadEmbedding();
+        } catch (e: any) {
+            setEmbMsg(`Error: ${e.message}`);
+        } finally {
+            setEmbSaving(false);
+        }
+    };
+
+    const handleSaveQdrant = async () => {
+        if (qdrantSaving) return;
+        setQdrantSaving(true);
+        setQdrantMsg(null);
+        try {
+            await settingsApi.updateQdrant({
+                url: qdrantUrl.trim() || undefined,
+                ...(qdrantApiKey.trim() && { apiKey: qdrantApiKey.trim() }),
+            });
+            setQdrantMsg("Configuración de Qdrant guardada");
+            setQdrantApiKey("");
+            await loadQdrant();
+        } catch (e: any) {
+            setQdrantMsg(`Error: ${e.message}`);
+        } finally {
+            setQdrantSaving(false);
+        }
+    };
+
+    useEffect(() => { load(); loadEmbedding(); loadQdrant(); }, []);
 
     const handleSave = async () => {
         if (saving) return;
@@ -388,6 +456,128 @@ export const OpenRouterSettingsView = () => {
                             )}
                         </div>
                     )}
+                </div>
+            </div>
+
+            {/* ═══ Embeddings (Gemini) ══════════════════════════════════════ */}
+            <div className="arbo-panel overflow-hidden">
+                <div className="arbo-panel-header flex items-center gap-2">
+                    <Database className="size-4" />
+                    <span>Embeddings para RAG</span>
+                </div>
+                <div className="p-5 flex flex-col gap-4">
+                    <p className="text-xs arbo-text-muted">
+                        Usados para construir el índice RAG de análisis de respuestas. Se admite la API de embeddings de Gemini (<span className="font-mono">text-embedding-004</span>). Si no configurás una key aquí, el sistema usa la variable de entorno <span className="font-mono">GEMINI_EMBEDDING_API_KEY</span>.
+                    </p>
+
+                    {embInfo && (
+                        <div className="flex items-center gap-2 text-xs arbo-text-muted">
+                            {embInfo.hasApiKey
+                                ? <><CircleCheck className="size-3.5 text-[var(--arbo-accent)]" /> {embInfo.usingEnvKey ? "Usando key del servidor (.env)" : embInfo.apiKeyMasked}</>
+                                : <><TriangleExclamation className="size-3.5 text-[var(--arbo-danger)]" /> Sin API key configurada</>
+                            }
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-medium arbo-text-muted">Gemini API Key</label>
+                            <input
+                                type="password"
+                                value={embApiKey}
+                                onChange={(e) => setEmbApiKey(e.target.value)}
+                                placeholder={embInfo?.hasApiKey ? "Nueva key (dejar vacío para mantener)" : "AIza…"}
+                                className="arbo-input text-sm font-mono"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-medium arbo-text-muted">Modelo de embeddings</label>
+                            <select
+                                value={embModel}
+                                onChange={(e) => setEmbModel(e.target.value)}
+                                className="arbo-input text-sm"
+                            >
+                                <option value="text-embedding-004">text-embedding-004 (recomendado, 768 dim)</option>
+                                <option value="text-embedding-preview-0409">text-embedding-preview-0409</option>
+                                <option value="embedding-001">embedding-001</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleSaveEmbedding}
+                            disabled={embSaving}
+                            className="arbo-btn arbo-btn-primary disabled:opacity-50"
+                        >
+                            {embSaving ? "Guardando…" : "Guardar configuración"}
+                        </button>
+                        {embMsg && (
+                            <span className={`text-sm font-medium ${embMsg.startsWith("Error") ? "text-[var(--arbo-danger)]" : "text-[var(--arbo-accent)]"}`}>
+                                {embMsg}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══ Qdrant ══════════════════════════════════════════════════ */}
+            <div className="arbo-panel overflow-hidden">
+                <div className="arbo-panel-header flex items-center gap-2">
+                    <Database className="size-4" />
+                    <span>Qdrant (vector DB para RAG)</span>
+                </div>
+                <div className="p-5 flex flex-col gap-4">
+                    <p className="text-xs arbo-text-muted">
+                        Base de datos vectorial donde se almacenan los embeddings del RAG. Si no configurás los datos aquí, el sistema usa las variables de entorno <span className="font-mono">QDRANT_URL</span> y <span className="font-mono">QDRANT_API_KEY</span>.
+                    </p>
+
+                    {qdrantInfo && (
+                        <div className="flex items-center gap-2 text-xs arbo-text-muted">
+                            {qdrantInfo.url
+                                ? <><CircleCheck className="size-3.5 text-[var(--arbo-accent)]" /> {qdrantInfo.usingEnvConfig ? "Usando configuración del servidor (.env)" : qdrantInfo.url}</>
+                                : <><TriangleExclamation className="size-3.5 text-[var(--arbo-danger)]" /> Sin URL configurada</>
+                            }
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-medium arbo-text-muted">URL de Qdrant</label>
+                            <input
+                                type="text"
+                                value={qdrantUrl}
+                                onChange={(e) => setQdrantUrl(e.target.value)}
+                                placeholder="https://xyz.qdrant.io"
+                                className="arbo-input text-sm font-mono"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-medium arbo-text-muted">API Key de Qdrant</label>
+                            <input
+                                type="password"
+                                value={qdrantApiKey}
+                                onChange={(e) => setQdrantApiKey(e.target.value)}
+                                placeholder={qdrantInfo?.hasApiKey ? "Nueva key (dejar vacío para mantener)" : "qdrant-key…"}
+                                className="arbo-input text-sm font-mono"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleSaveQdrant}
+                            disabled={qdrantSaving}
+                            className="arbo-btn arbo-btn-primary disabled:opacity-50"
+                        >
+                            {qdrantSaving ? "Guardando…" : "Guardar configuración"}
+                        </button>
+                        {qdrantMsg && (
+                            <span className={`text-sm font-medium ${qdrantMsg.startsWith("Error") ? "text-[var(--arbo-danger)]" : "text-[var(--arbo-accent)]"}`}>
+                                {qdrantMsg}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

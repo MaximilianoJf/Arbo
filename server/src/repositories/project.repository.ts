@@ -7,7 +7,7 @@ import FormResponse from "../models/FormResponse.model";
 import FormCollaborator from "../models/FormCollaborator.model";
 import User from "../models/User.model";
 
-export const createProject = async (data: { name: string; description?: string; color?: string; userId: number }) => {
+export const createProject = async (data: { name: string; description?: string; color?: string; isDatabase?: boolean; userId: number }) => {
     return await Project.create(data);
 };
 
@@ -50,7 +50,7 @@ export const getProjectById = async (id: number) => {
     });
 };
 
-export const updateProject = async (id: number, data: { name?: string; description?: string; color?: string }) => {
+export const updateProject = async (id: number, data: { name?: string; description?: string; color?: string; isDatabase?: boolean }) => {
     const project = await Project.findByPk(id);
     if (!project) return null;
     await project.update(data);
@@ -122,4 +122,8 @@ export const isProjectOwnerOrCollaborator = async (projectId: number, userId: nu
 // --- Form assignment ---
 export const assignFormToProject = async (formId: number, projectId: number | null) => {
     return await UserForm.update({ projectId }, { where: { id: formId } });
+};
+
+export const markProjectRagStale = async (projectId: number) => {
+    await Project.update({ ragStatus: "stale" }, { where: { id: projectId, ragStatus: "ready" } });
 };
