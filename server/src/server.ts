@@ -17,6 +17,10 @@ app.use(helmet());
 app.use("/api/forms/ai/scan", express.json({ limit: "15mb" }));
 app.use(express.json({ limit: "2mb" }));
 
+// Health check — endpoint liviano para keep-alive (cronjob.org) y monitoreo.
+// Va antes del rate limit y de /api: no consume cuota ni toca la DB.
+app.get("/health", (_req, res) => res.sendStatus(200));
+
 // Global rate limit — blunt protection against abuse/scraping across the API.
 app.use(rateLimit({
     windowMs: 60_000,
