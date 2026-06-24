@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { projectApi, formApi } from "@/services/api";
-import { Pencil, TrashBin, Persons, Eye, ArrowRight } from "@gravity-ui/icons";
+import { projectApi, formApi, ragApi } from "@/services/api";
+import { Pencil, TrashBin, Persons, Eye, ArrowRight, LayoutHeaderCells, Sparkles, ChevronDown, ChevronUp } from "@gravity-ui/icons";
 
 const ROLE_OPTIONS = [
     { value: "viewer", label: "Viewer" },
@@ -9,10 +9,11 @@ const ROLE_OPTIONS = [
 ];
 
 // ─── Mini form preview (CSS-only, no iframe) ───
-const FormMiniPreview = ({ form, onAnswer, onEdit }: {
+const FormMiniPreview = ({ form, onAnswer, onEdit, onResponses }: {
     form: any;
     onAnswer: () => void;
     onEdit: () => void;
+    onResponses: () => void;
 }) => {
     const styles = form.styles || {};
     const accent = styles.gradient || styles.accentColor || "var(--arbo-accent)";
@@ -92,6 +93,13 @@ const FormMiniPreview = ({ form, onAnswer, onEdit }: {
                         className="arbo-btn arbo-btn-primary text-[11px] px-2.5 py-1 flex-1"
                     >
                         <ArrowRight className="size-3" /> Contestar
+                    </button>
+                    <button
+                        onClick={onResponses}
+                        title="Ver respuestas"
+                        className="arbo-btn arbo-btn-ghost text-[11px] px-2 py-1"
+                    >
+                        <LayoutHeaderCells className="size-3" />
                     </button>
                     <button
                         onClick={onEdit}
@@ -373,6 +381,17 @@ export const ProjectDetailView = () => {
     const [showAssign, setShowAssign] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
 
+    // ── Project RAG state ──
+    const [ragStatus, setRagStatus] = useState<"none" | "ready" | "stale">("none");
+    const [ragOpen, setRagOpen] = useState(false);
+    const [ragBuilding, setRagBuilding] = useState(false);
+    const [ragBuildMsg, setRagBuildMsg] = useState<string | null>(null);
+    const [ragBuildError, setRagBuildError] = useState<string | null>(null);
+    const [ragQuery, setRagQuery] = useState("");
+    const [ragQuerying, setRagQuerying] = useState(false);
+    const [ragResult, setRagResult] = useState<{ answer: string; sources: { textSnippet: string; score: number }[] } | null>(null);
+    const [ragError, setRagError] = useState<string | null>(null);
+
     const projectId = Number(id);
 
     const load = useCallback(async () => {
@@ -389,6 +408,43 @@ export const ProjectDetailView = () => {
     }, [projectId, navigate]);
 
     useEffect(() => { load(); }, [load]);
+
+    useEffect(() => {
+        if (!projectId) return;
+        ragApi.getProjectStatus(projectId)
+            .then((r) => setRagStatus((r.data?.ragStatus || "none") as "none" | "ready" | "stale"))
+            .catch(() => {});
+    }, [projectId]);
+
+    const handleBuildRag = async () => {
+        setRagBuilding(true);
+        setRagBuildMsg(null);
+        setRagBuildError(null);
+        try {
+            const res = await ragApi.buildProject(projectId);
+            setRagStatus("ready");
+            setRagBuildMsg(`RAG creado con ${res.data.indexed} vectores indexados.`);
+            setRagResult(null);
+        } catch (err: any) {
+            setRagBuildError(err.message || "Error al construir el RAG");
+        } finally {
+            setRagBuilding(false);
+        }
+    };
+
+    const handleQueryRag = async () => {
+        if (!ragQuery.trim()) return;
+        setRagQuerying(true);
+        setRagError(null);
+        try {
+            const res = await ragApi.queryProject(projectId, ragQuery.trim());
+            setRagResult(res.data);
+        } catch (err: any) {
+            setRagError(err.message || "Error al consultar el RAG");
+        } finally {
+            setRagQuerying(false);
+        }
+    };
 
     const isOwner = project?.user?.email === getTokenEmail();
 
@@ -528,6 +584,112 @@ export const ProjectDetailView = () => {
                 )}
             </div>
 
+            {/* ── RAG panel ── */}
+            {(() => {
+                const ragBadge = {
+                    none:  { label: "Sin RAG",           cls: "bg-[var(--arbo-surface-2)] arbo-text-muted" },
+                    ready: { label: "RAG listo",          cls: "bg-[var(--arbo-accent-muted)] text-[var(--arbo-accent)]" },
+                    stale: { label: "RAG desactualizado", cls: "bg-[rgba(245,158,11,0.15)] text-[var(--arbo-warning)]" },
+                } as const;
+                return (
+                    <div className="arbo-panel overflow-hidden">
+                        <button
+                            onClick={() => setRagOpen((v) => !v)}
+                            className="w-full arbo-panel-header flex items-center justify-between cursor-pointer hover:bg-[var(--arbo-surface-2)] transition-colors"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Sparkles className="size-4 text-[var(--arbo-accent)]" />
+                                <span className="font-semibold">Análisis IA con RAG</span>
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ragBadge[ragStatus].cls}`}>
+                                    {ragBadge[ragStatus].label}
+                                </span>
+                            </div>
+                            {ragOpen
+                                ? <ChevronUp className="size-4 arbo-text-muted" />
+                                : <ChevronDown className="size-4 arbo-text-muted" />}
+                        </button>
+
+                        {ragOpen && (
+                            <div className="p-5 flex flex-col gap-4">
+                                <p className="text-sm arbo-text-muted">
+                                    Indexá las respuestas del proyecto en un vector DB para hacer consultas semánticas sobre toda la BD relacional.
+                                </p>
+
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    <button
+                                        onClick={handleBuildRag}
+                                        disabled={ragBuilding}
+                                        className="arbo-btn arbo-btn-primary text-sm disabled:opacity-50"
+                                    >
+                                        <Sparkles className="size-4" />
+                                        {ragBuilding
+                                            ? "Construyendo RAG…"
+                                            : ragStatus === "none"
+                                            ? "Crear RAG de análisis"
+                                            : "Reconstruir RAG"}
+                                    </button>
+                                    {ragBuildMsg && <span className="text-xs text-[var(--arbo-accent)]">{ragBuildMsg}</span>}
+                                    {ragBuildError && <span className="text-xs text-[var(--arbo-danger)]">{ragBuildError}</span>}
+                                </div>
+
+                                {(ragStatus === "ready" || ragStatus === "stale") && (
+                                    <div className="flex flex-col gap-3">
+                                        {ragStatus === "stale" && (
+                                            <p className="text-xs text-[var(--arbo-warning)]">
+                                                Hay nuevas respuestas en el proyecto. Reconstruí el RAG para incluirlas.
+                                            </p>
+                                        )}
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={ragQuery}
+                                                onChange={(e) => setRagQuery(e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === "Enter") handleQueryRag(); }}
+                                                placeholder="¿Qué querés analizar sobre este proyecto?"
+                                                className="flex-1 px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-sm placeholder:arbo-text-muted focus:outline-none focus:border-[var(--arbo-accent)]"
+                                            />
+                                            <button
+                                                onClick={handleQueryRag}
+                                                disabled={ragQuerying || !ragQuery.trim()}
+                                                className="arbo-btn arbo-btn-primary text-sm disabled:opacity-50 shrink-0"
+                                            >
+                                                {ragQuerying ? "Consultando…" : "Consultar RAG"}
+                                            </button>
+                                        </div>
+
+                                        {ragError && <p className="text-xs text-[var(--arbo-danger)]">{ragError}</p>}
+
+                                        {ragResult && (
+                                            <div className="flex flex-col gap-3">
+                                                <div className="p-4 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)]">
+                                                    <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider mb-2">Respuesta</p>
+                                                    <p className="text-sm arbo-text leading-relaxed whitespace-pre-wrap">{ragResult.answer}</p>
+                                                </div>
+                                                {ragResult.sources.length > 0 && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider mb-2">Fuentes</p>
+                                                        <div className="flex flex-col gap-2">
+                                                            {ragResult.sources.map((src, i) => (
+                                                                <div key={i} className="px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] flex items-start gap-3">
+                                                                    <span className="text-[10px] font-mono text-[var(--arbo-accent)] shrink-0 mt-0.5">
+                                                                        {(src.score * 100).toFixed(0)}%
+                                                                    </span>
+                                                                    <p className="text-xs arbo-text-secondary leading-relaxed line-clamp-2">{src.textSnippet}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            })()}
+
             {/* Main content — 2 columns */}
             <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
                 {/* Forms column */}
@@ -565,6 +727,7 @@ export const ProjectDetailView = () => {
                                         form={form}
                                         onAnswer={() => window.open(`/forms/${form.slug}`, "_blank")}
                                         onEdit={() => navigate(`/form-builder/edit/${form.id}`)}
+                                        onResponses={() => navigate(`/form-builder/responses/${form.id}`)}
                                     />
                                     {isOwner && (
                                         <button
@@ -585,7 +748,7 @@ export const ProjectDetailView = () => {
                 </div>
 
                 {/* Right sidebar */}
-                <div className="lg:sticky lg:top-4 lg:self-start">
+                <div className="h-fit">
                     <div className="arbo-card-static p-4">
                         <CollabPanel projectId={projectId} isOwner={isOwner} />
                     </div>
