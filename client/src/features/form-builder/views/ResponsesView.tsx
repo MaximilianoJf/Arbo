@@ -7,7 +7,7 @@ import {
     ArrowDownToLine, Sparkles, ChevronDown, ChevronUp, TrashBin,
     Sliders, FileText,
 } from "@gravity-ui/icons";
-import { formApi, apiKeyApi, projectApi } from "@/services/api";
+import { formApi, apiKeyApi, projectApi, ragApi } from "@/services/api";
 import { PdfDesignerModal } from "../components/pdf-designer/PdfDesignerModal";
 import type { PdfDesign } from "../components/pdf-designer/types";
 import { DashboardTab } from "../components/dashboard-designer/DashboardTab";
@@ -68,9 +68,19 @@ export const ResponsesView = () => {
     const [showDashboardPrompt, setShowDashboardPrompt] = useState(false);
     const [dashboardPromptText, setDashboardPromptText] = useState("");
     const [savedDashboard, setSavedDashboard] = useState<DashboardDesign | null>(null);
-    const [activeTab, setActiveTab] = useState<"responses" | "dashboard" | "chain">("responses");
+    const [activeTab, setActiveTab] = useState<"responses" | "analysis" | "dashboard" | "chain">("responses");
     const [hasChain, setHasChain] = useState(false);
     const [projectId, setProjectId] = useState<number | null>(null);
+
+    // ── Per-form RAG state ──
+    const [formRagStatus, setFormRagStatus] = useState<"none" | "ready" | "stale">("none");
+    const [formRagBuilding, setFormRagBuilding] = useState(false);
+    const [formRagBuildMsg, setFormRagBuildMsg] = useState<string | null>(null);
+    const [formRagBuildError, setFormRagBuildError] = useState<string | null>(null);
+    const [formRagQuery, setFormRagQuery] = useState("");
+    const [formRagQuerying, setFormRagQuerying] = useState(false);
+    const [formRagResult, setFormRagResult] = useState<{ answer: string; sources: { textSnippet: string; score: number }[] } | null>(null);
+    const [formRagError, setFormRagError] = useState<string | null>(null);
     const [showPbiPanel, setShowPbiPanel] = useState(false);
     const [apiKeys, setApiKeys] = useState<{ id: number; name: string; key: string }[]>([]);
 
@@ -180,6 +190,11 @@ export const ResponsesView = () => {
                         setHasChain((rel.data || []).some((r: any) => r.parentFormId === fid || r.childFormId === fid));
                     } catch { /* relations are optional */ }
                 }
+
+                // Load per-form RAG status
+                ragApi.getFormStatus(Number(id))
+                    .then((r) => setFormRagStatus((r.data?.ragStatus || "none") as "none" | "ready" | "stale"))
+                    .catch(() => {});
             } catch (err: any) {
                 setError(err.message || "Error al cargar respuestas");
             } finally {
@@ -188,6 +203,36 @@ export const ResponsesView = () => {
         };
         load();
     }, [id]);
+
+    const handleBuildFormRag = async () => {
+        setFormRagBuilding(true);
+        setFormRagBuildMsg(null);
+        setFormRagBuildError(null);
+        try {
+            const res = await ragApi.buildForm(Number(id));
+            setFormRagStatus("ready");
+            setFormRagBuildMsg(`RAG creado con ${res.data.indexed} vectores indexados.`);
+            setFormRagResult(null);
+        } catch (err: any) {
+            setFormRagBuildError(err.message || "Error al construir el RAG");
+        } finally {
+            setFormRagBuilding(false);
+        }
+    };
+
+    const handleQueryFormRag = async () => {
+        if (!formRagQuery.trim()) return;
+        setFormRagQuerying(true);
+        setFormRagError(null);
+        try {
+            const res = await ragApi.queryForm(Number(id), formRagQuery.trim());
+            setFormRagResult(res.data);
+        } catch (err: any) {
+            setFormRagError(err.message || "Error al consultar el RAG");
+        } finally {
+            setFormRagQuerying(false);
+        }
+    };
 
     if (loading) return <div className="flex items-center justify-center py-20"><div className="arbo-spinner" /></div>;
 
@@ -230,7 +275,7 @@ export const ResponsesView = () => {
                     <h1 className="text-lg font-bold arbo-text">{form?.title}</h1>
                     <p className="text-sm arbo-text-muted">{t("responses.responses", { count: responses.length })}</p>
                 </div>
-                {responses.length > 0 && activeTab === "responses" && (
+                {responses.length > 0 && (activeTab === "responses" || activeTab === "analysis") && (
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                         <button
                             onClick={() => setShowPromptBox((v) => !v)}
@@ -277,6 +322,7 @@ export const ResponsesView = () => {
                 <div className="flex items-center gap-1 border-b border-[var(--arbo-border)]">
                     {([
                         { id: "responses", label: t("responses.title") || "Respuestas" },
+                        { id: "analysis", label: "Análisis IA" },
                         ...(hasChain ? [{ id: "chain", label: "Formularios anidados" } as const] : []),
                         { id: "dashboard", label: "Dashboard" },
                     ] as const).map((tab) => (
@@ -312,6 +358,220 @@ export const ResponsesView = () => {
             {activeTab === "chain" && form && (
                 <ChainTab formId={Number(id)} projectId={projectId} t={t} />
             )}
+
+            {/* ── Analysis tab ── */}
+            {activeTab === "analysis" && responses.length > 0 && (<>
+
+                {/* ─ Classic AI ─ */}
+                <div className="arbo-panel overflow-hidden">
+                    <div className="arbo-panel-header flex items-center gap-2">
+                        <Sparkles className="size-4 text-[var(--arbo-accent)]" />
+                        <span className="font-semibold">Análisis con IA</span>
+                        <span className="text-xs arbo-text-muted ml-auto">OpenRouter</span>
+                    </div>
+                    <div className="p-5 flex flex-col gap-4">
+                        <p className="text-sm arbo-text-muted">
+                            La IA analiza todas las respuestas y genera un resumen con insights y patrones.
+                        </p>
+
+                        {/* Prompt box */}
+                        <div className="flex flex-col gap-3">
+                            <textarea
+                                value={promptText}
+                                onChange={(e) => setPromptText(e.target.value)}
+                                placeholder="Dejalo vacío para un análisis general, o escribí una pregunta específica…"
+                                rows={2}
+                                className="w-full px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-sm placeholder:arbo-text-muted focus:outline-none focus:border-[var(--arbo-accent)] resize-none"
+                                onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleAnalyze(promptText || undefined); }}
+                            />
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleAnalyze(promptText || undefined)}
+                                    disabled={analyzing}
+                                    className="arbo-btn arbo-btn-primary text-sm disabled:opacity-50"
+                                >
+                                    <Sparkles className="size-4" /> {analyzing ? t("responses.analyzing") : "Analizar"}
+                                </button>
+                                <span className="text-xs arbo-text-muted ml-auto">Ctrl+Enter</span>
+                            </div>
+                        </div>
+
+                        {analysisError && (
+                            <p className="text-sm text-[var(--arbo-danger)]">{analysisError}</p>
+                        )}
+
+                        {analysis && (
+                            <div className="flex flex-col gap-4 pt-2 border-t border-[var(--arbo-border)]">
+                                <p className="text-sm arbo-text leading-relaxed">{analysis.summary}</p>
+
+                                {analysis.responseRate && (
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {[
+                                            { label: t("responses.total"), value: analysis.responseRate.total, color: "var(--arbo-accent)" },
+                                            { label: t("responses.complete"), value: analysis.responseRate.complete, color: "var(--arbo-info)" },
+                                            { label: t("responses.incomplete"), value: analysis.responseRate.incomplete, color: "var(--arbo-warning)" },
+                                        ].map((s) => (
+                                            <div key={s.label} className="p-3 rounded-lg bg-[var(--arbo-surface-2)] text-center">
+                                                <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+                                                <p className="text-[11px] arbo-text-muted mt-0.5">{s.label}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {analysis.sentiment && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-medium arbo-text-muted">{t("responses.sentiment")}</span>
+                                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                            analysis.sentiment.includes("positiv") ? "bg-[var(--arbo-accent-muted)] text-[var(--arbo-accent)]" :
+                                            analysis.sentiment.includes("negativ") ? "bg-[var(--arbo-danger-muted)] text-[var(--arbo-danger)]" :
+                                            "bg-[var(--arbo-surface-2)] arbo-text-secondary"
+                                        }`}>
+                                            {analysis.sentiment}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {analysis.insights?.length > 0 && (
+                                    <div>
+                                        <p className="text-[11px] font-bold arbo-text-muted uppercase tracking-wider mb-2">{t("responses.insights")}</p>
+                                        <ul className="flex flex-col gap-1.5">
+                                            {analysis.insights.map((ins: string, i: number) => (
+                                                <li key={i} className="flex items-start gap-2 text-sm arbo-text-secondary">
+                                                    <span className="text-[var(--arbo-accent)] mt-0.5 shrink-0">●</span>{ins}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {analysis.patterns?.length > 0 && (
+                                    <div>
+                                        <p className="text-[11px] font-bold arbo-text-muted uppercase tracking-wider mb-2">{t("responses.patterns")}</p>
+                                        <ul className="flex flex-col gap-1.5">
+                                            {analysis.patterns.map((p: string, i: number) => (
+                                                <li key={i} className="flex items-start gap-2 text-sm arbo-text-secondary">
+                                                    <span className="text-[var(--arbo-info)] mt-0.5 shrink-0">◆</span>{p}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {analysis.suggestions?.length > 0 && (
+                                    <div>
+                                        <p className="text-[11px] font-bold arbo-text-muted uppercase tracking-wider mb-2">{t("responses.suggestions")}</p>
+                                        <ul className="flex flex-col gap-1.5">
+                                            {analysis.suggestions.map((s: string, i: number) => (
+                                                <li key={i} className="flex items-start gap-2 text-sm arbo-text-secondary">
+                                                    <span className="text-[var(--arbo-warning)] mt-0.5 shrink-0">▸</span>{s}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ─ Per-form RAG ─ */}
+                {(() => {
+                    const ragBadge = {
+                        none:  { label: "Sin RAG",           cls: "bg-[var(--arbo-surface-2)] arbo-text-muted" },
+                        ready: { label: "RAG listo",          cls: "bg-[var(--arbo-accent-muted)] text-[var(--arbo-accent)]" },
+                        stale: { label: "RAG desactualizado", cls: "bg-[rgba(245,158,11,0.15)] text-[var(--arbo-warning)]" },
+                    } as const;
+                    return (
+                        <div className="arbo-panel overflow-hidden">
+                            <div className="arbo-panel-header flex items-center gap-2">
+                                <Sparkles className="size-4 text-[var(--arbo-accent)]" />
+                                <span className="font-semibold">Análisis con RAG</span>
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ragBadge[formRagStatus].cls}`}>
+                                    {ragBadge[formRagStatus].label}
+                                </span>
+                                <span className="text-xs arbo-text-muted ml-auto">búsqueda semántica</span>
+                            </div>
+                            <div className="p-5 flex flex-col gap-4">
+                                <p className="text-sm arbo-text-muted">
+                                    Indexá las respuestas en un vector DB para hacer consultas semánticas precisas sobre este formulario.
+                                </p>
+
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    <button
+                                        onClick={handleBuildFormRag}
+                                        disabled={formRagBuilding}
+                                        className="arbo-btn arbo-btn-secondary text-sm disabled:opacity-50"
+                                    >
+                                        <Sparkles className="size-4" />
+                                        {formRagBuilding
+                                            ? "Construyendo RAG…"
+                                            : formRagStatus === "none"
+                                            ? "Crear RAG de este formulario"
+                                            : "Reconstruir RAG"}
+                                    </button>
+                                    {formRagBuildMsg && <span className="text-xs text-[var(--arbo-accent)]">{formRagBuildMsg}</span>}
+                                    {formRagBuildError && <span className="text-xs text-[var(--arbo-danger)]">{formRagBuildError}</span>}
+                                </div>
+
+                                {(formRagStatus === "ready" || formRagStatus === "stale") && (
+                                    <div className="flex flex-col gap-3">
+                                        {formRagStatus === "stale" && (
+                                            <p className="text-xs text-[var(--arbo-warning)]">
+                                                Hay nuevas respuestas. Reconstruí el RAG para incluirlas.
+                                            </p>
+                                        )}
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={formRagQuery}
+                                                onChange={(e) => setFormRagQuery(e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === "Enter") handleQueryFormRag(); }}
+                                                placeholder="¿Qué querés saber sobre las respuestas?"
+                                                className="flex-1 px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-sm placeholder:arbo-text-muted focus:outline-none focus:border-[var(--arbo-accent)]"
+                                            />
+                                            <button
+                                                onClick={handleQueryFormRag}
+                                                disabled={formRagQuerying || !formRagQuery.trim()}
+                                                className="arbo-btn arbo-btn-primary text-sm disabled:opacity-50 shrink-0"
+                                            >
+                                                {formRagQuerying ? "Consultando…" : "Consultar RAG"}
+                                            </button>
+                                        </div>
+
+                                        {formRagError && <p className="text-xs text-[var(--arbo-danger)]">{formRagError}</p>}
+
+                                        {formRagResult && (
+                                            <div className="flex flex-col gap-3">
+                                                <div className="p-4 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)]">
+                                                    <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider mb-2">Respuesta</p>
+                                                    <p className="text-sm arbo-text leading-relaxed whitespace-pre-wrap">{formRagResult.answer}</p>
+                                                </div>
+                                                {formRagResult.sources.length > 0 && (
+                                                    <div>
+                                                        <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider mb-2">Fuentes</p>
+                                                        <div className="flex flex-col gap-2">
+                                                            {formRagResult.sources.map((src, i) => (
+                                                                <div key={i} className="px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] flex items-start gap-3">
+                                                                    <span className="text-[10px] font-mono text-[var(--arbo-accent)] shrink-0 mt-0.5">
+                                                                        {(src.score * 100).toFixed(0)}%
+                                                                    </span>
+                                                                    <p className="text-xs arbo-text-secondary leading-relaxed line-clamp-2">{src.textSnippet}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })()}
+
+            </>)}
 
             {/* ════ Responses tab ════ */}
             {activeTab === "responses" && (<>

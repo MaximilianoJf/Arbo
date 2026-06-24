@@ -1,196 +1,36 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { formApi, projectApi } from "@/services/api";
+import { Sparkles, SquarePlus, ChevronDown, ChevronUp } from "@gravity-ui/icons";
+import { formApi, ragApi } from "@/services/api";
 import { FormCard } from "../components/FormCard";
-import { SquarePlus, ArrowRight } from "@gravity-ui/icons";
 
-const PROJECT_COLORS = [
-    "#4ADE80", "#60A5FA", "#F472B6", "#FBBF24",
-    "#A78BFA", "#FB923C", "#34D399", "#F87171",
-];
+type RagStatus = "none" | "ready" | "stale";
+interface RagSource { textSnippet: string; score: number; }
 
-// ─── Create Project Modal ───────────────────────────────────────────────────
-const CreateProjectModal = ({
-    open,
-    onClose,
-    onCreated,
-}: {
-    open: boolean;
-    onClose: () => void;
-    onCreated: () => void;
-}) => {
-    const { t } = useTranslation();
-    const [name, setName] = useState("");
-    const [description, setDescription] = useState("");
-    const [color, setColor] = useState(PROJECT_COLORS[0]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-
-    const handleSubmit = async () => {
-        if (!name.trim()) return setError("El nombre es requerido");
-        setLoading(true);
-        setError("");
-        try {
-            await projectApi.create({ name: name.trim(), description: description.trim(), color });
-            setName("");
-            setDescription("");
-            setColor(PROJECT_COLORS[0]);
-            onCreated();
-            onClose();
-        } catch (err: any) {
-            setError(err.message || "Error al crear proyecto");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (!open) return null;
-
-    return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            onClick={onClose}
-        >
-            <div
-                className="arbo-card-static w-full max-w-md p-6 mx-4"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <h3 className="text-lg font-semibold arbo-text mb-4">{t("projects.newProject")}</h3>
-                <div className="flex flex-col gap-4">
-                    <div>
-                        <label className="text-xs font-medium arbo-text-muted mb-1 block">{t("projects.name")}</label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder={t("projects.namePlaceholder")}
-                            className="arbo-input w-full"
-                            autoFocus
-                            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-medium arbo-text-muted mb-1 block">{t("projects.descriptionOptional")}</label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder={t("projects.descriptionPlaceholder")}
-                            className="arbo-input w-full resize-none h-20"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-medium arbo-text-muted mb-2 block">{t("projects.color")}</label>
-                        <div className="flex gap-2">
-                            {PROJECT_COLORS.map((c) => (
-                                <button
-                                    key={c}
-                                    onClick={() => setColor(c)}
-                                    className="size-8 rounded-full transition-all"
-                                    style={{
-                                        backgroundColor: c,
-                                        boxShadow: color === c ? `0 0 0 2px var(--arbo-bg), 0 0 0 4px ${c}` : "none",
-                                        transform: color === c ? "scale(1.1)" : "scale(1)",
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    </div>
-
-                    {error && <p className="text-sm text-[var(--arbo-danger)]">{error}</p>}
-
-                    <div className="flex gap-2 justify-end mt-2">
-                        <button onClick={onClose} className="arbo-btn arbo-btn-ghost">
-                            {t("common.cancel")}
-                        </button>
-                        <button onClick={handleSubmit} disabled={loading} className="arbo-btn arbo-btn-primary">
-                            {loading ? t("projects.creating") : t("projects.createProject")}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// ─── Project section ────────────────────────────────────────────────────────
-const ProjectSection = ({
-    project,
-    forms,
-    onAction,
-    onNavigate,
-    isShared,
-}: {
-    project: any;
-    forms: any[];
-    onAction: () => void;
-    onNavigate: (path: string) => void;
-    isShared?: boolean;
-}) => (
-    <div className="flex flex-col gap-3">
-        {/* Project header */}
-        <div className="flex items-center gap-2.5">
-            <div
-                className="size-7 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0"
-                style={{ backgroundColor: project.color || "#4ADE80" }}
-            >
-                {project.name?.[0]?.toUpperCase() || "P"}
-            </div>
-            <span className="font-semibold arbo-text text-sm truncate">{project.name}</span>
-            {isShared && (
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--arbo-accent-muted)] arbo-text-accent uppercase tracking-wider shrink-0">
-                    {project.role || "colaborador"}
-                </span>
-            )}
-            <span className="text-xs arbo-text-muted shrink-0">
-                {forms.length} {forms.length === 1 ? "formulario" : "formularios"}
-            </span>
-            <button
-                onClick={() => onNavigate(`/form-builder/projects/${project.id}`)}
-                className="ml-auto arbo-btn arbo-btn-ghost text-xs flex items-center gap-1 shrink-0"
-            >
-                Ver proyecto
-                <ArrowRight className="size-3" />
-            </button>
-        </div>
-
-        {/* Forms grid */}
-        {forms.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {forms.map((form) => (
-                    <FormCard key={form.id} form={form} onAction={onAction} variant="active" />
-                ))}
-            </div>
-        ) : (
-            <div className="flex items-center justify-center p-6 rounded-xl border border-dashed border-[var(--arbo-border)] arbo-text-muted text-sm">
-                Sin formularios en este proyecto
-            </div>
-        )}
-    </div>
-);
-
-// ─── Main view ──────────────────────────────────────────────────────────────
-type Filter = "all" | "none" | number;
-
+// ─── Main view: only the user's forms (projects live in their own view) ───
 export const DashboardView = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const [forms, setForms] = useState<any[]>([]);
-    const [ownedProjects, setOwnedProjects] = useState<any[]>([]);
-    const [sharedProjects, setSharedProjects] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<Filter>("all");
-    const [showCreateProject, setShowCreateProject] = useState(false);
+
+    // ── Group RAG state ──
+    const [ragStatus, setRagStatus] = useState<RagStatus>("none");
+    const [ragBuilding, setRagBuilding] = useState(false);
+    const [ragBuildMsg, setRagBuildMsg] = useState<string | null>(null);
+    const [ragBuildError, setRagBuildError] = useState<string | null>(null);
+    const [ragQuery, setRagQuery] = useState("");
+    const [ragQuerying, setRagQuerying] = useState(false);
+    const [ragResult, setRagResult] = useState<{ answer: string; sources: RagSource[] } | null>(null);
+    const [ragError, setRagError] = useState<string | null>(null);
+    const [ragOpen, setRagOpen] = useState(true);
 
     const load = useCallback(async () => {
         try {
-            const [formsRes, projectsRes] = await Promise.all([
-                formApi.getMyForms(),
-                projectApi.getAll(),
-            ]);
-            setForms(formsRes.data);
-            setOwnedProjects(projectsRes.data.owned ?? []);
-            setSharedProjects(projectsRes.data.shared ?? []);
+            const res = await formApi.getMyForms();
+            // Only loose forms here — forms inside a project live under "Mis Proyectos".
+            setForms((res.data || []).filter((f: any) => !f.project && f.projectId == null));
         } catch {
             navigate("/");
         } finally {
@@ -200,38 +40,41 @@ export const DashboardView = () => {
 
     useEffect(() => { load(); }, [load]);
 
-    const allProjects = useMemo(() => [...ownedProjects, ...sharedProjects], [ownedProjects, sharedProjects]);
+    useEffect(() => {
+        ragApi.getUserStatus()
+            .then((res) => setRagStatus((res.data?.ragStatus || "none") as RagStatus))
+            .catch(() => {});
+    }, []);
 
-    // Group forms by projectId
-    const formsByProjectId = useMemo(() => {
-        const map = new Map<number, any[]>();
-        for (const f of forms) {
-            const pid = f.project?.id ?? f.projectId;
-            if (pid) {
-                if (!map.has(pid)) map.set(pid, []);
-                map.get(pid)!.push(f);
-            }
+    const handleBuildRag = async () => {
+        setRagBuilding(true);
+        setRagBuildMsg(null);
+        setRagBuildError(null);
+        try {
+            const res = await ragApi.buildUser();
+            setRagStatus("ready");
+            setRagBuildMsg(`RAG creado con ${res.data.indexed} vectores indexados.`);
+            setRagResult(null);
+        } catch (err: any) {
+            setRagBuildError(err.message || "Error al construir el RAG");
+        } finally {
+            setRagBuilding(false);
         }
-        return map;
-    }, [forms]);
+    };
 
-    const looseForms = useMemo(
-        () => forms.filter((f) => !f.project && !f.projectId),
-        [forms]
-    );
-
-    // Filter chip projects (derived from forms that have a project attached)
-    const projectChips = useMemo(() => {
-        const seen = new Set<number>();
-        const result: { id: number; name: string; color: string }[] = [];
-        for (const f of forms) {
-            if (f.project && !seen.has(f.project.id)) {
-                seen.add(f.project.id);
-                result.push(f.project);
-            }
+    const handleQueryRag = async () => {
+        if (!ragQuery.trim()) return;
+        setRagQuerying(true);
+        setRagError(null);
+        try {
+            const res = await ragApi.queryUser(ragQuery.trim());
+            setRagResult(res.data);
+        } catch (err: any) {
+            setRagError(err.message || "Error al consultar el RAG");
+        } finally {
+            setRagQuerying(false);
         }
-        return result;
-    }, [forms]);
+    };
 
     if (loading) {
         return (
@@ -242,15 +85,12 @@ export const DashboardView = () => {
     }
 
     const totalForms = forms.length;
-    const hasContent = totalForms > 0 || allProjects.length > 0;
 
-    // Flat filtered forms (when a specific filter is active)
-    const flatFilteredForms =
-        filter === "none"
-            ? looseForms
-            : typeof filter === "number"
-            ? (formsByProjectId.get(filter) ?? [])
-            : [];
+    const statusBadge = {
+        none:  { label: "Sin RAG",           cls: "bg-[var(--arbo-surface-2)] arbo-text-muted" },
+        ready: { label: "RAG listo",          cls: "bg-[var(--arbo-accent-muted)] text-[var(--arbo-accent)]" },
+        stale: { label: "RAG desactualizado", cls: "bg-[rgba(245,158,11,0.15)] text-[var(--arbo-warning)]" },
+    } as const;
 
     return (
         <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full">
@@ -260,77 +100,120 @@ export const DashboardView = () => {
                     <h1 className="text-xl font-bold arbo-text">{t("dashboard.myForms")}</h1>
                     <p className="text-sm arbo-text-muted mt-0.5">
                         {totalForms} {totalForms === 1 ? "formulario" : "formularios"}
-                        {allProjects.length > 0 && (
-                            <> &middot; {allProjects.length} {allProjects.length === 1 ? "proyecto" : "proyectos"}</>
-                        )}
                     </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                    <button
-                        onClick={() => setShowCreateProject(true)}
-                        className="arbo-btn arbo-btn-secondary text-sm"
-                    >
-                        <SquarePlus className="size-4" />
-                        Nuevo Proyecto
-                    </button>
-                    <button
-                        onClick={() => navigate("/form-builder/create-form")}
-                        className="arbo-btn arbo-btn-primary text-sm"
-                    >
-                        <SquarePlus className="size-4" />
-                        {t("nav.newForm")}
-                    </button>
-                </div>
+                <button
+                    onClick={() => navigate("/form-builder/create-form")}
+                    className="arbo-btn arbo-btn-primary text-sm shrink-0"
+                >
+                    <SquarePlus className="size-4" />
+                    {t("nav.newForm")}
+                </button>
             </div>
 
-            {/* Filter chips — only when there are projects */}
-            {allProjects.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap">
+            {/* ── Group RAG panel (only when there are forms) ── */}
+            {totalForms > 0 && (
+                <div className="arbo-panel overflow-hidden">
                     <button
-                        onClick={() => setFilter("all")}
-                        className={`text-xs px-3 py-1.5 rounded-full transition-all border ${
-                            filter === "all"
-                                ? "bg-[var(--arbo-accent)] text-white border-[var(--arbo-accent)]"
-                                : "arbo-text-muted border-[var(--arbo-border)] hover:border-[var(--arbo-border-light)]"
-                        }`}
+                        onClick={() => setRagOpen((v) => !v)}
+                        className="w-full arbo-panel-header flex items-center justify-between cursor-pointer hover:bg-[var(--arbo-surface-2)] transition-colors"
                     >
-                        {t("dashboard.all")}
+                        <div className="flex items-center gap-2">
+                            <Sparkles className="size-4 text-[var(--arbo-accent)]" />
+                            <span className="font-semibold">Análisis IA del grupo</span>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${statusBadge[ragStatus].cls}`}>
+                                {statusBadge[ragStatus].label}
+                            </span>
+                        </div>
+                        {ragOpen
+                            ? <ChevronUp className="size-4 arbo-text-muted" />
+                            : <ChevronDown className="size-4 arbo-text-muted" />}
                     </button>
-                    {looseForms.length > 0 && (
-                        <button
-                            onClick={() => setFilter("none")}
-                            className={`text-xs px-3 py-1.5 rounded-full transition-all border ${
-                                filter === "none"
-                                    ? "bg-[var(--arbo-surface-3)] arbo-text border-[var(--arbo-border-light)]"
-                                    : "arbo-text-muted border-[var(--arbo-border)] hover:border-[var(--arbo-border-light)]"
-                            }`}
-                        >
-                            {t("dashboard.noProject")}
-                        </button>
+
+                    {ragOpen && (
+                        <div className="p-5 flex flex-col gap-4">
+                            <p className="text-sm arbo-text-muted">
+                                Construí un índice semántico con todas tus respuestas y consultá el conjunto completo con lenguaje natural.
+                            </p>
+
+                            {/* Build */}
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <button
+                                    onClick={handleBuildRag}
+                                    disabled={ragBuilding}
+                                    className="arbo-btn arbo-btn-primary text-sm disabled:opacity-50"
+                                >
+                                    <Sparkles className="size-4" />
+                                    {ragBuilding
+                                        ? "Construyendo RAG…"
+                                        : ragStatus === "none"
+                                        ? "Crear RAG del grupo"
+                                        : "Reconstruir RAG"}
+                                </button>
+                                {ragBuildMsg && <span className="text-xs text-[var(--arbo-accent)]">{ragBuildMsg}</span>}
+                                {ragBuildError && <span className="text-xs text-[var(--arbo-danger)]">{ragBuildError}</span>}
+                            </div>
+
+                            {/* Query — only when RAG exists */}
+                            {(ragStatus === "ready" || ragStatus === "stale") && (
+                                <div className="flex flex-col gap-3">
+                                    {ragStatus === "stale" && (
+                                        <p className="text-xs text-[var(--arbo-warning)]">
+                                            Se agregaron nuevas respuestas. Reconstruí el RAG para incluirlas.
+                                        </p>
+                                    )}
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={ragQuery}
+                                            onChange={(e) => setRagQuery(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === "Enter") handleQueryRag(); }}
+                                            placeholder="¿Qué querés saber sobre el conjunto de respuestas?"
+                                            className="flex-1 px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] arbo-text text-sm placeholder:arbo-text-muted focus:outline-none focus:border-[var(--arbo-accent)]"
+                                        />
+                                        <button
+                                            onClick={handleQueryRag}
+                                            disabled={ragQuerying || !ragQuery.trim()}
+                                            className="arbo-btn arbo-btn-primary text-sm disabled:opacity-50 shrink-0"
+                                        >
+                                            {ragQuerying ? "Consultando…" : "Analizar con RAG"}
+                                        </button>
+                                    </div>
+
+                                    {ragError && <p className="text-xs text-[var(--arbo-danger)]">{ragError}</p>}
+
+                                    {ragResult && (
+                                        <div className="flex flex-col gap-3">
+                                            <div className="p-4 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)]">
+                                                <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider mb-2">Respuesta</p>
+                                                <p className="text-sm arbo-text leading-relaxed whitespace-pre-wrap">{ragResult.answer}</p>
+                                            </div>
+                                            {ragResult.sources.length > 0 && (
+                                                <div>
+                                                    <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider mb-2">Fuentes</p>
+                                                    <div className="flex flex-col gap-2">
+                                                        {ragResult.sources.map((src, i) => (
+                                                            <div key={i} className="px-3 py-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)] flex items-start gap-3">
+                                                                <span className="text-[10px] font-mono text-[var(--arbo-accent)] shrink-0 mt-0.5">
+                                                                    {(src.score * 100).toFixed(0)}%
+                                                                </span>
+                                                                <p className="text-xs arbo-text-secondary leading-relaxed line-clamp-2">{src.textSnippet}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     )}
-                    {projectChips.map((p) => (
-                        <button
-                            key={p.id}
-                            onClick={() => setFilter(p.id)}
-                            className={`text-xs px-3 py-1.5 rounded-full transition-all border flex items-center gap-1.5 ${
-                                filter === p.id
-                                    ? "text-white border-transparent"
-                                    : "arbo-text-muted border-[var(--arbo-border)] hover:border-[var(--arbo-border-light)]"
-                            }`}
-                            style={filter === p.id ? { backgroundColor: p.color } : {}}
-                        >
-                            <span
-                                className="size-2 rounded-full shrink-0"
-                                style={{ backgroundColor: filter === p.id ? "white" : p.color }}
-                            />
-                            {p.name}
-                        </button>
-                    ))}
                 </div>
             )}
 
-            {/* Empty state total */}
-            {!hasContent && (
+            {/* Empty state */}
+            {totalForms === 0 ? (
                 <div className="arbo-card-static flex flex-col items-center gap-5 p-16 text-center">
                     <div className="size-16 rounded-2xl bg-[var(--arbo-accent-muted)] flex items-center justify-center">
                         <svg className="size-8 text-[var(--arbo-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -348,67 +231,13 @@ export const DashboardView = () => {
                         {t("dashboard.createForm")}
                     </button>
                 </div>
-            )}
-
-            {/* Grouped view (filter === "all") */}
-            {filter === "all" && hasContent && (
-                <div className="flex flex-col gap-8">
-                    {/* Project sections */}
-                    {allProjects.map((project) => (
-                        <ProjectSection
-                            key={project.id}
-                            project={project}
-                            forms={formsByProjectId.get(project.id) ?? []}
-                            onAction={load}
-                            onNavigate={navigate}
-                            isShared={sharedProjects.some((p) => p.id === project.id)}
-                        />
+            ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {forms.map((form) => (
+                        <FormCard key={form.id} form={form} onAction={load} variant="active" />
                     ))}
-
-                    {/* Loose forms section */}
-                    {looseForms.length > 0 && (
-                        <div className="flex flex-col gap-3">
-                            {allProjects.length > 0 && (
-                                <div className="flex items-center gap-2">
-                                    <h2 className="text-xs font-semibold arbo-text-muted uppercase tracking-wider">
-                                        Sin proyecto
-                                    </h2>
-                                    <span className="text-xs arbo-text-muted">({looseForms.length})</span>
-                                </div>
-                            )}
-                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                {looseForms.map((form) => (
-                                    <FormCard key={form.id} form={form} onAction={load} variant="active" />
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
-
-            {/* Flat filtered view */}
-            {filter !== "all" && (
-                flatFilteredForms.length === 0 ? (
-                    <div className="arbo-card-static flex flex-col items-center gap-4 p-12 text-center">
-                        <p className="text-sm arbo-text-muted">{t("dashboard.noFormsFilter")}</p>
-                        <button onClick={() => setFilter("all")} className="arbo-btn arbo-btn-ghost text-sm">
-                            {t("dashboard.viewAll")}
-                        </button>
-                    </div>
-                ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {flatFilteredForms.map((form) => (
-                            <FormCard key={form.id} form={form} onAction={load} variant="active" />
-                        ))}
-                    </div>
-                )
-            )}
-
-            <CreateProjectModal
-                open={showCreateProject}
-                onClose={() => setShowCreateProject(false)}
-                onCreated={load}
-            />
         </div>
     );
 };
