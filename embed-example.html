@@ -1,124 +1,551 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ejemplo - Arbo Forms Embed</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background: #f5f5f7;
-            color: #1d1d1f;
-            min-height: 100vh;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arbo — Nuestras Creaciones</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-        .hero {
-            background: linear-gradient(135deg, #0f0f14 0%, #1a1a24 100%);
-            color: white;
-            padding: 80px 24px 60px;
-            text-align: center;
-        }
-        .hero h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-        .hero p {
-            font-size: 1.1rem;
-            opacity: 0.7;
-            max-width: 500px;
-            margin: 0 auto;
-        }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1d1d1f;
+      min-height: 100vh;
+    }
 
-        .container {
-            max-width: 800px;
-            margin: -30px auto 60px;
-            padding: 0 24px;
-        }
+    /* ── NAV ── */
+    nav {
+      background: #0f0f14;
+      padding: 18px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
-        .embed-wrapper {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-            padding: 8px;
-            overflow: hidden;
-        }
+    /* Logo blanco SVG */
+    .logo-svg { height: 32px; width: auto; }
 
-        .info {
-            text-align: center;
-            margin-top: 40px;
-            padding: 24px;
-            background: white;
-            border-radius: 12px;
-            border: 1px solid #e5e5e5;
-        }
-        .info h3 {
-            font-size: 1rem;
-            margin-bottom: 8px;
-        }
-        .info code {
-            display: block;
-            background: #f5f5f7;
-            border: 1px solid #e5e5e5;
-            border-radius: 8px;
-            padding: 16px;
-            margin-top: 12px;
-            font-size: 0.8rem;
-            text-align: left;
-            overflow-x: auto;
-            white-space: pre;
-            color: #555;
-        }
-    </style>
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: 28px;
+    }
+    nav ul a {
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      font-size: 0.875rem;
+      letter-spacing: 0.02em;
+      transition: color 0.2s;
+    }
+    nav ul a:hover { color: #fff; }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, #0f0f14 0%, #1a1a2e 50%, #16213e 100%);
+      padding: 80px 40px 120px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 40% at 50% 80%, rgba(99,102,241,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.02em;
+      margin-bottom: 14px;
+    }
+    .hero p {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.55);
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.65;
+    }
+
+    /* ── PORTFOLIO SECTION ── */
+    .portfolio {
+      max-width: 1100px;
+      margin: -48px auto 80px;
+      padding: 0 24px;
+    }
+
+    /* Bloque de títulos */
+    .portfolio-header {
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px 48px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.07);
+      margin-bottom: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #e8f0fe;
+      color: #4f6dc8;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 999px;
+      width: fit-content;
+    }
+    .badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: #6366f1;
+      border-radius: 50%;
+    }
+    .portfolio-header h2 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 800;
+      color: #1a1a2e;
+      letter-spacing: -0.025em;
+      line-height: 1.1;
+    }
+    .portfolio-header p {
+      font-size: 0.975rem;
+      color: #6b7280;
+      max-width: 520px;
+      line-height: 1.7;
+    }
+
+    /* ── CARDS GRID ── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 28px;
+    }
+
+    /* Flip card wrapper */
+    .flip-card {
+      height: 340px;
+      perspective: 1000px;
+      cursor: pointer;
+    }
+    .flip-card:hover .flip-inner {
+      transform: rotateY(180deg);
+    }
+    .flip-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 1.4s cubic-bezier(0.45, 0.05, 0.25, 1);
+    }
+
+    .flip-front, .flip-back {
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      overflow: hidden;
+    }
+
+    /* Frente — gradiente ob-block */
+    .flip-front {
+      background: linear-gradient(180deg, #e6ebf2 0%, #cfd7e2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 28px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.10);
+    }
+    .flip-front .card-icon {
+      position: absolute;
+      top: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 80px;
+      border-radius: 18px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.18);
+    }
+    .flip-front .card-icon svg {
+      width: 40px; height: 40px;
+    }
+    .card-preview {
+      width: 100%;
+      background: rgba(255,255,255,0.55);
+      border-radius: 12px;
+      padding: 14px 16px;
+      backdrop-filter: blur(8px);
+    }
+    .card-preview .bar {
+      height: 8px;
+      border-radius: 4px;
+      background: rgba(30,40,80,0.12);
+      margin-bottom: 8px;
+    }
+    .card-preview .bar:last-child { margin-bottom: 0; width: 65%; }
+    .card-preview .bar.short { width: 48%; }
+
+    /* Glow on hover via filter */
+    .flip-card:hover .flip-front {
+      filter: drop-shadow(0 0 18px rgba(99,102,241,0.28));
+    }
+
+    .card-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+      text-align: left;
+      width: 100%;
+    }
+
+    /* Reverso */
+    .flip-back {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      transform: rotateY(180deg);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 32px 28px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.20);
+    }
+    .flip-back .back-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #6366f1;
+      background: rgba(99,102,241,0.15);
+      padding: 4px 12px;
+      border-radius: 999px;
+      width: fit-content;
+    }
+    .flip-back h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.25;
+      margin-top: 12px;
+    }
+    .flip-back p {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.55);
+      line-height: 1.65;
+      flex: 1;
+      margin-top: 10px;
+    }
+    .back-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #6366f1;
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 999px;
+      text-decoration: none;
+      transition: background 0.2s, gap 0.2s;
+      width: fit-content;
+      margin-top: 20px;
+      border: none;
+      cursor: pointer;
+    }
+    .back-cta:hover { background: #4f46e5; gap: 10px; }
+    .back-cta svg { width: 14px; height: 14px; }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 0.8rem;
+      color: #9ca3af;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    @media (max-width: 600px) {
+      nav { padding: 14px 20px; }
+      nav ul { display: none; }
+      .portfolio-header { padding: 28px 24px; }
+      .cards-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
 
-    <div class="hero">
-        <h1>Mi Sitio Web</h1>
-        <p>Ejemplo de un formulario de Arbo embebido en una web externa</p>
+<!-- ── NAV ── -->
+<nav>
+  <!-- Logo blanco -->
+  <svg class="logo-svg" viewBox="0 0 110 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Arbo">
+    <g>
+      <!-- Hoja / icono -->
+      <path d="M6 28 C6 28 4 16 12 10 C20 4 26 10 24 18 C22 26 14 30 6 28Z" fill="#6366f1"/>
+      <path d="M12 10 C12 10 18 14 18 20" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+      <!-- Texto -->
+      <text x="32" y="24" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size="20" fill="#ffffff" letter-spacing="-0.5">arbo</text>
+    </g>
+  </svg>
+
+  <ul>
+    <li><a href="#">Inicio</a></li>
+    <li><a href="#">Formularios</a></li>
+    <li><a href="#">Portafolio</a></li>
+    <li><a href="#">Contacto</a></li>
+  </ul>
+</nav>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <h1>Creá formularios que<br>realmente funcionan</h1>
+  <p>Desde encuestas simples hasta flujos relacionales complejos — todo con Arbo.</p>
+</div>
+
+<!-- ── PORTFOLIO ── -->
+<section class="portfolio">
+
+  <!-- Bloque de títulos -->
+  <div class="portfolio-header">
+    <span class="badge">Portafolio</span>
+    <h2>Nuestras Creaciones</h2>
+    <p>Explorá algunos de los formularios que nuestros usuarios construyeron con Arbo. Pasá el cursor sobre cada carta para descubrir más.</p>
+  </div>
+
+  <!-- Cartas giratorias -->
+  <div class="cards-grid">
+
+    <!-- Carta 1 -->
+    <div class="flip-card">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <div class="card-icon">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="6" y="8" width="28" height="24" rx="4" stroke="#6366f1" stroke-width="2"/>
+              <line x1="11" y1="15" x2="29" y2="15" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="11" y1="20" x2="29" y2="20" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="11" y1="25" x2="22" y2="25" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div style="height:72px"></div>
+          <div class="card-preview">
+            <div class="card-label">Formulario de contacto</div>
+            <div class="bar"></div>
+            <div class="bar short"></div>
+            <div class="bar"></div>
+          </div>
+        </div>
+        <div class="flip-back">
+          <span class="back-tag">Contacto</span>
+          <h3>Formulario de Contacto Pro</h3>
+          <p>Captura nombre, email y mensaje con validaciones en tiempo real. Incluye protección anti-spam y notificaciones automáticas.</p>
+          <button class="back-cta" onclick="window.open('https://arbo-builder.netlify.app', '_blank')">
+            Ver demo
+            <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div class="container">
-        <div class="embed-wrapper">
-            <!--
-                Opciones:
-                  /embed/TU-SLUG           → Solo el formulario
-                  /embed/TU-SLUG?contact=1  → Formulario + campos de contacto (nombre, email)
-            -->
-<iframe
-  src="http://localhost:5173/embed/resea-mpnchtno"
-  width="100%"
-  height="600"
-  frameborder="0"
-  style="border: none; border-radius: 12px; max-width: 700px;"
-  allow="clipboard-write"
-></iframe>
-<script>
-  window.addEventListener("message", function(e) {
-    if (e.data && e.data.type === "arbo-embed-resize") {
-      var frames = document.querySelectorAll('iframe[src*="/embed/resea-mpnchtno"]');
-      frames.forEach(function(f) { f.style.height = e.data.height + "px"; });
-    }
-  });
-</script>
+    <!-- Carta 2 -->
+    <div class="flip-card">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <div class="card-icon">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="20" cy="20" r="12" stroke="#6366f1" stroke-width="2"/>
+              <path d="M14 20l4 4 8-8" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div style="height:72px"></div>
+          <div class="card-preview">
+            <div class="card-label">Encuesta de satisfacción</div>
+            <div class="bar"></div>
+            <div class="bar short"></div>
+            <div class="bar"></div>
+          </div>
         </div>
-
-        <div class="info">
-            <h3>Como usar</h3>
-            <p style="font-size: 0.9rem; color: #666; line-height: 1.8;">
-                1. Crea un formulario en Arbo<br>
-                2. Click en <strong>"Embed"</strong> en la tarjeta del formulario<br>
-                3. Activa o desactiva los <strong>campos de contacto</strong> con el toggle<br>
-                4. Copia el codigo y pegalo en tu HTML
-            </p>
-            <code>&lt;!-- Solo formulario --&gt;
-&lt;iframe src="http://localhost:5173/embed/TU-SLUG" ...&gt;&lt;/iframe&gt;
-
-&lt;!-- Con campos de contacto (nombre + email) --&gt;
-&lt;iframe src="http://localhost:5173/embed/TU-SLUG?contact=1" ...&gt;&lt;/iframe&gt;</code>
+        <div class="flip-back">
+          <span class="back-tag">Encuesta</span>
+          <h3>NPS & Satisfacción</h3>
+          <p>Mide la experiencia de tus clientes con escalas visuales, opción múltiple y campos abiertos. Resultados en un dashboard en tiempo real.</p>
+          <button class="back-cta">
+            Ver demo
+            <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
+      </div>
     </div>
+
+    <!-- Carta 3 -->
+    <div class="flip-card">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <div class="card-icon">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="8" y="6" width="24" height="28" rx="3" stroke="#6366f1" stroke-width="2"/>
+              <line x1="13" y1="14" x2="27" y2="14" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="13" y1="19" x2="27" y2="19" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="13" y1="24" x2="20" y2="24" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div style="height:72px"></div>
+          <div class="card-preview">
+            <div class="card-label">Registro de evento</div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar short"></div>
+          </div>
+        </div>
+        <div class="flip-back">
+          <span class="back-tag">Eventos</span>
+          <h3>Registro de Eventos</h3>
+          <p>Gestiona inscripciones con cupos, listas de espera y confirmaciones por email. Exporta la nómina en un clic.</p>
+          <button class="back-cta">
+            Ver demo
+            <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carta 4 -->
+    <div class="flip-card">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <div class="card-icon">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 8l3.5 7 7.5 1.1-5.5 5.3 1.3 7.6L20 25.5 13.2 29l1.3-7.6L9 16.1l7.5-1.1L20 8z" stroke="#6366f1" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div style="height:72px"></div>
+          <div class="card-preview">
+            <div class="card-label">Solicitud de presupuesto</div>
+            <div class="bar"></div>
+            <div class="bar short"></div>
+            <div class="bar"></div>
+          </div>
+        </div>
+        <div class="flip-back">
+          <span class="back-tag">Ventas</span>
+          <h3>Solicitud de Presupuesto</h3>
+          <p>Flujo guiado de varios pasos con lógica condicional: muestra u oculta campos según las respuestas anteriores del cliente.</p>
+          <button class="back-cta">
+            Ver demo
+            <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carta 5 -->
+    <div class="flip-card">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <div class="card-icon">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="20" cy="14" r="6" stroke="#6366f1" stroke-width="2"/>
+              <path d="M8 32c0-6.627 5.373-12 12-12s12 5.373 12 12" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div style="height:72px"></div>
+          <div class="card-preview">
+            <div class="card-label">Onboarding de cliente</div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar short"></div>
+          </div>
+        </div>
+        <div class="flip-back">
+          <span class="back-tag">RRHH</span>
+          <h3>Onboarding de Cliente</h3>
+          <p>Recopila datos, documentación y preferencias al incorporar nuevos clientes o empleados. Flujo relacional multi-etapa.</p>
+          <button class="back-cta">
+            Ver demo
+            <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carta 6 -->
+    <div class="flip-card">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <div class="card-icon">
+            <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10 30V20M20 30V10M30 30V18" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div style="height:72px"></div>
+          <div class="card-preview">
+            <div class="card-label">Encuesta analítica</div>
+            <div class="bar"></div>
+            <div class="bar short"></div>
+            <div class="bar"></div>
+          </div>
+        </div>
+        <div class="flip-back">
+          <span class="back-tag">Analytics</span>
+          <h3>Encuesta Analítica</h3>
+          <p>Formularios con métricas integradas: tasa de completado, tiempo promedio y puntos de abandono visualizados en gráficos.</p>
+          <button class="back-cta">
+            Ver demo
+            <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /cards-grid -->
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <p>© 2025 Arbo Forms — Todos los derechos reservados</p>
+</footer>
+
+<!-- SVG defs globales (ob-block gradient + ob-glow filter) -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="ob-block" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e6ebf2" />
+      <stop offset="1" stop-color="#cfd7e2" />
+    </linearGradient>
+    <filter id="ob-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="5" result="b" />
+      <feMerge>
+        <feMergeNode in="b" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+</svg>
 
 </body>
 </html>

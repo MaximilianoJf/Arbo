@@ -31,11 +31,12 @@ interface Props {
     onChange: (patch: Partial<RelationEdgeData>) => void;
     onCreateJoinForm: () => void;
     onCreateFkField?: (labelField?: string) => void;
-    onToggleStrictFlow?: (strict: boolean) => void;
+    /** Persist a styles patch onto the TARGET (child) form: restriction toggles live here. */
+    onPatchTargetStyles?: (patch: Record<string, any>) => void;
     onDelete: () => void;
 }
 
-export const RelationInspector = ({ source, target, data, forms, creatingJoin, hasData, creatingFk, onChange, onCreateJoinForm, onCreateFkField, onToggleStrictFlow, onDelete }: Props) => {
+export const RelationInspector = ({ source, target, data, forms, creatingJoin, hasData, creatingFk, onChange, onCreateJoinForm, onCreateFkField, onPatchTargetStyles, onDelete }: Props) => {
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [fkLabelField, setFkLabelField] = useState("");
 
@@ -177,39 +178,98 @@ export const RelationInspector = ({ source, target, data, forms, creatingJoin, h
                 </div>
             )}
 
-            {/* Strict-flow toggle: controls whether unauthenticated users are blocked from
-                filling the child form directly (without a ?ref= parent link). */}
-            {onToggleStrictFlow && (
-                <div className="flex flex-col gap-1.5">
-                    <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">Acceso directo</p>
+            {/* ── Restrictions: all the access/uniqueness rules of the CHILD form, in one place ── */}
+            {onPatchTargetStyles && (() => {
+                const strict = target.requiresParentChain !== false;
+                const allowMultiple = !!target.allowMultiple;
+                const requiresLogin = !!target.requiresGoogleAuth;
+
+                const RestrictionToggle = ({
+                    on, onToggle, onLabel, offLabel, onDesc, offDesc, accent = "var(--arbo-accent)",
+                }: {
+                    on: boolean; onToggle: () => void;
+                    onLabel: string; offLabel: string; onDesc: string; offDesc: string; accent?: string;
+                }) => (
                     <div
                         className="flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer select-none transition-colors hover:border-[var(--arbo-accent)]/50"
                         style={{
-                            borderColor: target.requiresParentChain !== false ? "var(--arbo-warning, #f59e0b)" : "var(--arbo-accent)",
-                            background: target.requiresParentChain !== false ? "rgba(245,158,11,0.07)" : "var(--arbo-accent-muted)",
+                            borderColor: on ? accent : "var(--arbo-border)",
+                            background: on ? "var(--arbo-accent-muted)" : "var(--arbo-surface-2)",
                         }}
-                        onClick={() => onToggleStrictFlow(!(target.requiresParentChain !== false))}
+                        onClick={onToggle}
                     >
                         <div
                             className="mt-0.5 size-3.5 rounded-full shrink-0 border-2 transition-colors"
                             style={{
-                                background: target.requiresParentChain !== false ? "transparent" : "var(--arbo-accent)",
-                                borderColor: target.requiresParentChain !== false ? "var(--arbo-warning, #f59e0b)" : "var(--arbo-accent)",
+                                background: on ? accent : "transparent",
+                                borderColor: on ? accent : "var(--arbo-border)",
                             }}
                         />
-                        <div>
-                            <p className="text-[11px] font-semibold arbo-text">
-                                {target.requiresParentChain !== false ? "Flujo estricto (requiere padre)" : "Acceso libre (sin padre)"}
-                            </p>
-                            <p className="text-[10px] arbo-text-muted mt-0.5 leading-snug">
-                                {target.requiresParentChain !== false
-                                    ? `Usuarios anónimos que abran "${target.title}" directamente son bloqueados. Administradores autenticados pueden responder sin restricción.`
-                                    : `Cualquier persona puede responder "${target.title}" directamente, sin necesidad de pasar por el formulario padre.`}
-                            </p>
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-semibold arbo-text">{on ? onLabel : offLabel}</p>
+                            <p className="text-[10px] arbo-text-muted mt-0.5 leading-snug">{on ? onDesc : offDesc}</p>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+
+                return (
+                    <div className="flex flex-col gap-1.5">
+                        <p className="text-[10px] font-bold arbo-text-muted uppercase tracking-wider">Restricciones de {target.title}</p>
+                        <p className="text-[10px] arbo-text-muted -mt-0.5 leading-snug">
+                            Todas las reglas de respuesta del formulario hijo, en este mismo flujo.
+                        </p>
+
+                        {/* Strict flow (requires parent ?ref= link) */}
+                        <RestrictionToggle
+                            on={strict}
+                            accent="var(--arbo-warning, #f59e0b)"
+                            onToggle={() => onPatchTargetStyles({ requiresParentChain: !strict })}
+                            onLabel="Flujo estricto (requiere padre)"
+                            offLabel="Acceso libre (sin padre)"
+                            onDesc={`Solo se puede responder "${target.title}" desde el link de una respuesta del formulario padre. Administradores autenticados pueden responder sin restricción.`}
+                            offDesc={`Cualquier persona puede responder "${target.title}" directamente, sin pasar por el formulario padre.`}
+                        />
+
+                        {/* One response per person (allowMultiple OFF = una sola) */}
+                        <RestrictionToggle
+                            on={!allowMultiple}
+                            onToggle={() => onPatchTargetStyles({ allowMultiple: allowMultiple })}
+                            onLabel="Una respuesta por persona"
+                            offLabel="Múltiples respuestas permitidas"
+                            onDesc={`Cada usuario autenticado responde "${target.title}" una sola vez. Ideal para formularios obligatorios.`}
+                            offDesc={`Una misma cuenta puede cargar varias respuestas. Ideal para registros internos (un admin que crea muchos clientes, mascotas, etc.).`}
+                        />
+
+                        {/* Requires Google login */}
+                        <RestrictionToggle
+                            on={requiresLogin}
+                            onToggle={() => onPatchTargetStyles({ requiresGoogleAuth: !requiresLogin })}
+                            onLabel="Requiere iniciar sesión"
+                            offLabel="No requiere sesión"
+                            onDesc={`Solo usuarios autenticados con Google pueden responder "${target.title}". Identifica con certeza a cada persona.`}
+                            offDesc={`Cualquiera con el link puede responder "${target.title}", sin iniciar sesión.`}
+                        />
+
+                        {/* Unique fields (read-only summary; edited from the field editor) */}
+                        <div className="p-2.5 rounded-lg border border-[var(--arbo-border)] bg-[var(--arbo-surface-2)]">
+                            <p className="text-[11px] font-semibold arbo-text">Campos que no se pueden repetir</p>
+                            {target.uniqueFields && target.uniqueFields.length > 0 ? (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {target.uniqueFields.map((f) => (
+                                        <span key={f.name} className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--arbo-accent-muted)] text-[var(--arbo-accent)] font-medium">
+                                            {f.label || f.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-[10px] arbo-text-muted mt-1 leading-snug">
+                                    Ningún campo está marcado como único. Marcá un campo (ej. email, DNI) desde el editor del formulario para evitar valores repetidos entre respuestas.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Delete */}
             {confirmDelete ? (

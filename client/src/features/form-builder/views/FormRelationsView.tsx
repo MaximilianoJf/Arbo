@@ -109,16 +109,22 @@ const FormNode = ({ id, data }: NodeProps) => {
 const nodeTypes = { form: FormNode };
 
 const mapForms = (raw: any[]): FormLite[] =>
-    (raw || []).map((f: any) => ({
-        id: f.id,
-        title: f.title,
-        slug: f.slug,
-        allowMultiple: !!f.styles?.allowMultiple,
-        requiresParentChain: f.styles?.requiresParentChain !== false,
-        fields: (f.fields || f.FormFields || [])
-            .filter((ff: any) => !ff.name?.startsWith("__page_break_"))
-            .map((ff: any) => ({ name: ff.name, label: ff.label || ff.name })),
-    }));
+    (raw || []).map((f: any) => {
+        const allFields = (f.fields || f.FormFields || [])
+            .filter((ff: any) => !ff.name?.startsWith("__page_break_"));
+        return {
+            id: f.id,
+            title: f.title,
+            slug: f.slug,
+            allowMultiple: !!f.styles?.allowMultiple,
+            requiresParentChain: f.styles?.requiresParentChain !== false,
+            requiresGoogleAuth: !!f.styles?.requiresGoogleAuth,
+            uniqueFields: allFields
+                .filter((ff: any) => ff.meta?.unique === true)
+                .map((ff: any) => ({ name: ff.name, label: ff.label || ff.name })),
+            fields: allFields.map((ff: any) => ({ name: ff.name, label: ff.label || ff.name })),
+        };
+    });
 
 export const FormRelationsView = () => {
     const { id } = useParams<{ id: string }>();
@@ -787,11 +793,11 @@ export const FormRelationsView = () => {
                                 onCreateJoinForm={() => createJoinForm(selectedEdge)}
                                 onCreateFkField={(labelField) => createFkField(Number(selectedEdge.source), Number(selectedEdge.target), selSource.title, labelField)}
                                 onDelete={() => deleteEdge(selectedEdge.id)}
-                                onToggleStrictFlow={(strict) => {
+                                onPatchTargetStyles={(patch) => {
                                     const targetId = Number(selectedEdge.target);
-                                    formApi.patchStyles(targetId, { requiresParentChain: strict })
-                                        .then(() => setForms((prev) => prev.map((f) => f.id === targetId ? { ...f, requiresParentChain: strict } : f)))
-                                        .catch(console.error);
+                                    return formApi.patchStyles(targetId, patch)
+                                        .then(() => setForms((prev) => prev.map((f) => f.id === targetId ? { ...f, ...patch } : f)))
+                                        .catch((e) => { setSaveErr(e?.message || "No se pudo guardar la restricción"); });
                                 }}
                             />
                         </>

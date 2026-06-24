@@ -33,6 +33,7 @@ import {
     nullifyResponseFields,
     getFormResponses,
     getResponseChain,
+    getResponseChildLinks,
     deleteFormResponse,
     savePdfLayout,
     saveDashboardLayout,
@@ -88,6 +89,7 @@ router.patch("/:id/responses/nullify-fields", verifyToken, formIdValidator, hand
 router.post("/:id/responses", optionalAuth, submitResponseValidator, handleInpputErrors, submitResponse);
 router.get("/:id/responses", verifyTokenOrApiKey, formIdValidator, handleInpputErrors, getFormResponses);
 router.get("/:id/responses/chain", verifyToken, formIdValidator, handleInpputErrors, getResponseChain);
+router.get("/:id/responses/:responseId/child-links", verifyToken, formIdValidator, handleInpputErrors, getResponseChildLinks);
 router.delete("/:id/responses/:responseId", verifyToken, formIdValidator, handleInpputErrors, deleteFormResponse);
 router.get("/:id/responses/:responseId/export/pdf", verifyToken, formIdValidator, handleInpputErrors, exportSingleResponsePdf);
 router.post("/:id/responses/:responseId/preview-pdf", verifyToken, formIdValidator, handleInpputErrors, previewSingleResponsePdf);

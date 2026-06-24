@@ -49,6 +49,9 @@ export interface FormLite {
     slug?: string;
     allowMultiple?: boolean;
     requiresParentChain?: boolean;
+    requiresGoogleAuth?: boolean;
+    /** Field labels (or names) flagged as unique on this form — shown read-only in the inspector. */
+    uniqueFields?: { name: string; label: string }[];
     fields: { name: string; label: string }[];
 }
 

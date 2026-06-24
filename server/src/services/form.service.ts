@@ -353,6 +353,35 @@ export const submitFormResponse = async (
 };
 
 /**
+ * Returns the shareable `?ref=` links into each child form for an *existing* response.
+ * Lets the owner copy a link tied to one specific parent record and send it to whoever
+ * should fill the nested form — the submission stays chained to this response/session.
+ * Owner or collaborator only.
+ */
+export const getChildLinksForResponse = async (
+    formId: number,
+    responseId: number,
+    userId: number,
+    userEmail?: string,
+): Promise<ChildFormLink[]> => {
+    const form = await formRepo.getFormById(formId);
+    if (!form) throw new Error("Form not found");
+
+    if (form.userId !== userId) {
+        if (!userEmail) throw new Error("Unauthorized");
+        const collab = await formRepo.isCollaborator(formId, userEmail);
+        if (!collab) throw new Error("Unauthorized");
+    }
+
+    const response = await formRepo.getResponseById(responseId);
+    if (!response || response.formId !== formId) throw new Error("Response not found");
+
+    // Keep the chain anchored to the original root so deep chains (A→B→C) stay linked.
+    const rootResponseId = response.rootResponseId ?? response.id;
+    return await buildChildLinks(formId, response.id, rootResponseId);
+};
+
+/**
  * Returns a form's existing records as selectable options for a foreign-key field
  * in another form. value = the response id (the FK that gets stored), label = the
  * chosen answer field (falls back to the first non-empty answer, then respondent

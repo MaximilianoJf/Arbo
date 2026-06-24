@@ -245,6 +245,24 @@ export const getFormOptions = async (req: Request, res: Response) => {
     }
 };
 
+export const getResponseChildLinks = async (req: Request, res: Response) => {
+    try {
+        const user = await getUserByEmail(req.email!);
+        if (!user) return res.status(401).json({ ok: false, errors: [{ msg: "Unauthorized" }] });
+
+        const childForms = await formService.getChildLinksForResponse(
+            Number(req.params.id),
+            Number(req.params.responseId),
+            user.id,
+            user.email,
+        );
+        return res.json({ ok: true, data: childForms });
+    } catch (error: any) {
+        const status = error.message === "Unauthorized" ? 403 : 400;
+        return res.status(status).json({ ok: false, errors: [{ msg: error.message }] });
+    }
+};
+
 export const submitResponse = async (req: Request, res: Response) => {
     try {
         const user = req.email ? await getUserByEmail(req.email) : null;

@@ -118,8 +118,7 @@ export const Sidebar = () => {
                         </span>
                     </div>
                     <div className="min-w-0">
-                        <p className="text-xs font-bold arbo-text truncate">{user?.name || "Usuario"}</p>
-                        <p className="text-[10px] uppercase tracking-wider arbo-text-accent">Pro Plan</p>
+                        <p className="text-xs font-bold arbo-text truncate">{user?.name || user?.email || "Usuario"}</p>
                     </div>
                 </div>
             </div>

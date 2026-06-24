@@ -11,6 +11,9 @@ export const SubmitTab = () => {
     const selected = parseSubmitActions(schema.onSubmit);
     const requiresGoogleAuth = !!styles.requiresGoogleAuth;
     const allowMultiple = !!styles.allowMultiple;
+    // requiresParentChain defaults to true (strict): a nested form must be opened from its parent's link.
+    // When turned off, the nested form can also be answered on its own.
+    const allowStandalone = styles.requiresParentChain === false;
 
     const toggleAction = (value: string) => {
         const isOn = selected.includes(value);
@@ -88,6 +91,19 @@ export const SubmitTab = () => {
                         className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 shrink-0 ${allowMultiple ? "bg-[var(--arbo-accent)]" : "bg-[var(--arbo-border)]"}`}
                     >
                         <div className={`size-4 rounded-full bg-white transition-transform ${allowMultiple ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 px-3 py-2.5 mt-2 rounded-lg bg-[var(--arbo-surface-2)] border border-[var(--arbo-border)]">
+                    <div className="min-w-0">
+                        <span className="text-xs font-medium arbo-text">Permitir responder suelto (sin venir del formulario padre)</span>
+                        <p className="text-[9px] arbo-text-muted mt-0.5">Solo aplica a formularios anidados. Si está apagado, este formulario únicamente se puede responder desde el link de una respuesta del formulario padre. Si lo encendés, también se puede responder por su cuenta — en ese caso ya no se exige que venga encadenado.</p>
+                    </div>
+                    <button
+                        onClick={() => updateStyles({ requiresParentChain: allowStandalone })}
+                        className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 shrink-0 ${allowStandalone ? "bg-[var(--arbo-accent)]" : "bg-[var(--arbo-border)]"}`}
+                    >
+                        <div className={`size-4 rounded-full bg-white transition-transform ${allowStandalone ? "translate-x-4" : "translate-x-0"}`} />
                     </button>
                 </div>
             </div>

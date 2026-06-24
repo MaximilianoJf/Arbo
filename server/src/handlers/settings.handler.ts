@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { getOpenRouterConfig, saveOpenRouterConfig } from "../config/openrouter-settings";
 import { getDailyStats } from "../config/openrouter-stats";
 import { getAIProvidersConfig } from "../config/ai-providers";
-import { getUserById } from "../repositories/user.repository";
+import { getUserById, getUserByEmail } from "../repositories/user.repository";
 
 const OPENROUTER_KEY_API = "https://openrouter.ai/api/v1/auth/key";
 
@@ -82,15 +82,19 @@ export const getOpenRouterKeyForMcp = async (req: Request, res: Response) => {
     return res.json({ ok: true, data: { apiKey, model: resolved.model } });
 };
 
-export const getOpenRouterUsage = async (_req: Request, res: Response) => {
+export const getOpenRouterUsage = async (req: Request, res: Response) => {
+    // Prefer the user's DB-stored key over the global env key
+    const user = req.email ? await getUserByEmail(req.email).catch(() => null) : null;
+    const userKey = user ? getAIProvidersConfig(user.aiProviders).providers.openrouter?.apiKey : undefined;
     const config = getOpenRouterConfig();
-    if (!config.apiKey) {
+    const apiKey = userKey || config.apiKey;
+    if (!apiKey) {
         return res.status(400).json({ ok: false, msg: "No hay API key configurada" });
     }
 
     try {
         const response = await fetch(OPENROUTER_KEY_API, {
-            headers: { Authorization: `Bearer ${config.apiKey}` },
+            headers: { Authorization: `Bearer ${apiKey}` },
         });
 
         if (!response.ok) {

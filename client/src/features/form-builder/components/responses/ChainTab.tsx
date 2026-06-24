@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronRight, Person, Magnifier, LayoutHeaderCells, ArrowRight } from "@gravity-ui/icons";
+import { ChevronDown, ChevronRight, Person, Magnifier, LayoutHeaderCells, ArrowRight, Link, Check as CheckIcon } from "@gravity-ui/icons";
 import { formApi, projectApi } from "@/services/api";
 import { FieldAnswer, getOrderedAnswers, type ChainResponse, type RespField } from "./answer-render";
 
@@ -76,6 +76,41 @@ const FormChainNode = ({
 const ResponseNode = ({ node, data, t, depth }: { node: ChainResponse; data: ChainData; t: (k: string) => string; depth: number }) => {
     const [open, setOpen] = useState(depth < 1);
     const [showAnswers, setShowAnswers] = useState(false);
+    const [linkMenu, setLinkMenu] = useState<{ formId: number; title: string; url: string }[] | null>(null);
+    const [linkBusy, setLinkBusy] = useState(false);
+    const [copied, setCopied] = useState<number | null>(null);
+
+    // Build a full shareable URL for a child form, chained to THIS response/session.
+    const absoluteUrl = (relative: string) => `${window.location.origin}${relative}`;
+
+    const copyChildLink = async (url: string, formId: number) => {
+        try {
+            await navigator.clipboard.writeText(absoluteUrl(url));
+            setCopied(formId);
+            setTimeout(() => setCopied(null), 1800);
+        } catch {
+            // Clipboard blocked — surface the link so it can be copied manually.
+            window.prompt("Copiá el link de esta respuesta:", absoluteUrl(url));
+        }
+    };
+
+    const handleCopyClick = async () => {
+        // If we already know the links, a single one copies immediately; several open a menu.
+        if (linkMenu) { setLinkMenu(null); return; }
+        if (node.formId == null) return;
+        setLinkBusy(true);
+        try {
+            const res = await formApi.getChildLinks(node.formId, node.id);
+            const links = (res.data || []).map((l) => ({ formId: l.formId, title: l.title, url: l.url }));
+            if (links.length === 0) { setLinkMenu([]); }
+            else if (links.length === 1) { await copyChildLink(links[0].url, links[0].formId); setLinkMenu(null); }
+            else { setLinkMenu(links); }
+        } catch (e: any) {
+            window.alert(e?.message || "No se pudo obtener el link.");
+        } finally {
+            setLinkBusy(false);
+        }
+    };
     const form = node.formId != null ? data.forms[node.formId] : undefined;
     const childCount = node.children?.length || 0;
     const descendants = countDescendants(node);
@@ -127,6 +162,36 @@ const ResponseNode = ({ node, data, t, depth }: { node: ChainResponse; data: Cha
                     >
                         {showAnswers ? "Ocultar" : "Ver respuestas"}
                     </button>
+
+                    <div className="relative shrink-0">
+                        <button
+                            onClick={handleCopyClick}
+                            disabled={linkBusy}
+                            title="Copiar el link para continuar la cadena desde esta respuesta"
+                            className="flex items-center gap-1 text-[10px] text-[var(--arbo-accent)] hover:bg-[var(--arbo-accent-muted)] border border-[var(--arbo-accent)]/40 rounded-md px-2 py-1 transition-colors disabled:opacity-50"
+                        >
+                            {copied != null ? <CheckIcon className="size-3" /> : <Link className="size-3" />}
+                            {copied != null ? "Copiado" : "Copiar link"}
+                        </button>
+                        {linkMenu != null && (
+                            <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border border-[var(--arbo-border)] bg-[var(--arbo-surface)] shadow-lg p-1">
+                                {linkMenu.length === 0 ? (
+                                    <p className="text-[10px] arbo-text-muted px-2 py-2">Este formulario no tiene formularios relacionados para encadenar.</p>
+                                ) : (
+                                    linkMenu.map((l) => (
+                                        <button
+                                            key={l.formId}
+                                            onClick={() => copyChildLink(l.url, l.formId)}
+                                            className="w-full flex items-center gap-2 text-left text-[11px] arbo-text hover:bg-[var(--arbo-surface-2)] rounded-md px-2 py-1.5 transition-colors"
+                                        >
+                                            {copied === l.formId ? <CheckIcon className="size-3 text-[var(--arbo-accent)] shrink-0" /> : <Link className="size-3 arbo-text-muted shrink-0" />}
+                                            <span className="truncate">{l.title}</span>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Answers */}

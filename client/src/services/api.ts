@@ -283,6 +283,13 @@ export const formApi = {
             headers: headers(),
         }),
 
+    // Shareable ?ref= links into each child form for one specific response (chained to it).
+    getChildLinks: (formId: number, responseId: number) =>
+        request<{ ok: boolean; data: ChildFormLink[] }>(`/forms/${formId}/responses/${responseId}/child-links`, {
+            headers: headers(),
+        }),
+
+
     deleteResponse: (formId: number, responseId: number) =>
         request<{ ok: boolean; data: any }>(`/forms/${formId}/responses/${responseId}`, {
             method: "DELETE",
