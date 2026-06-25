@@ -157,11 +157,13 @@ export const PortalAnalysis = () => {
             <div className="flex flex-col gap-3">
                 {data.summary && <Section title="Resumen" content={data.summary} />}
                 {data.insights && <Section title="Insights" content={data.insights} />}
+                {data.patterns && <Section title="Patrones" content={data.patterns} />}
+                {data.suggestions && <Section title="Sugerencias" content={data.suggestions} />}
                 {data.trends && <Section title="Tendencias" content={data.trends} />}
                 {data.recommendations && <Section title="Recomendaciones" content={data.recommendations} />}
                 {data.sentiment && <Section title="Sentimiento" content={data.sentiment} />}
                 {Object.entries(data)
-                    .filter(([k]) => !["summary", "insights", "trends", "recommendations", "sentiment"].includes(k))
+                    .filter(([k]) => !["summary", "insights", "patterns", "suggestions", "trends", "recommendations", "sentiment", "responseRate"].includes(k))
                     .map(([k, v]) => <Section key={k} title={k.charAt(0).toUpperCase() + k.slice(1)} content={v as any} />)}
             </div>
         );

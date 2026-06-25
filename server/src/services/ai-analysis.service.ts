@@ -109,16 +109,26 @@ export const analyzeResponses = async (input: AnalysisInput, customPrompt?: stri
 
     const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
+    // Try direct parse first
     try {
         return JSON.parse(cleaned) as AnalysisResult;
-    } catch {
-        return {
-            summary: content,
-            insights: [],
-            patterns: [],
-            suggestions: [],
-            sentiment: "unknown",
-            responseRate: { total: input.responses.length, complete: 0, incomplete: 0 },
-        };
+    } catch { /* fall through */ }
+
+    // Extract the first {...} block in case the model added text around the JSON
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        try {
+            return JSON.parse(jsonMatch[0]) as AnalysisResult;
+        } catch { /* fall through */ }
     }
+
+    // Last resort: return the raw text as a readable summary
+    return {
+        summary: cleaned,
+        insights: [],
+        patterns: [],
+        suggestions: [],
+        sentiment: "unknown",
+        responseRate: { total: input.responses.length, complete: 0, incomplete: 0 },
+    };
 };
