@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { projectApi } from "@/services/api";
-import { SquarePlus } from "@gravity-ui/icons";
+import { SquarePlus, Database, Folder } from "@gravity-ui/icons";
 
 const PROJECT_COLORS = [
     "#4ADE80", "#60A5FA", "#F472B6", "#FBBF24",
@@ -127,11 +127,23 @@ const ProjectCard = ({ project, role, onClick }: ProjectCardProps) => {
                 >
                     {project.name?.[0]?.toUpperCase() || "P"}
                 </div>
-                {role && (
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--arbo-accent-muted)] arbo-text-accent uppercase tracking-wider">
-                        {role}
-                    </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                    {/* Database vs plain-project badge */}
+                    {project.isDatabase ? (
+                        <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--arbo-accent-muted)] arbo-text-accent uppercase tracking-wider">
+                            <Database className="size-3" /> Base de datos
+                        </span>
+                    ) : (
+                        <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--arbo-surface-2)] arbo-text-muted uppercase tracking-wider">
+                            <Folder className="size-3" /> Proyecto
+                        </span>
+                    )}
+                    {role && (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--arbo-accent-muted)] arbo-text-accent uppercase tracking-wider">
+                            {role}
+                        </span>
+                    )}
+                </div>
             </div>
             <div>
                 <h3 className="font-semibold arbo-text truncate">{project.name}</h3>

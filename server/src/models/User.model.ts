@@ -55,6 +55,21 @@ class User extends Model {
     })
     declare aiProviders: any;
 
+    // RAG de grupo: cubre todos los formularios sueltos del usuario (sin proyecto BD)
+    @Column({
+        type: DataType.ENUM("none", "ready", "stale"),
+        allowNull: false,
+        defaultValue: "none",
+    })
+    declare standaloneRagStatus: "none" | "ready" | "stale";
+
+    @Column({
+        type: DataType.STRING,
+        allowNull: true,
+        defaultValue: null,
+    })
+    declare standaloneRagCollectionId: string | null;
+
     @HasMany(() => UserForm)
     declare forms: UserForm[];
 

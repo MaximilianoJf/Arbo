@@ -9,6 +9,9 @@ import {
     queryProjectRAG,
     getFormRAGStatus,
     getProjectRAGStatus,
+    buildUserRAG,
+    queryUserRAG,
+    getUserRAGStatus,
 } from "../services/rag.service";
 
 function getUserConfig(user: any) {
@@ -133,6 +136,44 @@ export const getProjectRagStatus = async (req: Request, res: Response) => {
 
         const projectId = Number(req.params.projectId);
         const status = await getProjectRAGStatus(projectId);
+        return res.json({ ok: true, data: status });
+    } catch (err: any) {
+        return res.status(500).json({ ok: false, errors: [{ msg: err.message }] });
+    }
+};
+
+// POST /rag/user/build
+export const buildUserRag = async (req: Request, res: Response) => {
+    try {
+        const user = await getUserByEmail(req.email!);
+        if (!user) return res.status(401).json({ ok: false, errors: [{ msg: "Unauthorized" }] });
+        const result = await buildUserRAG(user.id, getUserConfig(user));
+        return res.json({ ok: true, data: result });
+    } catch (err: any) {
+        return res.status(500).json({ ok: false, errors: [{ msg: err.message }] });
+    }
+};
+
+// POST /rag/user/query
+export const queryUserRag = async (req: Request, res: Response) => {
+    try {
+        const user = await getUserByEmail(req.email!);
+        if (!user) return res.status(401).json({ ok: false, errors: [{ msg: "Unauthorized" }] });
+        const { query } = req.body as { query: string };
+        if (!query?.trim()) return res.status(400).json({ ok: false, errors: [{ msg: "Se requiere una consulta" }] });
+        const result = await queryUserRAG(user.id, query.trim(), getUserConfig(user));
+        return res.json({ ok: true, data: result });
+    } catch (err: any) {
+        return res.status(500).json({ ok: false, errors: [{ msg: err.message }] });
+    }
+};
+
+// GET /rag/user/status
+export const getUserRagStatus = async (req: Request, res: Response) => {
+    try {
+        const user = await getUserByEmail(req.email!);
+        if (!user) return res.status(401).json({ ok: false, errors: [{ msg: "Unauthorized" }] });
+        const status = await getUserRAGStatus(user.id);
         return res.json({ ok: true, data: status });
     } catch (err: any) {
         return res.status(500).json({ ok: false, errors: [{ msg: err.message }] });

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronRight, Person, Magnifier, LayoutHeaderCells, ArrowRight, Link, Check as CheckIcon } from "@gravity-ui/icons";
+import { ChevronDown, ChevronRight, Person, Magnifier, LayoutHeaderCells, ArrowRight, Link, Copy, ArrowUpRightFromSquare, Check as CheckIcon } from "@gravity-ui/icons";
 import { formApi, projectApi } from "@/services/api";
 import { FieldAnswer, getOrderedAnswers, type ChainResponse, type RespField } from "./answer-render";
 
@@ -94,17 +94,19 @@ const ResponseNode = ({ node, data, t, depth }: { node: ChainResponse; data: Cha
         }
     };
 
-    const handleCopyClick = async () => {
-        // If we already know the links, a single one copies immediately; several open a menu.
+    // Open the related child in a new tab to respond it right away, chained to this response.
+    const openChildLink = (url: string) => window.open(absoluteUrl(url), "_blank");
+
+    // Toggle the dropdown of related forms. Always opens the menu (even with a single
+    // option) so the user can choose between "Ir" and "Copiar link" per relation.
+    const handleRelateClick = async () => {
         if (linkMenu) { setLinkMenu(null); return; }
         if (node.formId == null) return;
         setLinkBusy(true);
         try {
             const res = await formApi.getChildLinks(node.formId, node.id);
             const links = (res.data || []).map((l) => ({ formId: l.formId, title: l.title, url: l.url }));
-            if (links.length === 0) { setLinkMenu([]); }
-            else if (links.length === 1) { await copyChildLink(links[0].url, links[0].formId); setLinkMenu(null); }
-            else { setLinkMenu(links); }
+            setLinkMenu(links);
         } catch (e: any) {
             window.alert(e?.message || "No se pudo obtener el link.");
         } finally {
@@ -119,7 +121,7 @@ const ResponseNode = ({ node, data, t, depth }: { node: ChainResponse; data: Cha
 
     return (
         <div className="relative">
-            <div className="rounded-xl border border-[var(--arbo-border)] bg-[var(--arbo-surface)] overflow-hidden">
+            <div className="rounded-xl border border-[var(--arbo-border)] bg-[var(--arbo-surface)]">
                 {/* Header row */}
                 <div className="flex items-center gap-3 px-3 py-2.5">
                     <button
@@ -165,29 +167,46 @@ const ResponseNode = ({ node, data, t, depth }: { node: ChainResponse; data: Cha
 
                     <div className="relative shrink-0">
                         <button
-                            onClick={handleCopyClick}
+                            onClick={handleRelateClick}
                             disabled={linkBusy}
-                            title="Copiar el link para continuar la cadena desde esta respuesta"
+                            title="Responder un formulario relacionado, encadenado a esta respuesta"
                             className="flex items-center gap-1 text-[10px] text-[var(--arbo-accent)] hover:bg-[var(--arbo-accent-muted)] border border-[var(--arbo-accent)]/40 rounded-md px-2 py-1 transition-colors disabled:opacity-50"
                         >
-                            {copied != null ? <CheckIcon className="size-3" /> : <Link className="size-3" />}
-                            {copied != null ? "Copiado" : "Copiar link"}
+                            <Link className="size-3" />
+                            Relacionar
+                            <ChevronDown className={`size-3 transition-transform ${linkMenu != null ? "rotate-180" : ""}`} />
                         </button>
                         {linkMenu != null && (
-                            <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border border-[var(--arbo-border)] bg-[var(--arbo-surface)] shadow-lg p-1">
+                            <div className="absolute right-0 top-full mt-1 z-20 w-72 rounded-lg border border-[var(--arbo-border)] bg-[var(--arbo-surface)] shadow-lg p-1">
                                 {linkMenu.length === 0 ? (
                                     <p className="text-[10px] arbo-text-muted px-2 py-2">Este formulario no tiene formularios relacionados para encadenar.</p>
                                 ) : (
-                                    linkMenu.map((l) => (
-                                        <button
-                                            key={l.formId}
-                                            onClick={() => copyChildLink(l.url, l.formId)}
-                                            className="w-full flex items-center gap-2 text-left text-[11px] arbo-text hover:bg-[var(--arbo-surface-2)] rounded-md px-2 py-1.5 transition-colors"
-                                        >
-                                            {copied === l.formId ? <CheckIcon className="size-3 text-[var(--arbo-accent)] shrink-0" /> : <Link className="size-3 arbo-text-muted shrink-0" />}
-                                            <span className="truncate">{l.title}</span>
-                                        </button>
-                                    ))
+                                    <>
+                                        <p className="text-[10px] arbo-text-muted px-2 pt-1.5 pb-1 uppercase tracking-wider font-semibold">Continuar en</p>
+                                        {linkMenu.map((l) => (
+                                            <div
+                                                key={l.formId}
+                                                className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-[var(--arbo-surface-2)] transition-colors"
+                                            >
+                                                <span className="truncate flex-1 text-[11px] arbo-text">{l.title}</span>
+                                                <button
+                                                    onClick={() => openChildLink(l.url)}
+                                                    title="Abrir para responder ahora"
+                                                    className="flex items-center gap-1 text-[10px] text-[var(--arbo-accent)] hover:bg-[var(--arbo-accent-muted)] border border-[var(--arbo-accent)]/40 rounded px-1.5 py-0.5 transition-colors shrink-0"
+                                                >
+                                                    <ArrowUpRightFromSquare className="size-3" /> Ir
+                                                </button>
+                                                <button
+                                                    onClick={() => copyChildLink(l.url, l.formId)}
+                                                    title="Copiar link"
+                                                    className="flex items-center gap-1 text-[10px] arbo-text-muted hover:arbo-text border border-[var(--arbo-border)] rounded px-1.5 py-0.5 transition-colors shrink-0"
+                                                >
+                                                    {copied === l.formId ? <CheckIcon className="size-3 text-[var(--arbo-accent)]" /> : <Copy className="size-3" />}
+                                                    {copied === l.formId ? "Copiado" : "Copiar"}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </>
                                 )}
                             </div>
                         )}
@@ -269,12 +288,14 @@ export const ChainTab = ({ formId, projectId, t }: { formId: number; projectId: 
         const childrenOf = new Map<number, number[]>();
         const childIds = new Set<number>();
         relations.forEach((r) => {
+            // Self-referential: the form is its own child — don't mark it as non-root
+            if (r.parentFormId === r.childFormId) return;
             const arr = childrenOf.get(r.parentFormId) || [];
             arr.push(r.childFormId);
             childrenOf.set(r.parentFormId, arr);
             childIds.add(r.childFormId);
         });
-        // Roots = forms that are a parent but never a child
+        // Roots = forms that are a parent but never a child (self-refs are always roots)
         const roots = [...new Set(relations.map((r) => r.parentFormId))].filter((id) => !childIds.has(id));
         return { formsById, childrenOf, roots };
     }, [relations, projectForms, data]);

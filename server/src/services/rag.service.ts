@@ -1,5 +1,6 @@
 import UserForm from "../models/UserForm.model";
 import Project from "../models/Project.model";
+import User from "../models/User.model";
 import FormField from "../models/FormField.model";
 import FormResponse from "../models/FormResponse.model";
 import { getQdrantClient, getEmbeddingConfig, type EmbeddingConfig } from "../config/qdrant";
@@ -330,4 +331,90 @@ export async function getProjectRAGStatus(projectId: number) {
     const project = await Project.findByPk(projectId, { attributes: ["id", "ragStatus", "ragCollectionId"] });
     if (!project) throw new Error("Proyecto no encontrado");
     return { ragStatus: (project as any).ragStatus, ragCollectionId: (project as any).ragCollectionId };
+}
+
+// ─── Build: user-level (all standalone forms — no database project) ──────────
+
+export async function buildUserRAG(userId: number, userConfig: any): Promise<{ indexed: number }> {
+    // Standalone forms = forms owned by this user with no project OR project that is NOT a database
+    const forms = await UserForm.findAll({
+        where: { userId, projectId: null },
+        include: [{ model: FormField }],
+    });
+    if (!forms.length) throw new Error("No tenés formularios sueltos (sin proyecto) para indexar");
+
+    const formIds = forms.map((f) => f.id);
+    const responses = await FormResponse.findAll({
+        where: { formId: formIds },
+        order: [["createdAt", "ASC"]],
+    });
+    if (!responses.length) throw new Error("Tus formularios sueltos no tienen respuestas todavía");
+
+    const formsMap = new Map<number, { title: string; fields: any[] }>();
+    for (const f of forms) {
+        formsMap.set(f.id, {
+            title: f.title,
+            fields: ((f as any).fields || []).sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+        });
+    }
+
+    const embConfig = getEmbeddingConfig(userConfig?.embeddings);
+    if (!embConfig.apiKey) throw new Error("No hay API key de embeddings configurada. Configurala en Ajustes → Embeddings o en GEMINI_EMBEDDING_API_KEY.");
+
+    const qdrant = getQdrantClient(userConfig?.qdrant);
+    const collectionName = `arbo_user_${userId}`;
+    await ensureCollection(qdrant, collectionName);
+
+    const points: any[] = [];
+    let pointId = 1;
+
+    for (const resp of responses) {
+        const r = resp.get({ plain: true });
+        const meta = formsMap.get(r.formId);
+        if (!meta) continue;
+        const text = `Formulario: ${meta.title}\n${responseToText(r.answers || {}, meta.fields)}`;
+        if (text.trim().length < 5) continue;
+        const vector = await generateEmbedding(text, embConfig);
+        points.push({
+            id: pointId++,
+            vector,
+            payload: {
+                responseId: r.id,
+                formId: r.formId,
+                formTitle: meta.title,
+                userId,
+                respondentName: r.respondentName || null,
+                respondentEmail: r.respondentEmail || null,
+                createdAt: r.createdAt,
+                textSnippet: text.slice(0, 500),
+                answers: r.answers,
+            },
+        });
+    }
+
+    if (!points.length) throw new Error("No se generaron puntos para indexar");
+    await qdrant.upsert(collectionName, { wait: true, points });
+    await User.update(
+        { standaloneRagStatus: "ready", standaloneRagCollectionId: collectionName },
+        { where: { id: userId } },
+    );
+
+    return { indexed: points.length };
+}
+
+export async function queryUserRAG(userId: number, query: string, userConfig: any): Promise<RAGQueryResult> {
+    const user = await User.findByPk(userId, { attributes: ["id", "standaloneRagStatus", "standaloneRagCollectionId"] });
+    if (!user) throw new Error("Usuario no encontrado");
+    if ((user as any).standaloneRagStatus === "none") throw new Error("El RAG del grupo no fue construido. Hacé click en 'Crear RAG del grupo' primero.");
+    const collectionName = (user as any).standaloneRagCollectionId || `arbo_user_${userId}`;
+    return ragSearch(collectionName, query, "el grupo de formularios sueltos", userConfig, userId);
+}
+
+export async function getUserRAGStatus(userId: number) {
+    const user = await User.findByPk(userId, { attributes: ["id", "standaloneRagStatus", "standaloneRagCollectionId"] });
+    if (!user) throw new Error("Usuario no encontrado");
+    return {
+        ragStatus: (user as any).standaloneRagStatus as string,
+        ragCollectionId: (user as any).standaloneRagCollectionId as string | null,
+    };
 }

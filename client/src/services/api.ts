@@ -655,6 +655,24 @@ export const ragApi = {
             `/rag/projects/${projectId}/status`,
             { headers: headers() },
         ),
+
+    buildUser: () =>
+        request<{ ok: boolean; data: { indexed: number } }>("/rag/user/build", {
+            method: "POST",
+            headers: headers(),
+        }),
+
+    queryUser: (query: string) =>
+        request<{ ok: boolean; data: { answer: string; sources: { textSnippet: string; score: number }[] } }>(
+            "/rag/user/query",
+            { method: "POST", headers: headers(), body: JSON.stringify({ query }) },
+        ),
+
+    getUserStatus: () =>
+        request<{ ok: boolean; data: { ragStatus: string; ragCollectionId: string | null } }>(
+            "/rag/user/status",
+            { headers: headers() },
+        ),
 };
 
 export const agentApi = {

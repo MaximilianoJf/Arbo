@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Logo } from "../ui";
 import { LanguageSwitcher } from "../widgets/LanguageSwitcher";
-import { LayoutList, FolderOpen, Archive, TrashBin, CircleQuestion, Gear, SquarePlus, Key, Sparkles, LayoutCellsLarge } from "@gravity-ui/icons";
+import { LayoutList, FolderOpen, Folders, Archive, TrashBin, CircleQuestion, Gear, SquarePlus, Key, Sparkles, LayoutCellsLarge, Database } from "@gravity-ui/icons";
 
 const getToken = () => localStorage.getItem("token");
 const parseToken = (): { name?: string; email?: string } | null => {
@@ -23,6 +23,7 @@ export const Sidebar = () => {
 
     const navItems = [
         { label: t("nav.myForms"), icon: LayoutList, path: "/form-builder" },
+        { label: "Mis Proyectos", icon: Folders, path: "/form-builder/projects" },
         { label: "Componentes", icon: LayoutCellsLarge, path: "/form-builder/components" },
         { label: t("nav.sharedWithMe"), icon: FolderOpen, path: "/form-builder/shared" },
         { label: t("nav.archive"), icon: Archive, path: "/form-builder/archive" },
@@ -55,14 +56,21 @@ export const Sidebar = () => {
                 </Link>
             </div>
 
-            {/* New Form Button */}
-            <div className="px-3 pb-2">
+            {/* New Form + New DB buttons */}
+            <div className="px-3 pb-2 flex flex-col gap-1.5">
                 <button
                     onClick={() => navigate("/form-builder/create-form")}
                     className="arbo-btn arbo-btn-primary w-full"
                 >
                     <SquarePlus className="size-4" />
                     {t("nav.newForm")}
+                </button>
+                <button
+                    onClick={() => navigate("/form-builder/create-database")}
+                    className="arbo-btn arbo-btn-secondary w-full"
+                >
+                    <Database className="size-4" />
+                    Nueva base de datos
                 </button>
             </div>
 
@@ -74,8 +82,9 @@ export const Sidebar = () => {
                             ? location.pathname === "/form-builder" ||
                               location.pathname.startsWith("/form-builder/edit") ||
                               location.pathname.startsWith("/form-builder/create") ||
-                              location.pathname.startsWith("/form-builder/responses") ||
-                              location.pathname.startsWith("/form-builder/projects")
+                              location.pathname.startsWith("/form-builder/responses")
+                            : item.path === "/form-builder/projects"
+                            ? location.pathname.startsWith("/form-builder/projects")
                             : item.path === "/form-builder/api-keys"
                             ? location.pathname.startsWith("/form-builder/api-keys")
                             : item.path === "/form-builder/settings/openrouter"

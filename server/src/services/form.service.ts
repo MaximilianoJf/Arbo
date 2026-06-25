@@ -1,6 +1,6 @@
 import * as formRepo from "../repositories/form.repository";
 import { markProjectRagStale } from "../repositories/project.repository";
-import { getUserByEmail } from "../repositories/user.repository";
+import { getUserByEmail, markUserStandaloneRagStale } from "../repositories/user.repository";
 import { signRefToken, verifyRefToken } from "../utils/ref-token.util";
 import type { CreateFormInput, UpdateFormInput } from "../types/form.types";
 
@@ -375,7 +375,12 @@ export const submitFormResponse = async (
     // Mark any built RAG as stale — new responses invalidate the index.
     try {
         await formRepo.markFormRagStale(formId);
-        if (form.projectId) await markProjectRagStale(form.projectId);
+        if (form.projectId) {
+            await markProjectRagStale(form.projectId);
+        } else if (respondentId) {
+            // Truly standalone form (no project) → stale the user's group RAG too
+            await markUserStandaloneRagStale(form.userId);
+        }
     } catch { /* non-critical — don't fail the response submission */ }
 
     return { response, childForms };

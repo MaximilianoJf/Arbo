@@ -233,7 +233,7 @@ export const RelationInspector = ({ source, target, data, forms, creatingJoin, h
                         {/* One response per person (allowMultiple OFF = una sola) */}
                         <RestrictionToggle
                             on={!allowMultiple}
-                            onToggle={() => onPatchTargetStyles({ allowMultiple: allowMultiple })}
+                            onToggle={() => onPatchTargetStyles({ allowMultiple: !allowMultiple })}
                             onLabel="Una respuesta por persona"
                             offLabel="Múltiples respuestas permitidas"
                             onDesc={`Cada usuario autenticado responde "${target.title}" una sola vez. Ideal para formularios obligatorios.`}

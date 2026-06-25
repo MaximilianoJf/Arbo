@@ -14,7 +14,7 @@ import {
 import { getUserByEmail } from "../repositories/user.repository";
 import * as formService from "./form.service";
 
-export const create = async (userId: number, input: { name: string; description?: string; color?: string }) => {
+export const create = async (userId: number, input: { name: string; description?: string; color?: string; isDatabase?: boolean }) => {
     return await createProject({ ...input, userId });
 };
 
@@ -28,7 +28,7 @@ export const getById = async (id: number, userId: number, email: string) => {
     return await getProjectById(id);
 };
 
-export const update = async (id: number, userId: number, input: { name?: string; description?: string; color?: string }) => {
+export const update = async (id: number, userId: number, input: { name?: string; description?: string; color?: string; isDatabase?: boolean }) => {
     const project = await getProjectById(id);
     if (!project) throw new Error("Project not found");
     if (project.userId !== userId) throw new Error("Only the owner can update the project");

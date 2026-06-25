@@ -1,4 +1,5 @@
 export * from "./CreateFormView";
+export * from "./CreateDatabaseView";
 export * from "./DashboardView";
 export * from "./EditFormView";
 export * from "./PublicFormView";

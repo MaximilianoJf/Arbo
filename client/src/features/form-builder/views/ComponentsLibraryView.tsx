@@ -221,7 +221,7 @@ export const ComponentsLibraryView = () => {
                 </p>
 
                 <div className="flex flex-col gap-1.5 overflow-y-auto">
-                    {blocks.length === 0 && <p className="text-[11px] arbo-text-muted">Todavía no tenés componentes guardados.</p>}
+                    {blocks.length === 0 && <p className="text-[11px] arbo-text-muted">Todavía no tienes componentes guardados.</p>}
                     {blocks.map((b) => (
                         <div key={b.id}
                             onClick={() => openBlock(b)}

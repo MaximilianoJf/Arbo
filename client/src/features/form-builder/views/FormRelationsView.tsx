@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
     ReactFlow, Background, Controls, Handle, Position, MarkerType,
     useNodesState, useEdgesState, addEdge,
@@ -129,6 +129,7 @@ const mapForms = (raw: any[]): FormLite[] =>
 export const FormRelationsView = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const projectId = Number(id);
     const [projectName, setProjectName] = useState("");
     const [forms, setForms] = useState<FormLite[]>([]);
@@ -149,8 +150,8 @@ export const FormRelationsView = () => {
     const [cycleWarn, setCycleWarn] = useState<{ a: string; b: string } | null>(null);
     const [cycleJoinFormId, setCycleJoinFormId] = useState<string>("");
     // AI schema generation panel
-    const [aiOpen, setAiOpen] = useState(false);
-    const [aiPrompt, setAiPrompt] = useState("");
+    const [aiOpen, setAiOpen] = useState(() => searchParams.get("ai") === "1");
+    const [aiPrompt, setAiPrompt] = useState(() => searchParams.get("prompt") || "");
     const [aiGenerating, setAiGenerating] = useState(false);
     const [aiProgress, setAiProgress] = useState<string[]>([]);
     const [aiError, setAiError] = useState<string | null>(null);
@@ -272,10 +273,11 @@ export const FormRelationsView = () => {
     }, [edges, setNodes]);
 
     const onConnect = useCallback((c: Connection) => {
-        if (!c.source || !c.target || c.source === c.target) return;
-        // Block cycles: if the reverse edge already exists, this would create A↔B.
-        // In relational DBs this requires a pivot/junction table (N:M), not two direct edges.
-        const reverseExists = edges.some((e) => e.source === c.target && e.target === c.source);
+        if (!c.source || !c.target) return;
+        const isSelfRef = c.source === c.target;
+        // Block cycles: if the reverse edge already exists, this would create A↔B (use N:M instead).
+        // For self-refs, "reverse" is the same edge — just block duplicates.
+        const reverseExists = !isSelfRef && edges.some((e) => e.source === c.target && e.target === c.source);
         const forwardExists = edges.some((e) => e.source === c.source && e.target === c.target);
         if (reverseExists || forwardExists) {
             setCycleWarn({ a: c.source, b: c.target });
@@ -371,9 +373,10 @@ export const FormRelationsView = () => {
                 validations: ff.validations || [], dependencies: ff.dependencies || [],
                 options: ff.options || [], fieldStyles: ff.fieldStyles || null, meta: ff.meta ?? null,
             });
+            const isSelfRef = parentId === childId;
             const fkField = {
                 name: `fk_${parentId}_${Date.now().toString(36)}`,
-                label: parentTitle,
+                label: isSelfRef ? `Padre (${parentTitle})` : parentTitle,
                 placeholder: "",
                 type: "select",
                 componentType: "DynamicSelect",
@@ -622,7 +625,7 @@ export const FormRelationsView = () => {
                     <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--arbo-border)] bg-gradient-to-r from-[var(--arbo-accent)]/5 to-transparent">
                         <Sparkles className="size-4 text-[var(--arbo-accent)]" />
                         <p className="text-sm font-semibold arbo-text flex-1">Generar base de datos relacional con IA</p>
-                        <button onClick={() => setAiOpen(false)} className="p-1 rounded arbo-text-muted hover:arbo-text transition-colors">
+                        <button onClick={() => { setAiOpen(false); searchParams.delete("ai"); searchParams.delete("prompt"); setSearchParams(searchParams, { replace: true }); }} className="p-1 rounded arbo-text-muted hover:arbo-text transition-colors">
                             <Xmark className="size-4" />
                         </button>
                     </div>

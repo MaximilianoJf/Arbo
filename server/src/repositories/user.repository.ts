@@ -48,3 +48,10 @@ export const findOrCreateGoogleUser = async (profile: {
         password: null,
     });
 }
+
+export const markUserStandaloneRagStale = async (userId: number) => {
+    await User.update(
+        { standaloneRagStatus: "stale" },
+        { where: { id: userId, standaloneRagStatus: "ready" } },
+    );
+};

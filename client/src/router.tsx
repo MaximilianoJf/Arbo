@@ -1,9 +1,9 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 import AuthLayout from "./layouts/AuthLayout";
 import FormBuilderLayout from "./layouts/FormBuilderLayout";
 import { LoginView, RegisterView, loginAction, registerAction } from "./features/auth";
 import {
-    CreateFormView, DashboardView, EditFormView, PublicFormView,
+    CreateFormView, CreateDatabaseView, DashboardView, EditFormView, PublicFormView,
     ResponsesView, SharedView, ArchiveView, TrashView, EmbedFormView,
     ProjectsView, ProjectDetailView, ApiKeysView, OpenRouterSettingsView,
     ComponentsLibraryView, FormRelationsView, ProjectPortalView,
@@ -50,6 +50,10 @@ export const router = createBrowserRouter([
                 element: <CreateFormView />,
             },
             {
+                path: "create-database",
+                element: <CreateDatabaseView />,
+            },
+            {
                 path: "edit/:id",
                 element: <EditFormView />,
             },
@@ -71,7 +75,7 @@ export const router = createBrowserRouter([
             },
             {
                 path: "projects",
-                element: <Navigate to="/form-builder" replace />,
+                element: <ProjectsView />,
             },
             {
                 path: "projects/:id",
