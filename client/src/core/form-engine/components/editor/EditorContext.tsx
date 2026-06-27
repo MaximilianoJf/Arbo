@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import type { FormField, FormSchema, FormStyles, ComponentType, PageElementKey } from "../../types";
 import type { EditorTabKey } from "../../constants/editor-constants";
@@ -155,6 +156,22 @@ export const EditorProvider = ({ children, renderField, renderViewFields }: {
 
     // Undo/redo — wraps setSchema with history tracking (session-only, lost on unmount)
     const { setSchemaWithHistory: setSchema, undo, redo, canUndo, canRedo } = useSchemaHistory(schema, setSchemaRaw);
+
+    // ── Relation-field delete guard ──
+    // A field whose options come from another form (optionsSource.formId) IS the
+    // FK relation materialized by "Configurar BD". Deleting it from the editor
+    // would silently break the relation, so we block it and point the user to the
+    // database configuration instead.
+    const [relationBlockedField, setRelationBlockedField] = useState<{ label: string; formTitle?: string } | null>(null);
+    const guardedRemoveField = useCallback((fieldName: string): void | Promise<void> => {
+        const target = schema.fields.find((f) => f.name === fieldName);
+        const src = (target as any)?.optionsSource;
+        if (src?.formId) {
+            setRelationBlockedField({ label: target?.label || fieldName, formTitle: src.formTitle });
+            return;
+        }
+        return removeField(fieldName);
+    }, [schema.fields, removeField]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -543,7 +560,7 @@ export const EditorProvider = ({ children, renderField, renderViewFields }: {
 
     const value = useMemo<EditorContextValue>(() => ({
         schema, setSchema, formState, handleInputChange, handleSubmit,
-        removeField, reorderFields,
+        removeField: guardedRemoveField, reorderFields,
         selectedField, setSelectedField, activeField, availableValidations,
         rightTab, setRightTab, currentPage, setCurrentPage,
         hoveredField, setHoveredField,
@@ -575,8 +592,58 @@ export const EditorProvider = ({ children, renderField, renderViewFields }: {
         previewContainerActualWidth, embedContainerActualWidth,
         contextMenu, collaborators, newCollabEmail, newCollabRole, collabError,
         projectId, saveError, isSaving, savedOk, canUndo, canRedo,
-        renderField, renderViewFields,
+        renderField, renderViewFields, guardedRemoveField,
     ]);
 
-    return <EditorCtx.Provider value={value}>{children}</EditorCtx.Provider>;
+    return (
+        <EditorCtx.Provider value={value}>
+            {children}
+            {relationBlockedField && createPortal(
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                    onClick={() => setRelationBlockedField(null)}
+                >
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                    <div
+                        className="relative arbo-panel p-6 w-full max-w-md animate-[fadeInUp_0.2s_ease-out]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-start gap-3 mb-3">
+                            <div className="size-9 rounded-xl shrink-0 flex items-center justify-center" style={{ background: "var(--arbo-warning-muted, rgba(245,158,11,0.15))" }}>
+                                <svg className="size-5" style={{ color: "var(--arbo-warning)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008M10.34 3.94l-7.5 13A1.5 1.5 0 004.14 19.5h15.72a1.5 1.5 0 001.3-2.56l-7.5-13a1.5 1.5 0 00-2.62 0z" />
+                                </svg>
+                            </div>
+                            <div className="min-w-0">
+                                <h3 className="text-sm font-semibold arbo-text">No se puede eliminar este campo</h3>
+                                <p className="text-xs arbo-text-muted mt-1 leading-relaxed">
+                                    El campo <span className="font-medium arbo-text">"{relationBlockedField.label}"</span> es una relación
+                                    {relationBlockedField.formTitle ? <> con <span className="font-medium arbo-text">"{relationBlockedField.formTitle}"</span></> : null}.
+                                    Para no romper el vínculo entre los formularios, se gestiona desde la <span className="font-medium arbo-text">Configuración de la base de datos</span> (Configurar BD), no desde el editor.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 mt-5">
+                            <button
+                                onClick={() => setRelationBlockedField(null)}
+                                className="arbo-btn arbo-btn-ghost text-sm"
+                            >
+                                Entendido
+                            </button>
+                            {projectId != null && (
+                                <button
+                                    onClick={() => { setRelationBlockedField(null); navigate(`/form-builder/projects/${projectId}/relations`); }}
+                                    className="arbo-btn arbo-btn-primary text-sm"
+                                >
+                                    Ir a Configurar BD
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>,
+                document.body,
+            )}
+        </EditorCtx.Provider>
+    );
 };
