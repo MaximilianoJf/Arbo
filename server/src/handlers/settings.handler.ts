@@ -94,7 +94,7 @@ export const getEmbeddingSettings = async (req: Request, res: Response) => {
         data: {
             hasApiKey: !!(cfg.apiKey || envKey),
             apiKeyMasked: cfg.apiKey ? `AIza${"•".repeat(16)}${cfg.apiKey.slice(-4)}` : (envKey ? "(desde .env)" : null),
-            model: cfg.model || process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004",
+            model: cfg.model || process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
             usingEnvKey: !cfg.apiKey && !!envKey,
         },
     });

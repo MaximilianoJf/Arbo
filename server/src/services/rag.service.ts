@@ -18,6 +18,9 @@ async function generateEmbedding(text: string, config: EmbeddingConfig): Promise
         body: JSON.stringify({
             model: `models/${config.model}`,
             content: { parts: [{ text }] },
+            // gemini-embedding-001 defaults to 3072 dims; request 768 to match the
+            // Qdrant collection size (VECTOR_SIZE) via Matryoshka truncation.
+            outputDimensionality: VECTOR_SIZE,
         }),
     });
     if (!res.ok) {

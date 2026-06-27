@@ -497,8 +497,7 @@ export const OpenRouterSettingsView = () => {
                                 onChange={(e) => setEmbModel(e.target.value)}
                                 className="arbo-input text-sm"
                             >
-                                <option value="text-embedding-004">text-embedding-004 (recomendado, 768 dim)</option>
-                                <option value="embedding-001">embedding-001 (768 dim)</option>
+                                <option value="gemini-embedding-001">gemini-embedding-001 (recomendado, 768 dim)</option>
                             </select>
                         </div>
                     </div>
