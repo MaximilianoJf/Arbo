@@ -110,14 +110,44 @@ interface ProjectCardProps {
     project: any;
     role?: string;
     onClick: () => void;
+    /** id of the project being opened (drives the open/shrink transition), or null */
+    exitingId?: number | null;
+    /** position among all cards — used to stagger the shrink of the non-target cards */
+    index?: number;
 }
 
-const ProjectCard = ({ project, role, onClick }: ProjectCardProps) => {
+const ProjectCard = ({ project, role, onClick, exitingId = null, index = 0 }: ProjectCardProps) => {
     const formCount = project.forms?.length ?? project.userForms?.length ?? project.UserForms?.length ?? 0;
+
+    const isExiting = exitingId != null;
+    const isTarget = exitingId === project.id;
+
+    // When a project is opened: the target card zooms toward the viewer and fades
+    // (as if "opening into" the project), while the rest shrink away one after
+    // another (staggered by index).
+    const exitStyle: React.CSSProperties | undefined = isExiting
+        ? isTarget
+            ? {
+                  transform: "scale(1.07)",
+                  opacity: 0,
+                  transition: "transform .42s cubic-bezier(.4,0,.2,1), opacity .42s ease",
+                  zIndex: 10,
+                  pointerEvents: "none",
+              }
+            : {
+                  transform: "scale(.8)",
+                  opacity: 0,
+                  transition: "transform .35s cubic-bezier(.4,0,.2,1), opacity .3s ease",
+                  transitionDelay: `${index * 55}ms`,
+                  pointerEvents: "none",
+              }
+        : undefined;
 
     return (
         <button
             onClick={onClick}
+            disabled={isExiting}
+            style={exitStyle}
             className="arbo-card group text-left p-5 flex flex-col gap-3 transition-all hover:scale-[1.01]"
         >
             <div className="flex items-start justify-between">
@@ -172,6 +202,14 @@ export const ProjectsView = () => {
     const [shared, setShared] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
+    const [exitingId, setExitingId] = useState<number | null>(null);
+
+    // Play the open/shrink transition, then navigate into the project.
+    const openProject = useCallback((id: number) => {
+        if (exitingId != null) return;
+        setExitingId(id);
+        setTimeout(() => navigate(`/form-builder/projects/${id}`), 430);
+    }, [exitingId, navigate]);
 
     const load = useCallback(async () => {
         try {
@@ -201,7 +239,10 @@ export const ProjectsView = () => {
 
     return (
         <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full">
-            <div className="flex items-center justify-between">
+            <div
+                className="flex items-center justify-between"
+                style={exitingId != null ? { opacity: 0, transition: "opacity .3s ease" } : undefined}
+            >
                 <div>
                     <h1 className="text-xl font-bold arbo-text">{t("projects.title")}</h1>
                     <p className="text-sm arbo-text-muted mt-0.5">
@@ -245,11 +286,13 @@ export const ProjectsView = () => {
                                 {t("projects.myProjects")}
                             </h2>
                             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                {owned.map((p) => (
+                                {owned.map((p, i) => (
                                     <ProjectCard
                                         key={p.id}
                                         project={p}
-                                        onClick={() => navigate(`/form-builder/projects/${p.id}`)}
+                                        exitingId={exitingId}
+                                        index={i}
+                                        onClick={() => openProject(p.id)}
                                     />
                                 ))}
                             </div>
@@ -262,12 +305,14 @@ export const ProjectsView = () => {
                                 {t("projects.sharedWithMe")}
                             </h2>
                             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                {shared.map((p) => (
+                                {shared.map((p, i) => (
                                     <ProjectCard
                                         key={p.id}
                                         project={p}
                                         role={p.role}
-                                        onClick={() => navigate(`/form-builder/projects/${p.id}`)}
+                                        exitingId={exitingId}
+                                        index={owned.length + i}
+                                        onClick={() => openProject(p.id)}
                                     />
                                 ))}
                             </div>

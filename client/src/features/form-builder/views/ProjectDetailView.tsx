@@ -592,7 +592,7 @@ export const ProjectDetailView = () => {
                     stale: { label: "RAG desactualizado", cls: "bg-[rgba(245,158,11,0.15)] text-[var(--arbo-warning)]" },
                 } as const;
                 return (
-                    <div className="arbo-panel overflow-hidden">
+                    <div className="arbo-panel overflow-hidden" style={{ animation: "fadeInUp .4s ease both", animationDelay: "60ms" }}>
                         <button
                             onClick={() => setRagOpen((v) => !v)}
                             className="w-full arbo-panel-header flex items-center justify-between cursor-pointer hover:bg-[var(--arbo-surface-2)] transition-colors"
@@ -721,8 +721,12 @@ export const ProjectDetailView = () => {
                         </div>
                     ) : (
                         <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                            {forms.map((form: any) => (
-                                <div key={form.id} className="relative group">
+                            {forms.map((form: any, i: number) => (
+                                <div
+                                    key={form.id}
+                                    className="relative group"
+                                    style={{ animation: "fadeInUp .4s ease both", animationDelay: `${120 + i * 70}ms` }}
+                                >
                                     <FormMiniPreview
                                         form={form}
                                         onAnswer={() => window.open(`/forms/${form.slug}`, "_blank")}
@@ -748,7 +752,10 @@ export const ProjectDetailView = () => {
                 </div>
 
                 {/* Right sidebar */}
-                <div className="h-fit">
+                <div
+                    className="h-fit"
+                    style={{ animation: "fadeInUp .4s ease both", animationDelay: `${160 + forms.length * 70}ms` }}
+                >
                     <div className="arbo-card-static p-4">
                         <CollabPanel projectId={projectId} isOwner={isOwner} />
                     </div>
