@@ -498,8 +498,7 @@ export const OpenRouterSettingsView = () => {
                                 className="arbo-input text-sm"
                             >
                                 <option value="text-embedding-004">text-embedding-004 (recomendado, 768 dim)</option>
-                                <option value="text-embedding-preview-0409">text-embedding-preview-0409</option>
-                                <option value="embedding-001">embedding-001</option>
+                                <option value="embedding-001">embedding-001 (768 dim)</option>
                             </select>
                         </div>
                     </div>
