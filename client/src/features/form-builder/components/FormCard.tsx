@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Pencil, TrashBin, Eye, Copy, Check, LayoutList, Archive, ArrowUturnCcwLeft, Code, FolderArrowRight } from "@gravity-ui/icons";
 import { useNavigate } from "react-router-dom";
@@ -316,8 +317,9 @@ export const FormCard = ({ form, onAction, variant = "active" }: FormCardProps) 
                 )}
             </div>
 
-            {/* Embed Modal */}
-            {showEmbed && (
+            {/* Embed Modal — portaled to body so the card's backdrop-filter
+                doesn't trap the fixed positioning inside the card. */}
+            {showEmbed && createPortal(
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowEmbed(false)}>
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                     <div
@@ -385,7 +387,8 @@ export const FormCard = ({ form, onAction, variant = "active" }: FormCardProps) 
                             </p>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
         </div>
     );
