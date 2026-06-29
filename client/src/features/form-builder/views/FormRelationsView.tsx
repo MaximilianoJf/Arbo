@@ -756,8 +756,8 @@ export const FormRelationsView = () => {
             })()}
 
             <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
-                {/* Canvas */}
-                <div className="arbo-panel flex-1 min-w-0 w-full h-[60vh] lg:h-[70vh]">
+                {/* Canvas — fixed height on mobile (flex-1 in a column would collapse it to 0). */}
+                <div className="arbo-panel w-full h-[60vh] lg:flex-1 lg:min-w-0 lg:h-[70vh]">
                     {forms.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-sm arbo-text-muted">No tenés formularios para conectar.</div>
                     ) : (
