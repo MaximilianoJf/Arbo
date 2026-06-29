@@ -8,6 +8,8 @@ export const SubmitTab = () => {
     const { t } = useTranslation();
     const { schema, setSchema, styles, updateStyles } = useEditorContext();
     const SUBMIT_ACTIONS = getSubmitActions(t);
+    // "Enviar a Email" todavía no está configurado: se muestra pero no se puede activar.
+    const DISABLED_ACTIONS = new Set<string>([FormFunctions.SendToEmail]);
     const selected = parseSubmitActions(schema.onSubmit);
     const requiresGoogleAuth = !!styles.requiresGoogleAuth;
     const allowMultiple = !!styles.allowMultiple;
@@ -16,6 +18,8 @@ export const SubmitTab = () => {
     const allowStandalone = styles.requiresParentChain === false;
 
     const toggleAction = (value: string) => {
+        // Bloqueada hasta que se configure el envío de email.
+        if (DISABLED_ACTIONS.has(value)) return;
         const isOn = selected.includes(value);
         // Always keep at least one action selected
         if (isOn && selected.length === 1) return;
@@ -30,15 +34,21 @@ export const SubmitTab = () => {
                 <p className="text-[9px] arbo-text-muted mb-3">{t("editor.submitTab.subtitle")}</p>
                 <div className="flex flex-col gap-2">
                     {SUBMIT_ACTIONS.map((a) => {
-                        const isOn = selected.includes(a.value);
+                        const isDisabled = DISABLED_ACTIONS.has(a.value);
+                        const isOn = !isDisabled && selected.includes(a.value);
                         const isLastOn = isOn && selected.length === 1;
                         return (
                             <button
                                 key={a.value}
                                 onClick={() => toggleAction(a.value)}
-                                title={isLastOn ? "Debe quedar al menos una acción seleccionada" : undefined}
+                                disabled={isDisabled}
+                                title={isDisabled
+                                    ? "Disponible próximamente — el envío por email todavía no está configurado"
+                                    : isLastOn ? "Debe quedar al menos una acción seleccionada" : undefined}
                                 className={`flex items-start gap-3 px-3 py-3 rounded-lg border text-left transition-colors ${
-                                    isOn
+                                    isDisabled
+                                        ? "bg-[var(--arbo-surface-2)] border-[var(--arbo-border)] arbo-text-muted opacity-50 cursor-not-allowed"
+                                        : isOn
                                         ? "bg-[var(--arbo-accent-muted)] border-[var(--arbo-accent)]/40 text-[var(--arbo-accent)]"
                                         : "bg-[var(--arbo-surface-2)] border-[var(--arbo-border)] arbo-text-secondary hover:border-[var(--arbo-border-light)]"
                                 }`}
@@ -49,7 +59,14 @@ export const SubmitTab = () => {
                                     {isOn && <Check className="size-2.5 text-[var(--arbo-bg)]" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <span className="text-xs font-medium block">{a.label}</span>
+                                    <span className="text-xs font-medium flex items-center gap-1.5">
+                                        {a.label}
+                                        {isDisabled && (
+                                            <span className="text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-[var(--arbo-border)] arbo-text-muted">
+                                                Próximamente
+                                            </span>
+                                        )}
+                                    </span>
                                     <span className="text-[9px] arbo-text-muted block mt-0.5">
                                         {a.value === FormFunctions.SaveToDB
                                             ? t("editor.submitTab.saveToDb")
