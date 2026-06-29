@@ -21,7 +21,7 @@ const FormBuilderLayout = () => {
             {/* Backdrop behind the off-canvas sidebar (tablet/mobile only) */}
             {menuOpen && (
                 <div
-                    className="lg:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+                    className="xl:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
                     onClick={() => setMenuOpen(false)}
                     aria-hidden
                 />

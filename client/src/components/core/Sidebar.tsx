@@ -64,7 +64,7 @@ export const Sidebar = ({ open = false, onClose }: SidebarProps = {}) => {
                 {/* Close drawer — tablet/mobile only */}
                 <button
                     onClick={onClose}
-                    className="lg:hidden p-1.5 rounded-lg arbo-text-muted hover:arbo-text hover:bg-[var(--arbo-accent-subtle)] transition-colors"
+                    className="xl:hidden p-1.5 rounded-lg arbo-text-muted hover:arbo-text hover:bg-[var(--arbo-accent-subtle)] transition-colors"
                     aria-label={t("common.close", "Cerrar")}
                 >
                     <Xmark className="size-5" />

@@ -126,9 +126,9 @@ h1, h2, h3, .arbo-heading {
   position: relative;
 }
 
-/* ─── Responsive: sidebar as off-canvas drawer on tablet/mobile (< lg) ─── */
+/* ─── Responsive: sidebar as off-canvas drawer on tablet/mobile (< xl, covers all iPads incl. landscape) ─── */
 .arbo-menu-btn { display: none; }
-@media (max-width: 1023px) {
+@media (max-width: 1279px) {
   .arbo-menu-btn { display: inline-flex; }
   .arbo-sidebar {
     position: fixed;
@@ -145,8 +145,8 @@ h1, h2, h3, .arbo-heading {
   }
 }
 
-/* ─── Responsive: editor side panels (Navigator / properties) as drawers (< lg) ─── */
-@media (max-width: 1023px) {
+/* ─── Responsive: editor side panels (Navigator / properties) as drawers (< xl) ─── */
+@media (max-width: 1279px) {
   .arbo-editor-side {
     position: fixed;
     top: 56px;                  /* below the top bar */

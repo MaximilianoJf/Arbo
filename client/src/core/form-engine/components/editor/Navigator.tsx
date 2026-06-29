@@ -21,7 +21,7 @@ export const Navigator = ({ mobileOpen = false, onFieldPick, onPagePick }: Navig
     return (
         <>
             <div
-                className="arbo-panel arbo-editor-side arbo-editor-side-left w-[82vw] max-w-[280px] lg:w-48 lg:max-w-none shrink-0 flex flex-col overflow-hidden"
+                className="arbo-panel arbo-editor-side arbo-editor-side-left w-[82vw] max-w-[280px] xl:w-48 xl:max-w-none shrink-0 flex flex-col overflow-hidden"
                 data-open={mobileOpen}
             >
                 <div className="arbo-panel-header flex items-center justify-between">

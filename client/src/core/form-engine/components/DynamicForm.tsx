@@ -202,7 +202,7 @@ const EditorLayout = ({ className = "" }: { className?: string }) => {
             {/* Shared backdrop for the editor drawers (tablet/mobile only) */}
             {(navOpen || propsOpen) && (
                 <div
-                    className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-black/50"
+                    className="xl:hidden fixed inset-x-0 bottom-0 z-50 bg-black/50"
                     style={{ top: "56px" }}
                     onClick={closeDrawers}
                     aria-hidden
@@ -219,7 +219,7 @@ const EditorLayout = ({ className = "" }: { className?: string }) => {
             {/* CENTER: Canvas */}
             <div className="flex-1 flex flex-col gap-3 overflow-y-auto min-w-0">
                 {/* Mobile toolbar: toggles for the two side panels (hidden on desktop) */}
-                <div className="lg:hidden flex items-center gap-2 shrink-0">
+                <div className="xl:hidden flex items-center gap-2 shrink-0">
                     <button
                         onClick={() => { setNavOpen(true); setPropsOpen(false); }}
                         className="arbo-btn arbo-btn-secondary text-xs py-1.5 px-3"
@@ -266,11 +266,11 @@ const EditorLayout = ({ className = "" }: { className?: string }) => {
             {/* RIGHT: Tab panel — drawer on mobile, sticky column on desktop.
                 Fixed height on desktop so AITab scroll works. */}
             <div
-                className="arbo-panel arbo-editor-side arbo-editor-side-right w-[85vw] max-w-[340px] lg:w-72 lg:max-w-none shrink-0 flex flex-col overflow-hidden self-start lg:sticky lg:top-0 lg:h-[calc(100vh-80px)]"
+                className="arbo-panel arbo-editor-side arbo-editor-side-right w-[85vw] max-w-[340px] xl:w-72 xl:max-w-none shrink-0 flex flex-col overflow-hidden self-start xl:sticky xl:top-0 xl:h-[calc(100vh-80px)]"
                 data-open={propsOpen}
             >
                 {/* Mobile-only drawer header with a close button */}
-                <div className="lg:hidden flex items-center justify-between px-3 py-2 border-b border-[var(--arbo-border)] shrink-0">
+                <div className="xl:hidden flex items-center justify-between px-3 py-2 border-b border-[var(--arbo-border)] shrink-0">
                     <span className="text-[11px] font-bold uppercase tracking-wider arbo-text-secondary">Propiedades</span>
                     <button
                         onClick={() => setPropsOpen(false)}
