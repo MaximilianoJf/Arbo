@@ -190,12 +190,22 @@ const ProjectSelector = () => {
 
 // --- Editor layout: uses EditorContext ---
 const EditorLayout = ({ className = "" }: { className?: string }) => {
-    const { rightTab, handleSaveForm, saveError, isSaving, savedOk, navigate } = useEditorContextSafe();
+    const { rightTab, activeField, handleSaveForm, saveError, isSaving, savedOk, navigate } = useEditorContextSafe();
 
-    // Off-canvas drawer state for tablet/mobile (< lg). Inert on desktop.
+    // Off-canvas drawer state for tablet/mobile (< xl). Inert on desktop.
     const [navOpen, setNavOpen] = useState(false);
     const [propsOpen, setPropsOpen] = useState(false);
     const closeDrawers = () => { setNavOpen(false); setPropsOpen(false); };
+
+    // Drawer title reflects what the panel is actually showing. The field tab doubles
+    // as the "share" panel when no field is selected, so label it accordingly.
+    const TAB_TITLES: Record<string, string> = {
+        inputs: "Campos", ai: "IA", field: "Campo", form: "Form",
+        page: "Página", submit: "Envío", embed: "Embed", logic: "Lógica",
+    };
+    const drawerTitle = rightTab === "field" && !activeField
+        ? "Compartir"
+        : (TAB_TITLES[rightTab] ?? "Propiedades");
 
     return (
         <div className="flex gap-3 w-full" style={{ minHeight: "calc(100vh - 80px)" }}>
@@ -271,7 +281,7 @@ const EditorLayout = ({ className = "" }: { className?: string }) => {
             >
                 {/* Mobile-only drawer header with a close button */}
                 <div className="xl:hidden flex items-center justify-between px-3 py-2 border-b border-[var(--arbo-border)] shrink-0">
-                    <span className="text-[11px] font-bold uppercase tracking-wider arbo-text-secondary">Propiedades</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider arbo-text-secondary">{drawerTitle}</span>
                     <button
                         onClick={() => setPropsOpen(false)}
                         className="p-1 rounded-lg arbo-text-muted hover:arbo-text hover:bg-[var(--arbo-accent-subtle)] transition-colors"

@@ -131,10 +131,11 @@ export const PageGridEditor = () => {
         updateStyles({ pageLayout: { ...layout, enabled: true, decors: newDecors } });
     }, [layout, updateStyles]);
 
-    /** Shared drag/resize loop: converts mouse deltas to grid units (compensating the canvas scale). */
-    const trackPointer = useCallback((e: React.MouseEvent, start: Rect, mode: "move" | ResizeDir, apply: (r: Rect) => void) => {
+    /** Shared drag/resize loop: converts pointer deltas to grid units (compensating the canvas scale).
+        Uses Pointer Events so dragging works with mouse, touch (tablet) and pen alike. */
+    const trackPointer = useCallback((e: React.PointerEvent, start: Rect, mode: "move" | ResizeDir, apply: (r: Rect) => void) => {
         const sx = e.clientX, sy = e.clientY;
-        const onMove = (ev: MouseEvent) => {
+        const onMove = (ev: PointerEvent) => {
             const s = scaleRef.current || 1;
             const dCol = Math.round((ev.clientX - sx) / s / cw);
             const dRow = Math.round((ev.clientY - sy) / s / rowH);
@@ -151,14 +152,16 @@ export const PageGridEditor = () => {
             apply({ x, y, w, h });
         };
         const onUp = () => {
-            window.removeEventListener("mousemove", onMove);
-            window.removeEventListener("mouseup", onUp);
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onUp);
         };
-        window.addEventListener("mousemove", onMove);
-        window.addEventListener("mouseup", onUp);
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onUp);
     }, [cw, rowH, cols]);
 
-    const startItemInteraction = useCallback((e: React.MouseEvent, item: PageLayoutItem, mode: "move" | ResizeDir) => {
+    const startItemInteraction = useCallback((e: React.PointerEvent, item: PageLayoutItem, mode: "move" | ResizeDir) => {
         e.preventDefault();
         e.stopPropagation();
         setSelected(item.key);
@@ -166,7 +169,7 @@ export const PageGridEditor = () => {
             commitItems(items.map((it) => (it.key === item.key ? { ...it, ...r } : it))));
     }, [items, commitItems, trackPointer, setSelected]);
 
-    const startDecorInteraction = useCallback((e: React.MouseEvent, decor: PageDecor, mode: "move" | ResizeDir) => {
+    const startDecorInteraction = useCallback((e: React.PointerEvent, decor: PageDecor, mode: "move" | ResizeDir) => {
         e.preventDefault();
         e.stopPropagation();
         setSelected(decor.id);
@@ -222,11 +225,11 @@ export const PageGridEditor = () => {
     } as React.CSSProperties;
 
     const invScale = 1 / (scale || 1);
-    const handleEls = (color: string, onDown: (e: React.MouseEvent, dir: ResizeDir) => void) =>
+    const handleEls = (color: string, onDown: (e: React.PointerEvent, dir: ResizeDir) => void) =>
         HANDLES.map((h) => (
             <div
                 key={h.key}
-                onMouseDown={(e) => onDown(e, { dirX: h.dirX, dirY: h.dirY })}
+                onPointerDown={(e) => onDown(e, { dirX: h.dirX, dirY: h.dirY })}
                 className="absolute rounded-full bg-white border-2 z-30"
                 style={{
                     ...h.style,
@@ -234,15 +237,16 @@ export const PageGridEditor = () => {
                     height: Math.round(10 * invScale),
                     cursor: h.cursor,
                     borderColor: color,
+                    touchAction: "none",   // let touch drag the handle instead of scrolling
                 }}
             />
         ));
 
-    const labelTab = (color: string, label: string, onDown: (e: React.MouseEvent) => void) => (
+    const labelTab = (color: string, label: string, onDown: (e: React.PointerEvent) => void) => (
         <div
-            onMouseDown={onDown}
+            onPointerDown={onDown}
             className="absolute left-0 flex items-center gap-1 px-1.5 h-5 rounded-t-md cursor-move text-white text-[9px] font-semibold whitespace-nowrap z-20"
-            style={{ background: color, bottom: "100%", transformOrigin: "bottom left", transform: `scale(${invScale})` }}
+            style={{ background: color, bottom: "100%", transformOrigin: "bottom left", transform: `scale(${invScale})`, touchAction: "none" }}
             title="Arrastrar para mover"
         >
             <Grip className="size-2.5" /> {label}
@@ -250,7 +254,7 @@ export const PageGridEditor = () => {
     );
 
     /** Selection + drag from the block body, letting form controls keep their clicks. */
-    const bodyMouseDown = (key: string, onDrag: (e: React.MouseEvent) => void) => (e: React.MouseEvent) => {
+    const bodyPointerDown = (key: string, onDrag: (e: React.PointerEvent) => void) => (e: React.PointerEvent) => {
         e.stopPropagation();
         const el = e.target as HTMLElement;
         if (el.closest("input, textarea, select, button, label, [contenteditable]")) {
@@ -328,7 +332,7 @@ export const PageGridEditor = () => {
                             <div
                                 className="select-none"
                                 style={{ background: getPageBgCss(styles), padding: `${PAGE_PAD_Y}px ${PAGE_PAD_X}px`, ...animVars }}
-                                onMouseDown={() => setSelected(null)}
+                                onPointerDown={() => setSelected(null)}
                             >
                                 <div ref={wrapRef} className="relative mx-auto" style={{ height: gridH, maxWidth: GRID_MAX_W }}>
                                     {/* Grid lines */}
@@ -347,7 +351,7 @@ export const PageGridEditor = () => {
                                             <div
                                                 key={decor.id}
                                                 data-grid-block
-                                                onMouseDown={clean ? undefined : bodyMouseDown(decor.id, (e) => startDecorInteraction(e, decor, "move"))}
+                                                onPointerDown={clean ? undefined : bodyPointerDown(decor.id, (e) => startDecorInteraction(e, decor, "move"))}
                                                 className={`absolute group ${clean ? "" : "cursor-move"}`}
                                                 style={{
                                                     left: decor.x * cw,
@@ -357,6 +361,7 @@ export const PageGridEditor = () => {
                                                     zIndex: isSel ? 30 : (decor.layer || "back") === "back" ? 1 : 20,
                                                     outline: clean ? "none" : isSel ? `2px solid ${DECOR_COLOR}` : "1px dashed rgba(255,255,255,0.14)",
                                                     borderRadius: 6,
+                                                    touchAction: clean ? undefined : "none",
                                                 }}
                                             >
                                                 {!clean && isSel && labelTab(DECOR_COLOR, DECOR_LABELS[decor.kind], (e) => startDecorInteraction(e, decor, "move"))}
@@ -384,7 +389,7 @@ export const PageGridEditor = () => {
                                                 key={item.key}
                                                 // Snapped images are excluded from the height measurement (see gridH above)
                                                 {...(isSnapped ? {} : { "data-grid-block": true })}
-                                                onMouseDown={clean ? undefined : bodyMouseDown(item.key, (e) => startItemInteraction(e, item, "move"))}
+                                                onPointerDown={clean ? undefined : bodyPointerDown(item.key, (e) => startItemInteraction(e, item, "move"))}
                                                 className={`absolute group ${clean ? "" : "cursor-move"}`}
                                                 style={{
                                                     left: fullBleed ? -(refW - gridW) / 2 : item.x * cw,
@@ -394,6 +399,7 @@ export const PageGridEditor = () => {
                                                     zIndex: isSel ? 30 : item.key === "image" ? 0 : 10,
                                                     outline: clean ? "none" : isSel ? `2px solid ${meta.color}` : "1px dashed rgba(255,255,255,0.18)",
                                                     borderRadius: 6,
+                                                    touchAction: clean ? undefined : "none",
                                                 }}
                                             >
                                                 {!clean && labelTab(meta.color, meta.label, (e) => startItemInteraction(e, item, "move"))}
