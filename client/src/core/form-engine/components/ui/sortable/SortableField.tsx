@@ -35,7 +35,10 @@ export const SortableField = ({ id, children, disabled, compact }: SortableField
                 {!disabled && (
                     <button
                         type="button"
-                        className="absolute top-1 left-1 z-20 cursor-grab active:cursor-grabbing arbo-text-muted hover:arbo-text-secondary transition-all p-0.5 rounded hover:bg-[var(--arbo-surface-3)] opacity-0 group-hover/sf:opacity-100"
+                        // touch-action:none lets touch devices drag the handle instead of scrolling.
+                        // Always visible below xl (no hover on touch); hover-only on desktop.
+                        style={{ touchAction: "none" }}
+                        className="absolute top-1 left-1 z-20 cursor-grab active:cursor-grabbing arbo-text-muted hover:arbo-text-secondary transition-all p-0.5 rounded hover:bg-[var(--arbo-surface-3)] opacity-100 xl:opacity-0 xl:group-hover/sf:opacity-100"
                         {...attributes}
                         {...listeners}
                     >
@@ -52,6 +55,8 @@ export const SortableField = ({ id, children, disabled, compact }: SortableField
             {!disabled && (
                 <button
                     type="button"
+                    // touch-action:none so a touch-drag moves the field instead of scrolling the page.
+                    style={{ touchAction: "none" }}
                     className="mt-7 cursor-grab active:cursor-grabbing arbo-text-muted hover:arbo-text-secondary transition-colors shrink-0 p-1 rounded hover:bg-[var(--arbo-surface-3)]"
                     {...attributes}
                     {...listeners}

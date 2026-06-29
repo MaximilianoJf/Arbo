@@ -580,35 +580,38 @@ export const FormRelationsView = () => {
 
     return (
         <div className="flex flex-col gap-4 max-w-[1600px] mx-auto w-full">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
                 <button onClick={() => navigate(`/form-builder/projects/${projectId}`)} className="p-2 rounded-lg hover:bg-[var(--arbo-surface-2)] arbo-text-secondary transition-colors shrink-0">
                     <ArrowLeft className="size-5" />
                 </button>
-                <div className="flex-1">
+                <div className="flex-1 min-w-[180px]">
                     <h1 className="text-lg font-bold arbo-text">Conexiones — {projectName}</h1>
                     <p className="text-sm arbo-text-muted">Arrastrá del punto derecho de un formulario al de otro para conectarlos. Tocá una conexión para elegir el tipo (1:1, 1:N, N:M).</p>
                 </div>
-                {confirmClear ? (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--arbo-danger-muted)] border border-[var(--arbo-danger)]/30">
-                        <TriangleExclamation className="size-3.5 text-[var(--arbo-danger)] shrink-0" />
-                        <span className="text-xs text-[var(--arbo-danger)]">¿Borrar todas las conexiones? Hay datos vinculados.</span>
-                        <button onClick={handleClear} className="text-xs font-semibold text-[var(--arbo-danger)] hover:opacity-80 ml-1">Sí</button>
-                        <button onClick={() => setConfirmClear(false)} className="text-xs arbo-text-muted hover:arbo-text">Cancelar</button>
-                    </div>
-                ) : (
-                    <button onClick={handleClear} className="arbo-btn arbo-btn-ghost text-xs py-1.5 px-3">
-                        <ArrowsRotateLeft className="size-3.5" /> Limpiar
+                {/* Actions wrap to their own row on narrow screens so nothing gets cut off. */}
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    {confirmClear ? (
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--arbo-danger-muted)] border border-[var(--arbo-danger)]/30">
+                            <TriangleExclamation className="size-3.5 text-[var(--arbo-danger)] shrink-0" />
+                            <span className="text-xs text-[var(--arbo-danger)]">¿Borrar todas las conexiones? Hay datos vinculados.</span>
+                            <button onClick={handleClear} className="text-xs font-semibold text-[var(--arbo-danger)] hover:opacity-80 ml-1">Sí</button>
+                            <button onClick={() => setConfirmClear(false)} className="text-xs arbo-text-muted hover:arbo-text">Cancelar</button>
+                        </div>
+                    ) : (
+                        <button onClick={handleClear} className="arbo-btn arbo-btn-ghost text-xs py-1.5 px-3">
+                            <ArrowsRotateLeft className="size-3.5" /> Limpiar
+                        </button>
+                    )}
+                    <button
+                        onClick={() => { setAiOpen((v) => !v); setAiError(null); setAiProgress([]); }}
+                        className={`arbo-btn text-xs py-1.5 px-3 gap-1.5 transition-colors ${aiOpen ? "arbo-btn-secondary" : "arbo-btn-ghost"}`}
+                    >
+                        <Sparkles className="size-3.5" /> Generar con IA
                     </button>
-                )}
-                <button
-                    onClick={() => { setAiOpen((v) => !v); setAiError(null); setAiProgress([]); }}
-                    className={`arbo-btn text-xs py-1.5 px-3 gap-1.5 transition-colors ${aiOpen ? "arbo-btn-secondary" : "arbo-btn-ghost"}`}
-                >
-                    <Sparkles className="size-3.5" /> Generar con IA
-                </button>
-                <button onClick={handleSave} disabled={saving} className="arbo-btn arbo-btn-primary text-xs py-1.5 px-3 disabled:opacity-50">
-                    <FloppyDisk className="size-3.5" /> {saving ? "Guardando..." : saved ? "Guardado" : "Guardar"}
-                </button>
+                    <button onClick={handleSave} disabled={saving} className="arbo-btn arbo-btn-primary text-xs py-1.5 px-3 disabled:opacity-50 ml-auto sm:ml-0">
+                        <FloppyDisk className="size-3.5" /> {saving ? "Guardando..." : saved ? "Guardado" : "Guardar"}
+                    </button>
+                </div>
             </div>
 
             {saveErr && (
@@ -752,9 +755,9 @@ export const FormRelationsView = () => {
                 );
             })()}
 
-            <div className="flex gap-4 items-start">
+            <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
                 {/* Canvas */}
-                <div className="arbo-panel flex-1 min-w-0" style={{ height: "70vh" }}>
+                <div className="arbo-panel flex-1 min-w-0 w-full h-[60vh] lg:h-[70vh]">
                     {forms.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-sm arbo-text-muted">No tenés formularios para conectar.</div>
                     ) : (
@@ -776,8 +779,9 @@ export const FormRelationsView = () => {
                     )}
                 </div>
 
-                {/* Right panel: inspector when a connection is selected, else the list */}
-                <div className="arbo-panel w-80 shrink-0 flex flex-col max-h-[70vh]">
+                {/* Right panel: inspector when a connection is selected, else the list.
+                    Stacks under the canvas on tablet/mobile (< lg). */}
+                <div className="arbo-panel w-full lg:w-80 lg:shrink-0 flex flex-col max-h-[70vh]">
                     {selectedEdge && selSource && selTarget ? (
                         <>
                             <div className="arbo-panel-header flex items-center justify-between">
