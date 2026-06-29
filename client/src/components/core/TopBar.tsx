@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Eye, ArrowRightFromSquare } from "@gravity-ui/icons";
+import { Eye, ArrowRightFromSquare, Bars } from "@gravity-ui/icons";
 
 const getToken = () => localStorage.getItem("token");
 
@@ -8,9 +8,11 @@ interface TopBarProps {
     showTabs?: boolean;
     showPublish?: boolean;
     formSlug?: string;
+    /** Toggles the off-canvas sidebar on tablet/mobile. */
+    onMenuToggle?: () => void;
 }
 
-export const TopBar = ({ showTabs = true, showPublish = false, formSlug }: TopBarProps) => {
+export const TopBar = ({ showTabs = true, showPublish = false, formSlug, onMenuToggle }: TopBarProps) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useTranslation();
@@ -33,6 +35,15 @@ export const TopBar = ({ showTabs = true, showPublish = false, formSlug }: TopBa
 
     return (
         <div className="arbo-topbar">
+            {onMenuToggle && (
+                <button
+                    onClick={onMenuToggle}
+                    className="arbo-menu-btn p-1.5 -ml-1 mr-1 rounded-lg arbo-text-secondary hover:arbo-text hover:bg-[var(--arbo-accent-subtle)] transition-colors"
+                    aria-label={t("nav.menu", "Menú")}
+                >
+                    <Bars className="size-5" />
+                </button>
+            )}
             <span className="text-sm font-bold arbo-text-accent mr-3">{t("nav.appName")}</span>
 
             {showTabs && (

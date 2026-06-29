@@ -2,7 +2,16 @@ import { CirclePlus, TrashBin, BranchesRight } from "@gravity-ui/icons";
 import { FIELD_TYPE_ICONS } from "../../constants/editor-constants";
 import { useEditorContext } from "./EditorContext";
 
-export const Navigator = () => {
+interface NavigatorProps {
+    /** Drawer open state on tablet/mobile (< lg). Ignored on desktop. */
+    mobileOpen?: boolean;
+    /** Called after picking a field — closes the drawer and opens the properties panel. */
+    onFieldPick?: () => void;
+    /** Called after switching page — closes the drawer so the canvas is visible. */
+    onPagePick?: () => void;
+}
+
+export const Navigator = ({ mobileOpen = false, onFieldPick, onPagePick }: NavigatorProps = {}) => {
     const {
         schema, pages, totalPages, currentPage, setCurrentPage,
         selectedField, setSelectedField, setRightTab, rightTab,
@@ -11,7 +20,10 @@ export const Navigator = () => {
 
     return (
         <>
-            <div className="arbo-panel w-48 shrink-0 flex flex-col overflow-hidden">
+            <div
+                className="arbo-panel arbo-editor-side arbo-editor-side-left w-[82vw] max-w-[280px] lg:w-48 lg:max-w-none shrink-0 flex flex-col overflow-hidden"
+                data-open={mobileOpen}
+            >
                 <div className="arbo-panel-header flex items-center justify-between">
                     <span>Navigator</span>
                 </div>
@@ -24,7 +36,7 @@ export const Navigator = () => {
                             <div key={pageNum} className="mb-1">
                                 <div className="flex items-center group">
                                     <button
-                                        onClick={() => setCurrentPage(idx)}
+                                        onClick={() => { setCurrentPage(idx); onPagePick?.(); }}
                                         onContextMenu={(e) => {
                                             e.preventDefault();
                                             if (totalPages > 1) {
@@ -52,7 +64,7 @@ export const Navigator = () => {
                                 {currentPage === idx && pageFields.map((field) => (
                                     <button
                                         key={field.name}
-                                        onClick={() => { setSelectedField(field.name); setRightTab("field"); }}
+                                        onClick={() => { setSelectedField(field.name); setRightTab("field"); onFieldPick?.(); }}
                                         className={`arbo-tree-item w-full text-left pl-7 text-xs ${
                                             selectedField === field.name ? "active" : ""
                                         }`}

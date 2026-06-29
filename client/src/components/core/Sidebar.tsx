@@ -2,7 +2,14 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Logo } from "../ui";
 import { LanguageSwitcher } from "../widgets/LanguageSwitcher";
-import { LayoutList, FolderOpen, Folders, Archive, TrashBin, CircleQuestion, Gear, SquarePlus, Key, Sparkles, LayoutCellsLarge, Database } from "@gravity-ui/icons";
+import { LayoutList, FolderOpen, Folders, Archive, TrashBin, CircleQuestion, Gear, SquarePlus, Key, Sparkles, LayoutCellsLarge, Database, Xmark } from "@gravity-ui/icons";
+
+interface SidebarProps {
+    /** Whether the off-canvas drawer is open (tablet/mobile). Ignored on desktop. */
+    open?: boolean;
+    /** Called to close the drawer (backdrop / close button / nav). */
+    onClose?: () => void;
+}
 
 const getToken = () => localStorage.getItem("token");
 const parseToken = (): { name?: string; email?: string } | null => {
@@ -15,7 +22,7 @@ const parseToken = (): { name?: string; email?: string } | null => {
     }
 };
 
-export const Sidebar = () => {
+export const Sidebar = ({ open = false, onClose }: SidebarProps = {}) => {
     const location = useLocation();
     const navigate = useNavigate();
     const { t } = useTranslation();
@@ -40,9 +47,9 @@ export const Sidebar = () => {
     if (!user) return null;
 
     return (
-        <aside className="arbo-sidebar">
+        <aside className="arbo-sidebar" data-open={open}>
             {/* Logo + Plan */}
-            <div className="px-5 pt-5 pb-3">
+            <div className="px-5 pt-5 pb-3 flex items-center justify-between">
                 <Link to="/form-builder" className="flex items-center gap-2.5">
                     <div className="size-9 rounded-lg bg-[var(--arbo-surface-3)] flex items-center justify-center">
                         <Logo width={22} showText={false} />
@@ -54,6 +61,14 @@ export const Sidebar = () => {
                         </p>
                     </div>
                 </Link>
+                {/* Close drawer — tablet/mobile only */}
+                <button
+                    onClick={onClose}
+                    className="lg:hidden p-1.5 rounded-lg arbo-text-muted hover:arbo-text hover:bg-[var(--arbo-accent-subtle)] transition-colors"
+                    aria-label={t("common.close", "Cerrar")}
+                >
+                    <Xmark className="size-5" />
+                </button>
             </div>
 
             {/* New Form + New DB buttons */}

@@ -1,5 +1,6 @@
 import type { FormField, FormStyles } from "../types";
 import { Button, FieldError, Input, Label, Form } from "@heroui/react";
+import { LayoutList, Gear, Xmark } from "@gravity-ui/icons";
 import { FieldRenderMap } from "./Field-render";
 import { useFormStore } from "../store";
 import { FORM_MODES } from "../constants/form-modes";
@@ -191,13 +192,51 @@ const ProjectSelector = () => {
 const EditorLayout = ({ className = "" }: { className?: string }) => {
     const { rightTab, handleSaveForm, saveError, isSaving, savedOk, navigate } = useEditorContextSafe();
 
+    // Off-canvas drawer state for tablet/mobile (< lg). Inert on desktop.
+    const [navOpen, setNavOpen] = useState(false);
+    const [propsOpen, setPropsOpen] = useState(false);
+    const closeDrawers = () => { setNavOpen(false); setPropsOpen(false); };
+
     return (
         <div className="flex gap-3 w-full" style={{ minHeight: "calc(100vh - 80px)" }}>
-            {/* LEFT: Navigator */}
-            <Navigator />
+            {/* Shared backdrop for the editor drawers (tablet/mobile only) */}
+            {(navOpen || propsOpen) && (
+                <div
+                    className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-black/50"
+                    style={{ top: "56px" }}
+                    onClick={closeDrawers}
+                    aria-hidden
+                />
+            )}
+
+            {/* LEFT: Navigator — drawer on mobile, inline column on desktop */}
+            <Navigator
+                mobileOpen={navOpen}
+                onPagePick={() => setNavOpen(false)}
+                onFieldPick={() => { setNavOpen(false); setPropsOpen(true); }}
+            />
 
             {/* CENTER: Canvas */}
             <div className="flex-1 flex flex-col gap-3 overflow-y-auto min-w-0">
+                {/* Mobile toolbar: toggles for the two side panels (hidden on desktop) */}
+                <div className="lg:hidden flex items-center gap-2 shrink-0">
+                    <button
+                        onClick={() => { setNavOpen(true); setPropsOpen(false); }}
+                        className="arbo-btn arbo-btn-secondary text-xs py-1.5 px-3"
+                    >
+                        <LayoutList className="size-4" />
+                        Páginas
+                    </button>
+                    <div className="flex-1" />
+                    <button
+                        onClick={() => { setPropsOpen(true); setNavOpen(false); }}
+                        className="arbo-btn arbo-btn-secondary text-xs py-1.5 px-3"
+                    >
+                        <Gear className="size-4" />
+                        Propiedades
+                    </button>
+                </div>
+
                 {(rightTab === "inputs" || rightTab === "field" || rightTab === "form" || rightTab === "ai") && (
                     <EditorCanvas className={className} />
                 )}
@@ -207,7 +246,7 @@ const EditorLayout = ({ className = "" }: { className?: string }) => {
 
                 {/* Save bar */}
                 <div className="flex flex-col gap-1 pb-2 shrink-0">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                         <button onClick={handleSaveForm} disabled={isSaving} className="arbo-btn arbo-btn-primary">
                             {isSaving ? "Guardando..." : "Guardar formulario"}
                         </button>
@@ -224,11 +263,23 @@ const EditorLayout = ({ className = "" }: { className?: string }) => {
                 </div>
             </div>
 
-            {/* RIGHT: Tab panel — fixed height so AITab scroll works */}
+            {/* RIGHT: Tab panel — drawer on mobile, sticky column on desktop.
+                Fixed height on desktop so AITab scroll works. */}
             <div
-                className="arbo-panel w-72 shrink-0 flex flex-col overflow-hidden self-start sticky top-0"
-                style={{ height: "calc(100vh - 80px)" }}
+                className="arbo-panel arbo-editor-side arbo-editor-side-right w-[85vw] max-w-[340px] lg:w-72 lg:max-w-none shrink-0 flex flex-col overflow-hidden self-start lg:sticky lg:top-0 lg:h-[calc(100vh-80px)]"
+                data-open={propsOpen}
             >
+                {/* Mobile-only drawer header with a close button */}
+                <div className="lg:hidden flex items-center justify-between px-3 py-2 border-b border-[var(--arbo-border)] shrink-0">
+                    <span className="text-[11px] font-bold uppercase tracking-wider arbo-text-secondary">Propiedades</span>
+                    <button
+                        onClick={() => setPropsOpen(false)}
+                        className="p-1 rounded-lg arbo-text-muted hover:arbo-text hover:bg-[var(--arbo-accent-subtle)] transition-colors"
+                        aria-label="Cerrar"
+                    >
+                        <Xmark className="size-4" />
+                    </button>
+                </div>
                 <EditorTabBar />
                 <div className={`flex-1 min-h-0 ${rightTab === "ai" ? "overflow-hidden" : "overflow-y-auto"} p-3`}>
                     {rightTab === "inputs" && <InputsTab />}
