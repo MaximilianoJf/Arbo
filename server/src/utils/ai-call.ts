@@ -162,12 +162,15 @@ export async function callAI(
         const provider = config.providers[id];
         if (!meta || !provider?.apiKey || provider.enabled === false) continue;
 
+        // Attribute usage to the real key owner: the user's own key, or the system env key.
+        const scope = provider.keySource === "user" && options.userId ? `user:${options.userId}` : "system";
+
         // Skip providers in cooldown or over their daily limit
-        if (isProviderExhausted(id)) {
+        if (await isProviderExhausted(scope, id)) {
             failures.push(`[${meta.label}] en pausa por límite alcanzado`);
             continue;
         }
-        const usage = getProviderUsage(id);
+        const usage = await getProviderUsage(scope, id);
         const limit = provider.dailyLimit ?? meta.defaultDailyLimit;
         if (limit > 0 && usage.used >= limit) {
             failures.push(`[${meta.label}] límite diario local alcanzado (${usage.used}/${limit})`);
@@ -203,7 +206,7 @@ export async function callAI(
                 tool_calls = result.tool_calls;
             }
 
-            trackProviderRequest(id, modelUsed);
+            await trackProviderRequest(scope, id, modelUsed);
             return { content, modelUsed, provider: id, tool_calls };
         } catch (e: any) {
             const msg: string = e?.message || "Error desconocido";
@@ -216,13 +219,13 @@ export async function callAI(
 
             if (providerExhausted) {
                 // Out of quota → pause this provider and fail over to the next key
-                markProviderExhausted(id, exhaustionDeadline(msg), msg);
+                await markProviderExhausted(scope, id, exhaustionDeadline(msg), msg);
                 failures.push(`[${meta.label}] sin cuota: ${msg}`);
                 continue;
             }
 
             // Bad key / network / model error → record it and still try the next provider
-            recordProviderError(id, msg);
+            await recordProviderError(scope, id, msg);
             failures.push(`[${meta.label}] ${msg}`);
             continue;
         }

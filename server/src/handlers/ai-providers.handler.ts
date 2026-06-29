@@ -3,7 +3,7 @@ import {
     AI_PROVIDERS, getAIProvidersConfig,
     buildAIProviderUpdate, buildAIProviderOrderUpdate,
 } from "../config/ai-providers";
-import { getAllProviderUsage } from "../config/ai-usage-stats";
+import { getProviderUsage, todayUTC, nextResetUTC } from "../config/ai-usage-stats";
 import { getUserByEmail } from "../repositories/user.repository";
 import { saveOpenRouterConfig } from "../config/openrouter-settings";
 
@@ -17,12 +17,14 @@ export const getAIProviders = async (req: Request, res: Response) => {
         if (!user) return res.status(401).json({ ok: false, msg: "Unauthorized" });
 
         const config = getAIProvidersConfig(user.aiProviders);
-        const usage = getAllProviderUsage();
 
-        const providers = config.order.map((id) => {
+        const providers = await Promise.all(config.order.map(async (id) => {
             const meta = AI_PROVIDERS.find((p) => p.id === id)!;
             const cfg = config.providers[id];
-            const stats = usage.providers[id] || { used: 0 };
+            // Show the consumption of whichever key applies to this user: their own
+            // key's scope, or the shared "system" scope when they use the env key.
+            const scope = cfg.keySource === "user" ? `user:${user.id}` : "system";
+            const stats = await getProviderUsage(scope, id);
             const limit = cfg.dailyLimit ?? meta.defaultDailyLimit;
             const exhausted = !!stats.exhaustedUntil && new Date(stats.exhaustedUntil).getTime() > Date.now();
             return {
@@ -33,6 +35,7 @@ export const getAIProviders = async (req: Request, res: Response) => {
                 defaultModel: meta.defaultModel,
                 hasApiKey: !!cfg.apiKey,
                 apiKeyMasked: cfg.apiKey ? maskKey(cfg.apiKey) : null,
+                keySource: cfg.keySource,
                 model: cfg.model || meta.defaultModel,
                 enabled: cfg.enabled !== false,
                 dailyLimit: limit,
@@ -46,9 +49,9 @@ export const getAIProviders = async (req: Request, res: Response) => {
                     exhaustedUntil: exhausted ? stats.exhaustedUntil : null,
                 },
             };
-        });
+        }));
 
-        return res.json({ ok: true, data: { providers, date: usage.date, resetAt: usage.resetAt } });
+        return res.json({ ok: true, data: { providers, date: todayUTC(), resetAt: nextResetUTC() } });
     } catch (err: any) {
         return res.status(500).json({ ok: false, msg: err.message });
     }

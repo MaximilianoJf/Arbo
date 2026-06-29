@@ -1,13 +1,19 @@
 /**
- * Per-provider daily usage tracking for the AI failover system.
- * Counts requests per provider per UTC day and remembers when a provider
- * got rate-limited / out of quota so the failover can skip it.
+ * Per-scope, per-provider daily usage tracking for the AI failover system.
+ *
+ * Backed by Postgres (AiUsage model) so the count survives deploys/restarts
+ * and is attributed to the real owner of the key that was used:
+ *   - scope "system"     → the platform env key
+ *   - scope "user:<id>"  → that user's own DB key
+ *
+ * A new UTC day = a new row that starts at 0, so the count resets exactly
+ * when the real provider quota renews.
  */
 
-import fs from "fs";
-import path from "path";
+import AiUsage from "../models/AiUsage.model.js";
 
-const STATS_PATH = path.resolve(process.cwd(), "data/ai-usage-stats.json");
+/** "system" for the platform key, or "user:<id>" for a user's own key. */
+export type UsageScope = string;
 
 export interface ProviderDayStats {
     used: number;
@@ -17,87 +23,79 @@ export interface ProviderDayStats {
     exhaustedUntil?: string;   // ISO timestamp — skip this provider until then
 }
 
-interface UsageFile {
-    date: string;  // "YYYY-MM-DD" UTC
-    providers: Record<string, ProviderDayStats>;
-}
-
-function todayUTC(): string {
+export function todayUTC(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-function ensureDataDir(): void {
-    const dir = path.dirname(STATS_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+/** Next midnight UTC — when the daily counters reset. */
+export function nextResetUTC(): string {
+    const tomorrow = new Date(todayUTC());
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    return tomorrow.toISOString();
 }
 
-function readStats(): UsageFile {
-    try {
-        if (fs.existsSync(STATS_PATH)) {
-            const parsed: UsageFile = JSON.parse(fs.readFileSync(STATS_PATH, "utf-8"));
-            if (parsed.date === todayUTC()) return { date: parsed.date, providers: parsed.providers || {} };
-        }
-    } catch { /* ignore */ }
-    return { date: todayUTC(), providers: {} };
+/** Find (or create) today's row for a scope+provider. */
+async function getOrCreateRow(scope: UsageScope, provider: string): Promise<AiUsage> {
+    const [row] = await AiUsage.findOrCreate({
+        where: { scope, provider, date: todayUTC() },
+        defaults: { scope, provider, date: todayUTC(), used: 0 },
+    });
+    return row;
 }
 
-function writeStats(stats: UsageFile): void {
-    ensureDataDir();
-    // Fire-and-forget async write so request handling never blocks on disk I/O.
-    fs.writeFile(STATS_PATH, JSON.stringify(stats, null, 2), "utf-8", () => {});
+function toStats(row: AiUsage | null): ProviderDayStats {
+    if (!row) return { used: 0 };
+    return {
+        used: row.used,
+        lastUsedAt: row.lastUsedAt?.toISOString(),
+        lastModel: row.lastModel ?? undefined,
+        lastError: row.lastError ?? undefined,
+        exhaustedUntil: row.exhaustedUntil?.toISOString(),
+    };
 }
 
-function getOrInit(stats: UsageFile, provider: string): ProviderDayStats {
-    if (!stats.providers[provider]) stats.providers[provider] = { used: 0 };
-    return stats.providers[provider];
-}
-
-/** Count a successful call for the provider. */
-export function trackProviderRequest(provider: string, model?: string): void {
-    const stats = readStats();
-    const p = getOrInit(stats, provider);
-    p.used += 1;
-    p.lastUsedAt = new Date().toISOString();
-    if (model) p.lastModel = model;
-    p.lastError = undefined;
-    p.exhaustedUntil = undefined;
-    writeStats(stats);
+/** Count a successful call for the provider under this scope. */
+export async function trackProviderRequest(scope: UsageScope, provider: string, model?: string): Promise<void> {
+    const row = await getOrCreateRow(scope, provider);
+    // Atomic increment so concurrent calls don't clobber each other's count.
+    await row.increment("used");
+    await row.update({
+        lastUsedAt: new Date(),
+        ...(model && { lastModel: model }),
+        lastError: null,
+        exhaustedUntil: null,
+    });
 }
 
 /** Mark a provider as exhausted (rate-limited / out of quota) until the given time. */
-export function markProviderExhausted(provider: string, until: Date, reason: string): void {
-    const stats = readStats();
-    const p = getOrInit(stats, provider);
-    p.exhaustedUntil = until.toISOString();
-    p.lastError = reason.slice(0, 300);
-    writeStats(stats);
+export async function markProviderExhausted(scope: UsageScope, provider: string, until: Date, reason: string): Promise<void> {
+    const row = await getOrCreateRow(scope, provider);
+    await row.update({ exhaustedUntil: until, lastError: reason.slice(0, 300) });
 }
 
 /** Record a non-quota failure (bad key, network) without blocking the provider. */
-export function recordProviderError(provider: string, reason: string): void {
-    const stats = readStats();
-    const p = getOrInit(stats, provider);
-    p.lastError = reason.slice(0, 300);
-    writeStats(stats);
+export async function recordProviderError(scope: UsageScope, provider: string, reason: string): Promise<void> {
+    const row = await getOrCreateRow(scope, provider);
+    await row.update({ lastError: reason.slice(0, 300) });
 }
 
-/** True when the provider is currently marked exhausted. */
-export function isProviderExhausted(provider: string): boolean {
-    const stats = readStats();
-    const until = stats.providers[provider]?.exhaustedUntil;
-    return !!until && new Date(until).getTime() > Date.now();
+/** True when the provider is currently marked exhausted for this scope. */
+export async function isProviderExhausted(scope: UsageScope, provider: string): Promise<boolean> {
+    const row = await AiUsage.findOne({ where: { scope, provider, date: todayUTC() } });
+    const until = row?.exhaustedUntil;
+    return !!until && until.getTime() > Date.now();
 }
 
-/** Today's usage for one provider. */
-export function getProviderUsage(provider: string): ProviderDayStats {
-    const stats = readStats();
-    return stats.providers[provider] || { used: 0 };
+/** Today's usage for one provider under this scope. */
+export async function getProviderUsage(scope: UsageScope, provider: string): Promise<ProviderDayStats> {
+    const row = await AiUsage.findOne({ where: { scope, provider, date: todayUTC() } });
+    return toStats(row);
 }
 
-/** Full per-provider snapshot for the consumption panel. */
-export function getAllProviderUsage(): { date: string; resetAt: string; providers: Record<string, ProviderDayStats> } {
-    const stats = readStats();
-    const tomorrow = new Date(todayUTC());
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-    return { date: stats.date, resetAt: tomorrow.toISOString(), providers: stats.providers };
+/** Today's per-provider snapshot for one scope (for the consumption panel). */
+export async function getScopeUsage(scope: UsageScope): Promise<{ date: string; resetAt: string; providers: Record<string, ProviderDayStats> }> {
+    const rows = await AiUsage.findAll({ where: { scope, date: todayUTC() } });
+    const providers: Record<string, ProviderDayStats> = {};
+    for (const row of rows) providers[row.provider] = toStats(row);
+    return { date: todayUTC(), resetAt: nextResetUTC(), providers };
 }

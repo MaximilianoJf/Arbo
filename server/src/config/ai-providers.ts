@@ -72,6 +72,8 @@ export interface AIProviderConfig {
     model?: string;
     enabled?: boolean;
     dailyLimit?: number;
+    /** Where the resolved apiKey came from: the user's own DB key or the platform env key. */
+    keySource?: "user" | "system";
 }
 
 export interface AIProvidersConfig {
@@ -120,6 +122,8 @@ export function getAIProvidersConfig(userDbProviders?: any): AIProvidersConfig {
             model,
             enabled: saved.enabled ?? true,
             dailyLimit: saved.dailyLimit ?? meta.defaultDailyLimit,
+            // The user's own key wins over env, so usage is attributed to them.
+            keySource: saved.apiKey ? "user" : "system",
         };
     }
 
